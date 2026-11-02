@@ -1,0 +1,12 @@
+.highlight-dialog { display: flex; flex-direction: column; gap: 12px; }
+.highlight-hint { margin: 0; color: var(--lb-color-text-secondary); font-size: 12px; line-height: 1.6; }
+.highlight-empty { margin: 0; padding: 12px 0; color: var(--lb-color-text-secondary); font-size: 13px; }
+.highlight-rules { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.highlight-rule { display: grid; grid-template-columns: 7.5rem 6.5rem minmax(3.5rem, 1fr) 7rem 6.5rem auto auto; gap: 6px; align-items: center; }
+.highlight-shown { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--lb-color-text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+.highlight-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.highlight-add { display: flex; align-items: center; gap: 10px; }
+@media (max-width: 640px) {
+  .highlight-rule { grid-template-columns: repeat(2, minmax(0, 1fr)) auto auto; }
+  .highlight-shown { grid-column: 1 / -1; order: 1; }
+}

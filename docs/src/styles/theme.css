@@ -1,0 +1,18 @@
+/* The primary colors of the product, from web/packages/ui/src/tokens.ts. */
+:root {
+  --sl-color-accent-low: #20265c;
+  --sl-color-accent: #5e6af2;
+  --sl-color-accent-high: #c3c8fb;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #dfe2fc;
+  --sl-color-accent: #4655e8;
+  --sl-color-accent-high: #252c7d;
+}
+
+/* Chinese breaks between any two characters, which squeezes a short first
+   column to one character per line on a phone. */
+.sl-markdown-content :is(th, td):first-child {
+  white-space: nowrap;
+}

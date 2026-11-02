@@ -1,0 +1,38 @@
+.export-form { display: grid; gap: 18px; padding: 8px 0; }
+.export-form label { display: grid; gap: 7px; font-size: 13px; }
+.export-form p { margin: 0; line-height: 1.6; }
+.export-form summary { cursor: pointer; font-size: 12px; color: var(--lb-color-text-secondary); }
+.export-sql { margin: 10px 0 0; padding: 12px; max-height: 180px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--lb-color-border); border-radius: 8px; font-size: 12px; }
+.export-center { min-height: 260px; display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
+/* The note and Refresh stay in place while the list scrolls under them. */
+.export-center-toolbar { position: sticky; top: 0; z-index: 1; margin-top: -4px; padding: 4px 0 10px; background: var(--popover); border-bottom: 1px solid var(--lb-color-border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.export-center > p { margin: 0; }
+.export-center-trigger { position: relative; }
+.export-badge { position: absolute; top: 0; right: -4px; padding: 1px 4px; min-width: 14px; border-radius: 9px; font-size: 9px; font-weight: 600; line-height: 13px; color: white; background: var(--lb-color-danger, #d94747); }
+.export-active-dot { position: absolute; top: 5px; right: 3px; width: 5px; height: 5px; background: var(--lb-color-primary); border-radius: 50%; }
+.export-item { display: flex; gap: 14px; padding: 16px 10px; border-bottom: 1px solid var(--lb-color-border); align-items: center; }
+.export-file-icon { width: 42px; min-width: 42px; height: 48px; border: 1px solid var(--lb-color-border); border-radius: 8px; display: flex; flex-direction: column; gap: 2px; justify-content: center; align-items: center; color: var(--lb-color-text-secondary); }
+.export-file-icon.xlsx { color: #2f8e68; }
+.export-file-icon small { font-size: 8px; font-weight: 650; letter-spacing: .6px; }
+.export-item-content { flex: 1; min-width: 0; }
+.export-item-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.export-item-title strong { font-size: 13px; overflow-wrap: anywhere; }
+.export-item p { margin: 5px 0 0; }
+.export-status { font-size: 11px; color: var(--lb-color-text-secondary); white-space: nowrap; }
+.export-status.succeeded { color: #2f8e68; }
+.export-status.failed, .export-status.denied, .export-item .note.danger { color: var(--lb-color-danger, #d94747); }
+.export-status.queued, .export-status.running { color: var(--lb-color-primary); }
+.export-item-actions { flex-shrink: 0; }
+.export-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 45px 20px; color: var(--lb-color-text-secondary); font-size: 13px; text-align: center; }
+.export-item.new { background: color-mix(in srgb, var(--lb-color-primary) 5%, transparent); }
+.export-new { padding: 0 6px; border-radius: 9px; font-size: 10px; line-height: 16px; color: var(--lb-color-primary); background: color-mix(in srgb, var(--lb-color-primary) 12%, transparent); }
+.export-origin { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.export-center-toolbar .note { margin: 0; }
+.export-toast { position: fixed; right: 24px; top: 62px; z-index: 100; display: flex; align-items: center; gap: 14px; max-width: min(520px, calc(100vw - 48px)); padding: 14px 16px; background: var(--lb-color-bg, var(--background)); color: var(--lb-color-text); border: 1px solid var(--lb-color-border); border-radius: 10px; box-shadow: var(--lb-shadow-md); font-size: 13px; }
+.export-toast button { background: none; border: 0; color: var(--lb-color-primary); cursor: pointer; flex-shrink: 0; }
+.export-toast span { overflow-wrap: anywhere; }
+@media (max-width: 600px) { .export-item { gap: 10px; flex-wrap: wrap; } .export-item-actions { margin-left: 52px; } }
+
+.export-download { display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: 24px; padding: 0 8px; border: 1px solid var(--lb-color-border); border-radius: 6px; background: var(--lb-color-surface); color: var(--lb-color-text); font-size: 12px; text-decoration: none; box-shadow: var(--lb-shadow-xs); }
+.export-download:hover { background: var(--accent); }
+.export-download:focus-visible { outline: 2px solid var(--lb-color-primary); outline-offset: 2px; }

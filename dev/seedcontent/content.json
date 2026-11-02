@@ -1,0 +1,828 @@
+{
+  "datasets": [
+    {
+      "name": "订单明细",
+      "description": "每行一笔订单，带大区、城市和商品。销售类图表一般只看已支付的订单。",
+      "spec": {
+        "specVersion": 1,
+        "source": {
+          "type": "sql",
+          "sql": "SELECT o.id AS order_id, o.created_at, r.name AS region, c.province, c.name AS city,\n       p.category, p.sub_category, p.name AS product,\n       o.channel, o.status, o.user_id, o.quantity, o.amount, o.cost\nFROM demo.orders o\nJOIN demo.regions r ON r.id = o.region_id\nLEFT JOIN demo.cities c ON c.id = o.city_id\nJOIN demo.products p ON p.id = o.product_id"
+        },
+        "fields": [
+          { "key": "order_id", "label": "订单号", "column": "order_id", "type": "integer", "role": "dimension" },
+          { "key": "created_at", "label": "下单时间", "column": "created_at", "type": "timestamp", "role": "dimension" },
+          { "key": "region", "label": "大区", "column": "region", "type": "string", "role": "dimension" },
+          { "key": "province", "label": "省份", "column": "province", "type": "string", "role": "dimension" },
+          { "key": "city", "label": "城市", "column": "city", "type": "string", "role": "dimension", "description": "约 2% 的订单城市未知" },
+          { "key": "category", "label": "品类", "column": "category", "type": "string", "role": "dimension" },
+          { "key": "sub_category", "label": "子品类", "column": "sub_category", "type": "string", "role": "dimension" },
+          { "key": "product", "label": "商品", "column": "product", "type": "string", "role": "dimension" },
+          { "key": "channel", "label": "渠道", "column": "channel", "type": "string", "role": "dimension" },
+          { "key": "status", "label": "订单状态", "column": "status", "type": "string", "role": "dimension" },
+          { "key": "user_id", "label": "用户", "column": "user_id", "type": "string", "role": "dimension" },
+          { "key": "weekday", "label": "星期", "expr": "WEEKDAY(${created_at})", "syntax": "standard", "type": "integer", "role": "dimension", "description": "周一为 1，周日为 7" },
+          { "key": "hour", "label": "下单小时", "expr": "HOUR(${created_at})", "syntax": "standard", "type": "integer", "role": "dimension" },
+          { "key": "quantity", "label": "件数", "column": "quantity", "type": "integer", "role": "measure" },
+          { "key": "amount", "label": "销售额", "column": "amount", "type": "decimal", "role": "measure", "format": { "prefix": "¥", "decimals": 2 } },
+          { "key": "cost", "label": "成本", "column": "cost", "type": "decimal", "role": "measure", "description": "约 1% 的订单成本尚未入账", "format": { "prefix": "¥", "decimals": 2 } },
+          { "key": "profit", "label": "毛利", "expr": "${amount} - ${cost}", "syntax": "standard", "type": "decimal", "role": "measure", "format": { "prefix": "¥", "decimals": 2 } },
+          { "key": "aov", "label": "客单价", "expr": "SUM(${amount}) / COUNT(${order_id})", "syntax": "standard", "type": "decimal", "role": "metric", "format": { "prefix": "¥", "decimals": 2 } },
+          { "key": "margin_rate", "label": "毛利率", "expr": "SUM(${profit}) / SUM(${amount})", "syntax": "standard", "type": "decimal", "role": "metric", "format": { "style": "percent", "decimals": 1 } }
+        ]
+      }
+    },
+    {
+      "name": "每日流量",
+      "description": "app 和 web 每天的访问和转化，直接选表。",
+      "spec": {
+        "specVersion": 1,
+        "source": { "type": "table", "schema": "demo", "table": "daily_traffic" },
+        "fields": [
+          { "key": "stat_date", "label": "日期", "column": "stat_date", "type": "date", "role": "dimension" },
+          { "key": "channel", "label": "渠道", "column": "channel", "type": "string", "role": "dimension" },
+          { "key": "visits", "label": "访问次数", "column": "visits", "type": "integer", "role": "measure" },
+          { "key": "product_views", "label": "商品浏览次数", "column": "product_views", "type": "integer", "role": "measure" },
+          { "key": "cart_adds", "label": "加购次数", "column": "cart_adds", "type": "integer", "role": "measure" },
+          { "key": "orders_placed", "label": "下单数", "column": "orders_placed", "type": "integer", "role": "measure" },
+          { "key": "conversion", "label": "转化率", "expr": "SUM(${orders_placed}) / SUM(${visits})", "syntax": "standard", "type": "decimal", "role": "metric", "format": { "style": "percent", "decimals": 2 } }
+        ]
+      }
+    },
+    {
+      "name": "转化漏斗",
+      "description": "每日流量按环节展开成行，供漏斗图使用。",
+      "spec": {
+        "specVersion": 1,
+        "source": {
+          "type": "sql",
+          "sql": "SELECT stat_date, channel, '访问' AS stage, visits AS times FROM demo.daily_traffic\nUNION ALL SELECT stat_date, channel, '商品浏览', product_views FROM demo.daily_traffic\nUNION ALL SELECT stat_date, channel, '加入购物车', cart_adds FROM demo.daily_traffic\nUNION ALL SELECT stat_date, channel, '下单', orders_placed FROM demo.daily_traffic"
+        },
+        "fields": [
+          { "key": "stat_date", "label": "日期", "column": "stat_date", "type": "date", "role": "dimension" },
+          { "key": "channel", "label": "渠道", "column": "channel", "type": "string", "role": "dimension" },
+          { "key": "stage", "label": "环节", "column": "stage", "type": "string", "role": "dimension" },
+          { "key": "times", "label": "次数", "column": "times", "type": "integer", "role": "measure" }
+        ]
+      }
+    },
+    {
+      "name": "目标达成",
+      "description": "每月每个大区的销售目标，与已支付订单的金额对照。",
+      "spec": {
+        "specVersion": 1,
+        "source": {
+          "type": "sql",
+          "sql": "SELECT t.month_start, r.name AS region, t.target_amount, COALESCE(a.paid_amount, 0) AS paid_amount\nFROM demo.monthly_targets t\nJOIN demo.regions r ON r.id = t.region_id\nLEFT JOIN (\n    SELECT date_trunc('month', created_at)::date AS month_start, region_id, sum(amount) AS paid_amount\n    FROM demo.orders WHERE status = 'paid' GROUP BY 1, 2\n) a ON a.month_start = t.month_start AND a.region_id = t.region_id"
+        },
+        "fields": [
+          { "key": "month_start", "label": "月份", "column": "month_start", "type": "date", "role": "dimension" },
+          { "key": "region", "label": "大区", "column": "region", "type": "string", "role": "dimension" },
+          { "key": "target", "label": "销售目标", "column": "target_amount", "type": "decimal", "role": "measure", "format": { "prefix": "¥", "decimals": 2 } },
+          { "key": "actual", "label": "实际销售额", "column": "paid_amount", "type": "decimal", "role": "measure", "format": { "prefix": "¥", "decimals": 2 } },
+          { "key": "achievement", "label": "达成率", "expr": "SUM(${actual}) / SUM(${target})", "syntax": "standard", "type": "decimal", "role": "metric", "format": { "style": "percent", "decimals": 1 } }
+        ]
+      }
+    },
+    {
+      "name": "用户最近一单",
+      "description": "截至某一天，每个用户的最近一笔订单，和它离那一天有多少天。条件要在窗口函数之前生效，截至日还要参与计算，所以这里用参数而不是筛选器。",
+      "spec": {
+        "specVersion": 1,
+        "source": {
+          "type": "sql",
+          "sql": "SELECT user_id, region, channel, amount, last_order_day, {{as_of}}::date - last_order_day AS days_since\nFROM (\n  SELECT o.user_id, r.name AS region, o.channel, o.amount, o.created_at::date AS last_order_day,\n         row_number() OVER (PARTITION BY o.user_id ORDER BY o.created_at DESC, o.id DESC) AS rn\n  FROM demo.orders o\n  JOIN demo.regions r ON r.id = o.region_id\n  WHERE o.created_at::date <= {{as_of}}\n  [[ AND o.channel IN {{channels}} ]]\n) t\nWHERE rn = 1"
+        },
+        "params": [
+          { "name": "as_of", "type": "date", "label": "截至日", "required": true, "default": { "relative": "today-1d" } },
+          { "name": "channels", "type": "string", "label": "渠道", "multi": true }
+        ],
+        "fields": [
+          { "key": "user_id", "label": "用户", "column": "user_id", "type": "string", "role": "dimension" },
+          { "key": "region", "label": "大区", "column": "region", "type": "string", "role": "dimension" },
+          { "key": "channel", "label": "最近一单的渠道", "column": "channel", "type": "string", "role": "dimension" },
+          { "key": "last_order_day", "label": "最近下单日", "column": "last_order_day", "type": "date", "role": "dimension" },
+          { "key": "days_since", "label": "距截至日天数", "column": "days_since", "type": "integer", "role": "dimension" },
+          { "key": "amount", "label": "最近一单金额", "column": "amount", "type": "decimal", "role": "measure", "format": { "prefix": "¥", "decimals": 2 } }
+        ]
+      }
+    }
+  ],
+
+  "charts": [
+    {
+      "name": "核心指标",
+      "description": "近 30 天的已支付订单；销售额和订单数与去年同期对比。放在仪表盘上时，时间由仪表盘的筛选器决定。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "measures": [
+            { "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" },
+            { "field": "amount", "agg": "sum", "alias": "sales_ly", "label": "去年同期销售额", "compute": { "type": "compare", "timeField": "created_at", "offset": { "n": 1, "unit": "year" }, "output": "value" } },
+            { "field": "order_id", "agg": "count", "alias": "orders", "label": "订单数" },
+            { "field": "order_id", "agg": "count", "alias": "orders_ly", "label": "去年同期订单数", "compute": { "type": "compare", "timeField": "created_at", "offset": { "n": 1, "unit": "year" }, "output": "value" } },
+            { "field": "user_id", "agg": "count_distinct", "alias": "buyers", "label": "下单用户数" },
+            { "field": "aov", "alias": "aov" },
+            { "field": "margin_rate", "alias": "margin" }
+          ]
+        },
+        "filters": [
+          { "id": "period", "field": "created_at", "op": "time", "value": { "last": { "n": 30, "unit": "day" } } },
+          { "id": "paid", "field": "status", "op": "in", "value": ["paid"] }
+        ],
+        "viz": {
+          "type": "kpi",
+          "y": ["sales", "sales_ly", "orders", "orders_ly", "buyers", "aov", "margin"],
+          "compare": { "sales": "sales_ly", "orders": "orders_ly" },
+          "formats": {
+            "sales": { "prefix": "¥", "unit": "wan", "decimals": 1 },
+            "sales_ly": { "prefix": "¥", "unit": "wan", "decimals": 1 }
+          },
+          "style": { "compareAs": "both" }
+        }
+      }
+    },
+    {
+      "name": "月度销售额与同比",
+      "description": "近 12 个月；同比增长画成折线，用右轴。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "created_at", "grain": "month", "label": "月份" }],
+          "measures": [
+            { "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" },
+            { "field": "amount", "agg": "sum", "alias": "yoy", "label": "同比增长", "compute": { "type": "compare", "timeField": "created_at", "offset": { "n": 1, "unit": "year" }, "output": "ratio" } }
+          ],
+          "sort": [{ "by": "created_at" }]
+        },
+        "filters": [
+          { "id": "range", "field": "created_at", "op": "time", "value": { "last": { "n": 12, "unit": "month" }, "includeCurrent": true } },
+          { "id": "paid", "field": "status", "op": "in", "value": ["paid"] }
+        ],
+        "viz": {
+          "type": "combo", "x": "created_at", "y": ["sales", "yoy"], "lines": ["yoy"], "rightAxis": ["yoy"],
+          "formats": { "yoy": { "style": "percent", "decimals": 1 } }
+        }
+      }
+    },
+    {
+      "name": "每日销售额",
+      "description": "默认近一年，可以看到 618、双 11 和双 12；日期范围可以在图表上改。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "created_at", "grain": "day", "label": "日期" }],
+          "measures": [{ "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" }],
+          "sort": [{ "by": "created_at" }]
+        },
+        "filters": [
+          { "id": "range", "field": "created_at", "op": "time", "label": "日期范围", "control": { "type": "relative" }, "value": { "last": { "n": 365, "unit": "day" } } },
+          { "id": "paid", "field": "status", "op": "in", "value": ["paid"] }
+        ],
+        "viz": { "type": "line", "x": "created_at", "y": ["sales"] }
+      }
+    },
+    {
+      "name": "本年累计销售额",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "created_at", "grain": "day", "label": "日期" }],
+          "measures": [{ "field": "amount", "agg": "sum", "alias": "total", "label": "累计销售额", "compute": { "type": "cumulative", "along": "created_at" } }],
+          "sort": [{ "by": "created_at" }]
+        },
+        "filters": [
+          { "id": "range", "field": "created_at", "op": "time", "value": { "current": "year" } },
+          { "id": "paid", "field": "status", "op": "in", "value": ["paid"] }
+        ],
+        "viz": { "type": "area", "x": "created_at", "y": ["total"] }
+      }
+    },
+    {
+      "name": "各大区销售额",
+      "description": "按渠道堆叠。在仪表盘上点击柱子，会筛选同页的其他图表。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "region" }, { "field": "channel" }],
+          "measures": [{ "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" }],
+          "sort": [{ "by": "region" }]
+        },
+        "filters": [{ "id": "paid", "field": "status", "op": "in", "value": ["paid"] }],
+        "viz": { "type": "bar", "x": "region", "series": "channel", "y": ["sales"], "stacked": true }
+      }
+    },
+    {
+      "name": "城市销售额前十",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "city" }],
+          "measures": [{ "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" }],
+          "sort": [{ "by": "sales", "desc": true }],
+          "limit": 10
+        },
+        "filters": [
+          { "id": "paid", "field": "status", "op": "in", "value": ["paid"] },
+          { "id": "known", "field": "city", "op": "not_null" }
+        ],
+        "viz": { "type": "hbar", "x": "city", "y": ["sales"], "style": { "labels": "value" } }
+      }
+    },
+    {
+      "name": "渠道销售占比",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "channel" }],
+          "measures": [{ "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" }]
+        },
+        "filters": [{ "id": "paid", "field": "status", "op": "in", "value": ["paid"] }],
+        "viz": { "type": "pie", "x": "channel", "y": ["sales"] }
+      }
+    },
+    {
+      "name": "品类结构",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "category" }, { "field": "sub_category" }],
+          "measures": [{ "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" }]
+        },
+        "filters": [{ "id": "paid", "field": "status", "op": "in", "value": ["paid"] }],
+        "viz": { "type": "treemap", "x": "sub_category", "series": "category", "y": ["sales"] }
+      }
+    },
+    {
+      "name": "商品件数与毛利率",
+      "description": "每个点是一种商品，点的大小是销售额；有两种商品亏本卖。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "product" }, { "field": "category" }],
+          "measures": [
+            { "field": "quantity", "agg": "sum", "alias": "quantity", "label": "件数" },
+            { "field": "margin_rate", "alias": "margin" },
+            { "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" }
+          ]
+        },
+        "filters": [{ "id": "paid", "field": "status", "op": "in", "value": ["paid"] }],
+        "viz": { "type": "scatter", "x": "product", "series": "category", "y": ["quantity", "margin", "sales"] }
+      }
+    },
+    {
+      "name": "下单时段",
+      "description": "星期与小时的订单数。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "hour" }, { "field": "weekday" }],
+          "measures": [{ "field": "order_id", "agg": "count", "alias": "orders", "label": "订单数" }],
+          "sort": [{ "by": "weekday" }, { "by": "hour" }]
+        },
+        "viz": { "type": "heatmap", "rows": ["weekday"], "columns": ["hour"], "y": ["orders"] }
+      }
+    },
+    {
+      "name": "最新订单",
+      "description": "最近 200 笔订单；毛利为负的标红。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "mode": "detail",
+          "columns": ["order_id", "created_at", "region", "city", "product", "channel", "status", "amount", "profit"],
+          "sort": [{ "by": "created_at", "desc": true }],
+          "limit": 200
+        },
+        "viz": {
+          "type": "table",
+          "style": {
+            "striped": true, "paging": "pages", "pageSize": 20,
+            "highlights": { "profit": [{ "op": "lt", "value": 0, "color": "red", "icon": "down" }] }
+          }
+        },
+        "allowExport": true
+      }
+    },
+    {
+      "name": "大区与品类",
+      "description": "透视表；占比是占全部销售额的比例，毛利率按高低着色。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "region" }, { "field": "category" }],
+          "measures": [
+            { "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" },
+            { "field": "amount", "agg": "sum", "alias": "share", "label": "占比", "compute": { "type": "percent_of_total" } },
+            { "field": "margin_rate", "alias": "margin" }
+          ]
+        },
+        "filters": [{ "id": "paid", "field": "status", "op": "in", "value": ["paid"] }],
+        "viz": {
+          "type": "pivot", "rows": ["region"], "columns": ["category"], "y": ["sales", "share", "margin"],
+          "formats": { "share": { "style": "percent", "decimals": 1 } },
+          "style": {
+            "highlights": {
+              "margin": [
+                { "op": "lt", "value": 0.3, "color": "red", "icon": "down" },
+                { "op": "gte", "value": 0.45, "color": "green", "icon": "up" }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "订单流向",
+      "description": "大区、渠道到订单状态的订单数，包括退款和取消。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "region" }, { "field": "channel" }, { "field": "status" }],
+          "measures": [{ "field": "order_id", "agg": "count", "alias": "orders", "label": "订单数" }],
+          "totals": [["region", "channel"], ["channel", "status"]]
+        },
+        "viz": { "type": "sankey", "levels": ["region", "channel", "status"], "y": ["orders"] }
+      }
+    },
+    {
+      "name": "线上转化漏斗",
+      "description": "近 30 天，app 和 web 合计。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/转化漏斗",
+          "dimensions": [{ "field": "stage" }],
+          "measures": [{ "field": "times", "agg": "sum", "alias": "times", "label": "次数" }],
+          "sort": [{ "by": "times", "desc": true }]
+        },
+        "filters": [{ "id": "range", "field": "stat_date", "op": "time", "value": { "last": { "n": 30, "unit": "day" } } }],
+        "viz": { "type": "funnel", "x": "stage", "y": ["times"] }
+      }
+    },
+    {
+      "name": "每日访问与转化率",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/每日流量",
+          "dimensions": [{ "field": "stat_date", "grain": "day", "label": "日期" }],
+          "measures": [
+            { "field": "visits", "agg": "sum", "alias": "visits", "label": "访问次数" },
+            { "field": "conversion", "alias": "conversion" }
+          ],
+          "sort": [{ "by": "stat_date" }]
+        },
+        "filters": [{ "id": "range", "field": "stat_date", "op": "time", "value": { "last": { "n": 60, "unit": "day" } } }],
+        "viz": { "type": "combo", "x": "stat_date", "y": ["visits", "conversion"], "lines": ["conversion"], "rightAxis": ["conversion"], "style": { "y2Axis": { "min": 0, "max": 0.06 } } }
+      }
+    },
+    {
+      "name": "本月目标达成率",
+      "description": "本月截至昨天的销售额与全月目标之比。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/目标达成",
+          "measures": [{ "field": "achievement", "alias": "achievement" }]
+        },
+        "filters": [{ "id": "month", "field": "month_start", "op": "time", "value": { "current": "month" } }],
+        "viz": { "type": "gauge", "y": ["achievement"], "style": { "gauge": { "min": 0, "max": 1.2 } } }
+      }
+    },
+    {
+      "name": "月度实际与目标",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/目标达成",
+          "dimensions": [{ "field": "month_start", "grain": "month", "label": "月份" }],
+          "measures": [
+            { "field": "actual", "agg": "sum", "alias": "actual", "label": "实际销售额" },
+            { "field": "target", "agg": "sum", "alias": "target", "label": "销售目标" }
+          ],
+          "sort": [{ "by": "month_start" }]
+        },
+        "filters": [{ "id": "range", "field": "month_start", "op": "time", "value": { "last": { "n": 12, "unit": "month" }, "includeCurrent": true } }],
+        "viz": { "type": "bar", "x": "month_start", "y": ["actual", "target"] }
+      }
+    },
+    {
+      "name": "大区下钻到城市",
+      "description": "可以下钻：大区 → 省份 → 城市。省份为空的订单显示为「空值」，也能往下点。在「下钻」仪表盘上它也是联动的来源。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "region" }],
+          "measures": [{ "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" }],
+          "sort": [{ "by": "sales", "desc": true }]
+        },
+        "filters": [{ "id": "paid", "field": "status", "op": "in", "value": ["paid"] }],
+        "viz": { "type": "bar", "x": "region", "y": ["sales"] },
+        "drill": {
+          "alias": "region",
+          "levels": [{ "field": "province", "label": "省份" }, { "field": "city", "label": "城市" }]
+        }
+      }
+    },
+    {
+      "name": "省份下钻到城市",
+      "description": "可以下钻：省份 → 城市。省份多于 8 个，合并出的「其他」不能点。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "province" }],
+          "measures": [{ "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" }]
+        },
+        "filters": [{ "id": "paid", "field": "status", "op": "in", "value": ["paid"] }],
+        "viz": { "type": "pie", "x": "province", "y": ["sales"] },
+        "drill": { "alias": "province", "levels": [{ "field": "city", "label": "城市" }] }
+      }
+    },
+    {
+      "name": "按年下钻到日",
+      "description": "可以下钻：年 → 季度 → 月 → 日。日期用中文写法，下钻后写法不变。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "created_at", "grain": "year", "label": "年份" }],
+          "measures": [{ "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" }],
+          "sort": [{ "by": "created_at" }]
+        },
+        "filters": [{ "id": "paid", "field": "status", "op": "in", "value": ["paid"] }],
+        "viz": { "type": "line", "x": "created_at", "y": ["sales"], "formats": { "created_at": { "date": "chinese" } } },
+        "drill": {
+          "alias": "created_at",
+          "levels": [
+            { "field": "created_at", "grain": "quarter", "label": "下单时间 · 季度" },
+            { "field": "created_at", "grain": "month", "label": "下单时间 · 月" },
+            { "field": "created_at", "grain": "day", "label": "下单时间 · 日" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "渠道下钻到大区和月份",
+      "description": "每层换一个字段：渠道 → 大区 → 下单月份。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "channel" }],
+          "measures": [{ "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" }],
+          "sort": [{ "by": "sales", "desc": true }]
+        },
+        "filters": [{ "id": "paid", "field": "status", "op": "in", "value": ["paid"] }],
+        "viz": { "type": "hbar", "x": "channel", "y": ["sales"] },
+        "drill": {
+          "alias": "channel",
+          "levels": [{ "field": "region", "label": "大区" }, { "field": "created_at", "grain": "month", "label": "下单时间 · 月" }]
+        }
+      }
+    },
+    {
+      "name": "各渠道月度销售额",
+      "description": "近 6 个月，按渠道堆叠。下钻只换横轴：月 → 日，渠道的序列不变。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "created_at", "grain": "month", "label": "月份" }, { "field": "channel" }],
+          "measures": [{ "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" }],
+          "sort": [{ "by": "created_at" }]
+        },
+        "filters": [
+          { "id": "range", "field": "created_at", "op": "time", "value": { "last": { "n": 6, "unit": "month" }, "includeCurrent": true } },
+          { "id": "paid", "field": "status", "op": "in", "value": ["paid"] }
+        ],
+        "viz": { "type": "area", "x": "created_at", "series": "channel", "y": ["sales"], "stacked": true },
+        "drill": { "alias": "created_at", "levels": [{ "field": "created_at", "grain": "day", "label": "下单时间 · 日" }] }
+      }
+    },
+    {
+      "name": "月度销售额与环比",
+      "description": "近 12 个月；环比画成折线，用右轴。下钻到日后，环比是和上个月的同一天比。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "created_at", "grain": "month", "label": "月份" }],
+          "measures": [
+            { "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" },
+            { "field": "amount", "agg": "sum", "alias": "mom", "label": "环比增长", "compute": { "type": "compare", "timeField": "created_at", "offset": { "n": 1, "unit": "month" }, "output": "ratio" } }
+          ],
+          "sort": [{ "by": "created_at" }]
+        },
+        "filters": [
+          { "id": "range", "field": "created_at", "op": "time", "value": { "last": { "n": 12, "unit": "month" }, "includeCurrent": true } },
+          { "id": "paid", "field": "status", "op": "in", "value": ["paid"] }
+        ],
+        "viz": { "type": "combo", "x": "created_at", "y": ["sales", "mom"], "lines": ["mom"], "rightAxis": ["mom"], "formats": { "mom": { "style": "percent", "decimals": 1 } } },
+        "drill": { "alias": "created_at", "levels": [{ "field": "created_at", "grain": "day", "label": "下单时间 · 日" }] }
+      }
+    },
+    {
+      "name": "品类与渠道明细",
+      "description": "表格里只有品类列能下钻：品类 → 子品类 → 商品，渠道列不变；底部是全部数据的合计。在「下钻」仪表盘上，渠道列是联动的来源。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/订单明细",
+          "dimensions": [{ "field": "category" }, { "field": "channel" }],
+          "measures": [
+            { "field": "amount", "agg": "sum", "alias": "sales", "label": "销售额" },
+            { "field": "quantity", "agg": "sum", "alias": "quantity", "label": "件数" },
+            { "field": "profit", "agg": "sum", "alias": "profit", "label": "毛利" }
+          ],
+          "sort": [{ "by": "category" }, { "by": "sales", "desc": true }],
+          "totals": [[]]
+        },
+        "filters": [{ "id": "paid", "field": "status", "op": "in", "value": ["paid"] }],
+        "viz": { "type": "table", "style": { "striped": true } },
+        "allowExport": true,
+        "drill": {
+          "alias": "category",
+          "levels": [{ "field": "sub_category", "label": "子品类" }, { "field": "product", "label": "商品" }]
+        }
+      }
+    },
+    {
+      "name": "沉睡用户",
+      "description": "截至某天、已经至少多少天没下单的用户，按大区分。截至日和渠道是数据集的参数，沉睡天数是普通的筛选器。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/用户最近一单",
+          "dimensions": [{ "field": "region" }],
+          "measures": [{ "field": "user_id", "agg": "count_distinct", "alias": "users", "label": "沉睡用户数" }]
+        },
+        "filters": [
+          { "id": "p_as_of", "param": "as_of", "label": "截至日", "control": { "type": "input" } },
+          { "id": "p_channels", "param": "channels", "label": "渠道", "control": { "type": "select" }, "options": ["app", "web", "store"] },
+          { "id": "idle", "field": "days_since", "op": "gte", "value": 30, "label": "沉睡天数 ≥", "control": { "type": "number" } }
+        ],
+        "viz": { "type": "bar", "x": "region", "y": ["users"] }
+      }
+    },
+    {
+      "name": "30 天前的沉睡用户",
+      "description": "截至日固定为 30 天前，查看者看不到也改不了；放在仪表盘上不受别的参数影响。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/用户最近一单",
+          "measures": [{ "field": "user_id", "agg": "count_distinct", "alias": "users", "label": "沉睡用户数" }]
+        },
+        "filters": [
+          { "id": "p_as_of", "param": "as_of", "value": { "relative": "today-30d" } },
+          { "id": "idle", "field": "days_since", "op": "gte", "value": 30 }
+        ],
+        "viz": { "type": "kpi", "y": ["users"] }
+      }
+    },
+    {
+      "name": "用户最近一单",
+      "description": "截至日从下拉里选：昨天（数据集的默认值）、7 天前或 30 天前；渠道默认只看 app 和 web。",
+      "spec": {
+        "specVersion": 1,
+        "query": {
+          "version": 1,
+          "dataset": "@dataset/用户最近一单",
+          "mode": "detail",
+          "columns": ["user_id", "region", "channel", "last_order_day", "days_since", "amount"],
+          "sort": [{ "by": "days_since", "desc": true }],
+          "limit": 200
+        },
+        "filters": [
+          { "id": "p_as_of", "param": "as_of", "label": "截至日", "control": { "type": "select" }, "options": [{ "relative": "today-1d" }, { "relative": "today-7d" }, { "relative": "today-30d" }] },
+          { "id": "p_channels", "param": "channels", "value": ["app", "web"], "label": "渠道", "control": { "type": "select" }, "options": ["app", "web", "store"] }
+        ],
+        "viz": { "type": "table", "style": { "striped": true, "paging": "pages", "pageSize": 20 } },
+        "allowExport": true
+      }
+    }
+  ],
+
+  "dashboards": [
+    {
+      "name": "销售总览",
+      "description": "筛选器有级联（大区 → 省份 → 城市），点击「各大区销售额」的柱子会筛选同页的其他图表。",
+      "spec": {
+        "specVersion": 1,
+        "layout": {
+          "columns": 96,
+          "items": [
+            { "id": "title", "type": "title", "title": "销售总览", "subtitle": "示例数据：近 18 个月的订单，截至昨天", "x": 0, "y": 0, "w": 96, "h": 8 },
+            { "id": "kpi", "type": "chart", "chartId": "@chart/核心指标", "x": 0, "y": 8, "w": 96, "h": 20 },
+            { "id": "monthly", "type": "chart", "chartId": "@chart/月度销售额与同比", "x": 0, "y": 28, "w": 64, "h": 40 },
+            { "id": "channel", "type": "chart", "chartId": "@chart/渠道销售占比", "x": 64, "y": 28, "w": 32, "h": 40 },
+            { "id": "region", "type": "chart", "chartId": "@chart/各大区销售额", "note": "点击柱子筛选同页的其他图表", "x": 0, "y": 68, "w": 48, "h": 40 },
+            { "id": "city", "type": "chart", "chartId": "@chart/城市销售额前十", "x": 48, "y": 68, "w": 48, "h": 40 },
+            { "id": "pivot", "type": "chart", "chartId": "@chart/大区与品类", "x": 0, "y": 108, "w": 96, "h": 48 },
+            { "id": "orders", "type": "chart", "chartId": "@chart/最新订单", "x": 0, "y": 156, "w": 96, "h": 72 }
+          ]
+        },
+        "filters": [
+          {
+            "id": "when", "label": "下单时间", "op": "time", "control": { "type": "relative" },
+            "default": { "last": { "n": 90, "unit": "day" } },
+            "targets": [
+              { "item": "kpi", "field": "created_at" }, { "item": "channel", "field": "created_at" }, { "item": "region", "field": "created_at" },
+              { "item": "city", "field": "created_at" }, { "item": "pivot", "field": "created_at" }, { "item": "orders", "field": "created_at" }
+            ]
+          },
+          {
+            "id": "region_f", "label": "大区", "op": "in", "control": { "type": "select", "multi": true },
+            "targets": [
+              { "item": "kpi", "field": "region" }, { "item": "monthly", "field": "region" }, { "item": "channel", "field": "region" }, { "item": "region", "field": "region" },
+              { "item": "city", "field": "region" }, { "item": "pivot", "field": "region" }, { "item": "orders", "field": "region" }
+            ]
+          },
+          {
+            "id": "province_f", "label": "省份", "op": "in", "control": { "type": "select", "multi": true }, "dependsOn": ["region_f"],
+            "targets": [
+              { "item": "kpi", "field": "province" }, { "item": "monthly", "field": "province" }, { "item": "channel", "field": "province" }, { "item": "region", "field": "province" },
+              { "item": "city", "field": "province" }, { "item": "pivot", "field": "province" }, { "item": "orders", "field": "province" }
+            ]
+          },
+          {
+            "id": "city_f", "label": "城市", "op": "in", "control": { "type": "search_select", "multi": true }, "dependsOn": ["province_f"],
+            "targets": [
+              { "item": "kpi", "field": "city" }, { "item": "monthly", "field": "city" }, { "item": "channel", "field": "city" }, { "item": "region", "field": "city" },
+              { "item": "city", "field": "city" }, { "item": "pivot", "field": "city" }, { "item": "orders", "field": "city" }
+            ]
+          },
+          {
+            "id": "status_f", "label": "订单状态", "op": "in", "control": { "type": "tiles", "multi": true }, "default": ["paid"],
+            "targets": [
+              { "item": "kpi", "field": "status" }, { "item": "monthly", "field": "status" }, { "item": "channel", "field": "status" }, { "item": "region", "field": "status" },
+              { "item": "city", "field": "status" }, { "item": "pivot", "field": "status" }, { "item": "orders", "field": "status" }
+            ]
+          }
+        ],
+        "links": [
+          {
+            "id": "by_region", "label": "按大区筛选", "source": { "item": "region", "column": "region" },
+            "targets": [{ "item": "channel", "field": "region" }, { "item": "city", "field": "region" }, { "item": "pivot", "field": "region" }, { "item": "orders", "field": "region" }]
+          }
+        ]
+      }
+    },
+    {
+      "name": "商品、渠道与目标",
+      "description": "目标达成、线上转化、商品结构和下单时段；「渠道」筛选器跨三个数据集。",
+      "spec": {
+        "specVersion": 1,
+        "layout": {
+          "columns": 96,
+          "items": [
+            { "id": "title", "type": "title", "title": "商品、渠道与目标", "subtitle": "示例数据：近 18 个月，截至昨天", "x": 0, "y": 0, "w": 96, "h": 8 },
+            { "id": "gauge", "type": "chart", "chartId": "@chart/本月目标达成率", "x": 0, "y": 8, "w": 32, "h": 40 },
+            { "id": "targets", "type": "chart", "chartId": "@chart/月度实际与目标", "x": 32, "y": 8, "w": 64, "h": 40 },
+            { "id": "funnel", "type": "chart", "chartId": "@chart/线上转化漏斗", "x": 0, "y": 48, "w": 32, "h": 40 },
+            { "id": "traffic", "type": "chart", "chartId": "@chart/每日访问与转化率", "x": 32, "y": 48, "w": 64, "h": 40 },
+            {
+              "id": "products", "type": "tabs", "x": 0, "y": 88, "w": 48, "h": 48,
+              "tabs": [
+                { "id": "treemap", "chartId": "@chart/品类结构", "title": "品类结构" },
+                { "id": "scatter", "chartId": "@chart/商品件数与毛利率", "title": "件数与毛利率" }
+              ]
+            },
+            { "id": "sankey", "type": "chart", "chartId": "@chart/订单流向", "x": 48, "y": 88, "w": 48, "h": 48 },
+            { "id": "heatmap", "type": "chart", "chartId": "@chart/下单时段", "x": 0, "y": 136, "w": 48, "h": 40 },
+            { "id": "daily", "type": "chart", "chartId": "@chart/每日销售额", "x": 48, "y": 136, "w": 48, "h": 40 },
+            { "id": "cumulative", "type": "chart", "chartId": "@chart/本年累计销售额", "x": 0, "y": 176, "w": 96, "h": 36 },
+            { "id": "about", "type": "text", "markdown": "这些内容由 `make dev-seed-content` 生成，数据来自 `make dev-seed` 写入 Postgres 的 `demo` schema。名称以「示例 · 」开头的内容重新运行时会被删除重建，修改请另存一份。", "x": 0, "y": 212, "w": 96, "h": 10 }
+          ]
+        },
+        "filters": [
+          {
+            "id": "channel_f", "label": "渠道", "op": "in", "control": { "type": "select", "multi": true },
+            "targets": [
+              { "item": "funnel", "field": "channel" }, { "item": "traffic", "field": "channel" }, { "item": "treemap", "field": "channel" },
+              { "item": "scatter", "field": "channel" }, { "item": "heatmap", "field": "channel" }, { "item": "daily", "field": "channel" },
+              { "item": "cumulative", "field": "channel" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "下钻",
+      "description": "测试下钻用：每张图都能下钻，「大区下钻到城市」和「品类与渠道明细」也是联动的来源。",
+      "spec": {
+        "specVersion": 1,
+        "layout": {
+          "columns": 96,
+          "items": [
+            { "id": "title", "type": "title", "title": "下钻", "subtitle": "点击图上的值，在菜单里选下钻或图表联动", "x": 0, "y": 0, "w": 96, "h": 8 },
+            { "id": "about", "type": "text", "markdown": "这个仪表盘用来测试下钻（设计见 `.agents/design/chart-dashboard.md` 2.10 节）。每张图都能下钻：点击图上的值会弹出菜单，选「下钻到…」看下一层；图表上方的「下钻层级」用来返回。\n\n- 「大区下钻到城市」也是联动的来源：菜单里同时有下钻和「图表联动」；下钻后这一列不再联动。省份为空的订单显示为「空值」，也能往下点。\n- 「省份下钻到城市」：合并出的「其他」不能点。\n- 「按年下钻到日」：日期用中文写法，下钻后写法不变。\n- 「渠道下钻到大区和月份」：每层换一个字段。\n- 「各渠道月度销售额」：只换横轴的月份，渠道的序列不变。\n- 「月度销售额与环比」：下钻到日后，环比是和上个月的同一天比。\n- 「品类与渠道明细」：只有品类列能下钻；渠道列是联动的来源，下钻或返回会清掉它发出的联动。\n\n改了上面的筛选，下钻位置保留；查询容器的「重置筛选条件」回到第一层。导出的是当前这一层的数据。", "x": 0, "y": 8, "w": 96, "h": 36 },
+            { "id": "region", "type": "chart", "chartId": "@chart/大区下钻到城市", "note": "菜单里有下钻和图表联动", "x": 0, "y": 44, "w": 48, "h": 40 },
+            { "id": "province", "type": "chart", "chartId": "@chart/省份下钻到城市", "x": 48, "y": 44, "w": 48, "h": 40 },
+            { "id": "period", "type": "chart", "chartId": "@chart/按年下钻到日", "x": 0, "y": 84, "w": 64, "h": 40 },
+            { "id": "channel", "type": "chart", "chartId": "@chart/渠道下钻到大区和月份", "x": 64, "y": 84, "w": 32, "h": 40 },
+            { "id": "monthly", "type": "chart", "chartId": "@chart/各渠道月度销售额", "x": 0, "y": 124, "w": 48, "h": 40 },
+            { "id": "mom", "type": "chart", "chartId": "@chart/月度销售额与环比", "x": 48, "y": 124, "w": 48, "h": 40 },
+            { "id": "table", "type": "chart", "chartId": "@chart/品类与渠道明细", "note": "渠道列是联动的来源", "x": 0, "y": 164, "w": 96, "h": 56 }
+          ]
+        },
+        "filters": [
+          {
+            "id": "region_f", "label": "大区", "op": "in", "control": { "type": "select", "multi": true },
+            "targets": [
+              { "item": "region", "field": "region" }, { "item": "province", "field": "region" }, { "item": "period", "field": "region" },
+              { "item": "channel", "field": "region" }, { "item": "monthly", "field": "region" }, { "item": "mom", "field": "region" },
+              { "item": "table", "field": "region" }
+            ]
+          },
+          {
+            "id": "when", "label": "下单时间", "op": "time", "control": { "type": "relative" }, "default": { "last": { "n": 365, "unit": "day" } },
+            "targets": [
+              { "item": "region", "field": "created_at" }, { "item": "province", "field": "created_at" }, { "item": "channel", "field": "created_at" },
+              { "item": "table", "field": "created_at" }
+            ]
+          }
+        ],
+        "links": [
+          {
+            "id": "by_region", "label": "按大区筛选", "source": { "item": "region", "column": "region" },
+            "targets": [{ "item": "province", "field": "region" }, { "item": "table", "field": "region" }]
+          },
+          {
+            "id": "by_channel", "label": "按渠道筛选", "source": { "item": "table", "column": "channel" },
+            "targets": [{ "item": "province", "field": "channel" }, { "item": "channel", "field": "channel" }]
+          }
+        ]
+      }
+    },
+    {
+      "name": "参数",
+      "description": "测试图表上的数据集参数：输入、下拉和固定三种。",
+      "spec": {
+        "specVersion": 1,
+        "layout": {
+          "columns": 96,
+          "items": [
+            { "id": "title", "type": "title", "title": "参数", "subtitle": "图表上直接改数据集 SQL 里的参数", "x": 0, "y": 0, "w": 96, "h": 8 },
+            {
+              "id": "about", "type": "text",
+              "markdown": "这个仪表盘用来测试图表上的数据集参数（设计见 `.agents/design/chart-dashboard.md` 2.11 节）。三张图都读数据集「用户最近一单」，它的 SQL 有两个参数：截至日（必填，默认昨天）和渠道（多值，写在 `[[ ]]` 里，不选就是不限）。\n\n- 「沉睡用户」：截至日是输入，选一天；渠道是下拉，可以清空；「沉睡天数 ≥」是普通的字段筛选器。\n- 「30 天前的沉睡用户」：截至日固定为 30 天前，卡片上没有控件。\n- 「用户最近一单」：截至日是下拉，选项是相对日期；渠道默认只选 app 和 web。\n\n上面的「大区」是全局筛选器，候选值取自「沉睡用户」，会跟着它的截至日和渠道变。分享时可以带上参数的取值。",
+              "x": 0, "y": 8, "w": 96, "h": 30
+            },
+            { "id": "idle", "type": "chart", "chartId": "@chart/沉睡用户", "x": 0, "y": 38, "w": 64, "h": 40 },
+            { "id": "earlier", "type": "chart", "chartId": "@chart/30 天前的沉睡用户", "x": 64, "y": 38, "w": 32, "h": 40 },
+            { "id": "latest", "type": "chart", "chartId": "@chart/用户最近一单", "x": 0, "y": 78, "w": 96, "h": 56 }
+          ]
+        },
+        "filters": [
+          {
+            "id": "region_f", "label": "大区", "op": "in", "control": { "type": "select", "multi": true }, "optionsFrom": "idle",
+            "targets": [{ "item": "idle", "field": "region" }, { "item": "earlier", "field": "region" }, { "item": "latest", "field": "region" }]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+/* A conversation reads as a column of text, whatever the width it is given. */
+.lb-chat-thread { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.lb-chat-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.lb-chat-content { max-width: 780px; margin: 0 auto; padding: 24px 24px 8px; display: grid; gap: 20px; }
+.lb-chat-latest { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); border-radius: 999px; box-shadow: var(--lb-shadow-sm); }
+
+.lb-chat-message { display: grid; gap: 8px; min-width: 0; }
+.lb-chat-message[data-from='user'] { display: flex; justify-content: flex-end; }
+.lb-chat-bubble { max-width: 85%; padding: 9px 14px; border-radius: 14px 14px 4px 14px; background: color-mix(in srgb, var(--lb-color-primary) 11%, var(--lb-color-surface)); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.lb-chat-pending { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--lb-color-text-secondary); }
+.lb-chat-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--lb-color-primary); animation: lb-chat-pulse 1.2s ease-in-out infinite; }
+@keyframes lb-chat-pulse { 0%, 100% { opacity: 0.25; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+
+.lb-chat-input { display: flex; align-items: flex-end; gap: 8px; padding: 8px 8px 8px 14px; border: 1px solid var(--lb-color-border); border-radius: 14px; background: var(--lb-color-surface); box-shadow: var(--lb-shadow-xs); }
+.lb-chat-input:focus-within { border-color: color-mix(in srgb, var(--lb-color-primary) 55%, var(--lb-color-border)); }
+.lb-chat-input textarea { flex: 1; min-width: 0; max-height: 200px; padding: 5px 0; border: 0; outline: none; resize: none; background: none; color: var(--lb-color-text); font: inherit; line-height: 1.5; }
+.lb-chat-input textarea:disabled { cursor: not-allowed; }
+
+/* Markdown of an answer: text set for reading, tables and code that scroll on their own. */
+.lb-chat-markdown { min-width: 0; line-height: 1.7; overflow-wrap: anywhere; }
+.lb-chat-markdown > :first-child { margin-top: 0; }
+.lb-chat-markdown > :last-child { margin-bottom: 0; }
+.lb-chat-markdown p, .lb-chat-markdown ul, .lb-chat-markdown ol, .lb-chat-markdown blockquote, .lb-chat-markdown pre, .lb-chat-markdown table { margin: 0 0 12px; }
+.lb-chat-markdown h1, .lb-chat-markdown h2, .lb-chat-markdown h3, .lb-chat-markdown h4 { margin: 20px 0 8px; line-height: 1.35; font-weight: 650; }
+.lb-chat-markdown h1 { font-size: 20px; }
+.lb-chat-markdown h2 { font-size: 18px; }
+.lb-chat-markdown h3 { font-size: 16px; }
+.lb-chat-markdown h4 { font-size: 14px; }
+.lb-chat-markdown ul, .lb-chat-markdown ol { padding-left: 1.5em; }
+.lb-chat-markdown li + li { margin-top: 4px; }
+.lb-chat-markdown blockquote { padding: 2px 12px; border-left: 3px solid var(--lb-color-border); color: var(--lb-color-text-secondary); }
+.lb-chat-markdown code { padding: 1px 5px; border-radius: 5px; background: color-mix(in srgb, var(--lb-color-text) 7%, transparent); font-family: var(--lb-font-mono); font-size: 0.9em; }
+.lb-chat-markdown pre { overflow: auto; padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--lb-color-text) 5%, var(--lb-color-surface)); border: 1px solid color-mix(in srgb, var(--lb-color-border) 70%, transparent); line-height: 1.55; }
+.lb-chat-markdown pre code { padding: 0; background: none; font-size: 13px; }
+.lb-chat-markdown table { display: block; max-width: 100%; overflow: auto; border-collapse: collapse; font-size: 13px; }
+.lb-chat-markdown th, .lb-chat-markdown td { padding: 6px 10px; border: 1px solid var(--lb-color-border); text-align: left; }
+.lb-chat-markdown th { background: color-mix(in srgb, var(--lb-color-text) 4%, transparent); font-weight: 600; }
+.lb-chat-markdown img { max-width: 100%; border-radius: 8px; }
+.lb-chat-markdown hr { margin: 16px 0; border: 0; border-top: 1px solid var(--lb-color-border); }
+
+/* A citation: a small number after a figure, which goes to its source. */
+.lb-chat-cite { line-height: 0; vertical-align: 0.3em; }
+.lb-chat-cite button { min-width: 16px; height: 16px; margin: 0 1px; padding: 0 4px; border: 0; border-radius: 8px; background: color-mix(in srgb, var(--lb-color-primary) 14%, transparent); color: var(--lb-color-primary); font: inherit; font-size: 10px; font-weight: 600; line-height: 16px; cursor: pointer; }
+.lb-chat-cite button:hover { background: color-mix(in srgb, var(--lb-color-primary) 24%, transparent); }
+
+/* The steps an answer took, and its sources, each folded into one line. */
+.lb-chat-steps, .lb-chat-sources { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.lb-chat-steps-toggle, .lb-chat-sources-toggle { display: inline-flex; align-items: center; gap: 4px; justify-self: start; max-width: 100%; padding: 2px 6px 2px 2px; border: 0; border-radius: 6px; background: none; color: var(--lb-color-text-secondary); font: inherit; font-size: 13px; cursor: pointer; }
+.lb-chat-steps-toggle:hover, .lb-chat-sources-toggle:hover { color: var(--lb-color-text); background: color-mix(in srgb, var(--lb-color-text) 5%, transparent); }
+.lb-chat-steps-toggle svg, .lb-chat-sources-toggle svg { flex: none; width: 14px; height: 14px; transition: transform 0.15s; }
+.lb-chat-steps-toggle[aria-expanded='true'] svg, .lb-chat-sources-toggle[aria-expanded='true'] svg { transform: rotate(90deg); }
+/* The dashboards the sources are on, cut short when they do not fit. */
+.lb-chat-sources-toggle span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-chat-steps-list { display: grid; gap: 4px; margin: 0; padding: 0 0 0 20px; list-style: none; color: var(--lb-color-text-secondary); font-size: 13px; }
+.lb-chat-steps-list li { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
+.lb-chat-steps-list li span { min-width: 0; overflow-wrap: anywhere; }
+.lb-chat-steps-list svg { flex: none; width: 14px; height: 14px; margin-top: 2px; color: var(--lb-color-success); }
+.lb-chat-steps-list li[data-state='failed'] svg { color: var(--lb-color-danger); }
+
+/* The sources of an answer's figures, numbered as it cites them. */
+.lb-chat-sources-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.lb-chat-source { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 1px solid var(--lb-color-border); border-radius: 10px; background: var(--lb-color-surface); font-size: 13px; outline: none; transition: box-shadow 0.3s; }
+.lb-chat-source:focus { box-shadow: 0 0 0 2px color-mix(in srgb, var(--lb-color-primary) 45%, transparent); }
+.lb-chat-source-n { flex: none; min-width: 18px; height: 18px; margin-top: 1px; border-radius: 9px; background: color-mix(in srgb, var(--lb-color-primary) 14%, transparent); color: var(--lb-color-primary); font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; }
+.lb-chat-source-body { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.lb-chat-source-title { font-weight: 600; overflow-wrap: anywhere; }
+.lb-chat-source-detail { color: var(--lb-color-text-secondary); overflow-wrap: anywhere; }
+.lb-chat-source-action { flex: none; }
+
+@media (max-width: 760px) {
+  .lb-chat-content { padding-left: 16px; padding-right: 16px; }
+}

@@ -1,0 +1,10 @@
+/* Who saved a chart or dashboard and when, a line a save; a name it had then goes below. */
+.content-revisions { display: grid; gap: 10px; align-content: start; max-width: 560px; }
+.content-revisions ol { margin: 0; padding: 0; list-style: none; display: grid; }
+.content-revisions li { display: grid; grid-template-columns: 34px max-content minmax(0, 1fr) max-content; align-items: center; column-gap: 8px; row-gap: 2px; padding: 6px 0; border-bottom: 1px solid color-mix(in srgb, var(--lb-color-border) 70%, transparent); font-size: 12px; }
+.content-revisions li:last-child { border-bottom: 0; }
+.content-revision-label { font-weight: 500; font-variant-numeric: tabular-nums; }
+.content-revisions time { color: var(--lb-color-text-secondary); font-variant-numeric: tabular-nums; }
+.content-revision-author { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.content-revision-current { grid-column: 4; padding: 1px 4px; border-radius: 3px; background: var(--lb-color-surface); color: var(--lb-color-text-secondary); font-size: 11px; line-height: 18px; }
+.content-revision-name { grid-column: 2 / -1; color: var(--lb-color-text-secondary); overflow-wrap: anywhere; }

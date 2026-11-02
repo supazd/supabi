@@ -1,0 +1,10 @@
+.audit-stacked { display: inline-flex; flex-direction: column; line-height: 1.35; }
+.audit-detail h3 { margin: 0; font-size: 14px; }
+.audit-agent { overflow-wrap: anywhere; }
+.audit-json { margin: 0; padding: 8px 10px; max-height: 280px; overflow: auto; border-radius: var(--lb-radius); background: color-mix(in srgb, var(--lb-color-text) 5%, transparent); font: 12px/18px var(--lb-font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.audit-statement { gap: 6px; padding-top: 10px; border-top: 1px solid var(--lb-color-border); }
+.audit-statement:first-of-type { padding-top: 0; border-top: 0; }
+.audit-open { padding: 0; border: 0; background: none; color: var(--lb-color-primary); font: inherit; text-align: left; cursor: pointer; }
+.audit-open:hover { text-decoration: underline; }
+.audit-outcome { display: inline-block; max-width: 12em; white-space: normal; line-height: 1.4; }
+.audit-object { display: inline-block; max-width: 240px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }

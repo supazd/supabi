@@ -1,0 +1,36 @@
+---
+title: 文档
+description: 开源商业智能，从 SQL 到仪表盘。
+template: splash
+hero:
+  title: SupaBI
+  tagline: 开源商业智能，从 SQL 到仪表盘。
+  actions:
+    - text: 安装 SupaBI
+      link: /zh-cn/getting-started/install/
+      icon: right-arrow
+    - text: 核心概念
+      link: /zh-cn/concepts/overview/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components'
+
+:::caution[早期开发阶段]
+SupaBI 还没有发布版本，需要从源码构建，名称和行为也可能变化。
+:::
+
+<CardGrid>
+  <Card title="连接你的数据库" icon="seti:db">
+    PostgreSQL、MySQL、ClickHouse、Apache Doris、StarRocks 和 Trino。
+  </Card>
+  <Card title="数据只定义一次" icon="list-format">
+    数据集统一保存维度、度量和权限，读取它的图表都会用到。
+  </Card>
+  <Card title="分享仪表盘" icon="puzzle">
+    制作图表，排到仪表盘上，再决定谁能看。
+  </Card>
+  <Card title="问 AI 助手" icon="comment">
+    它读取你能打开的仪表盘，回答里的每个数字都标明出处。
+  </Card>
+</CardGrid>

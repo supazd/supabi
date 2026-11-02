@@ -1,0 +1,14 @@
+{
+  "catalogs": [
+    {"catalog": "(memory|postgres|system)", "allow": "all"}
+  ],
+  "schemas": [
+    {"catalog": "memory", "owner": true},
+    {"catalog": "postgres", "schema": "demo", "owner": false}
+  ],
+  "tables": [
+    {"catalog": "memory", "privileges": ["SELECT", "INSERT", "DELETE", "UPDATE", "OWNERSHIP"]},
+    {"catalog": "postgres", "schema": "demo", "privileges": ["SELECT"]},
+    {"catalog": "system", "privileges": ["SELECT"]}
+  ]
+}

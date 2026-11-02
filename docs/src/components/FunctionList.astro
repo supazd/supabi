@@ -1,0 +1,44 @@
+---
+import { Code } from '@astrojs/starlight/components'
+import { functionsEnUS } from '../../../web/apps/app/src/i18n/functions.en-US'
+import { functionsZhCN } from '../../../web/apps/app/src/i18n/functions.zh-CN'
+
+interface Props {
+  category: keyof typeof categories
+}
+
+// The categories of internal/expr/functions.go. The language packs hold the
+// text of each function but not its category.
+const categories = {
+  aggregate: ['SUM', 'AVG', 'MIN', 'MAX', 'COUNT', 'COUNT_DISTINCT', 'MEDIAN'],
+  logic: ['CASE', 'IF', 'COALESCE', 'IFNULL', 'NULLIF'],
+  math: ['ABS', 'ROUND', 'FLOOR', 'CEIL', 'MOD', 'POWER', 'SQRT'],
+  text: ['CONCAT', 'UPPER', 'LOWER', 'TRIM', 'LENGTH', 'SUBSTR', 'LEFT', 'RIGHT', 'REPLACE', 'CONTAINS', 'STARTS_WITH', 'ENDS_WITH', 'REGEXP_MATCH'],
+  date: ['TODAY', 'DATE', 'YEAR', 'QUARTER', 'MONTH', 'DAY', 'HOUR', 'MINUTE', 'WEEKDAY', 'DATE_TRUNC', 'DATE_ADD', 'DATE_DIFF'],
+  convert: ['TO_STRING', 'TO_INTEGER', 'TO_DECIMAL', 'TO_FLOAT'],
+  native: ['NATIVE'],
+}
+
+const { category } = Astro.props
+const pack = (Astro.locals.starlightRoute.lang === 'zh-CN' ? functionsZhCN : functionsEnUS) as unknown as Record<string, { title: string; syntax: string; desc: string; example: string }>
+
+// A function added to the packs has to be placed in a category above, or the build fails.
+const listed = new Set(Object.values(categories).flat())
+const missing = Object.keys(pack).filter((name) => name !== 'categories' && !listed.has(name))
+if (missing.length > 0) throw new Error(`FunctionList: no category for ${missing.join(', ')}`)
+---
+
+{
+  categories[category].map((name) => (
+    <section>
+      <h3 id={name.toLowerCase()}>
+        <code>{name}</code> {pack[name].title}
+      </h3>
+      <p>
+        <code>{pack[name].syntax}</code>
+      </p>
+      <p>{pack[name].desc}</p>
+      <Code code={pack[name].example} lang="sql" />
+    </section>
+  ))
+}

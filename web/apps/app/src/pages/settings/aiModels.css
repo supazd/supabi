@@ -1,0 +1,7 @@
+/* The purposes' choices keep to the width of three. */
+.ai-purposes { max-width: 880px; }
+/* A provider: its name and how it is reached on one line, its models under it. */
+.ai-provider { padding-top: 16px; border-top: 1px solid var(--lb-color-border); }
+.ai-provider-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-width: 0; }
+.ai-provider-name .note { overflow-wrap: anywhere; }
+.ai-trial-message { white-space: pre-wrap; overflow-wrap: anywhere; }

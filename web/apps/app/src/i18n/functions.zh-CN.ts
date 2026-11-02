@@ -1,0 +1,100 @@
+// What each function of the platform's expression language is for, how it is
+// written, and an example. CASE is part of the language rather than a
+// function, and is offered beside them.
+export const functionsZhCN = {
+  categories: { aggregate: '聚合', logic: '条件与空值', math: '数值', text: '文本', date: '日期时间', convert: '类型转换', native: '原生 SQL' },
+  SUM: { title: '求和', syntax: 'SUM(数值)', desc: '一组行的数值之和。', example: 'SUM(${订单金额})' },
+  AVG: { title: '平均值', syntax: 'AVG(数值)', desc: '一组行的平均值，空值不计入。', example: 'AVG(${订单金额})' },
+  MIN: { title: '最小值', syntax: 'MIN(值)', desc: '一组行里最小的值，也可用于日期和文本。', example: 'MIN(${下单日期})' },
+  MAX: { title: '最大值', syntax: 'MAX(值)', desc: '一组行里最大的值，也可用于日期和文本。', example: 'MAX(${下单日期})' },
+  COUNT: { title: '计数', syntax: 'COUNT() 或 COUNT(值)', desc: '不带参数时数行数；带参数时数该值不为空的行数。', example: 'COUNT(${订单号})' },
+  COUNT_DISTINCT: { title: '去重计数', syntax: 'COUNT_DISTINCT(值)', desc: '不同取值的个数。也可以写成 COUNT(DISTINCT 值)。', example: 'COUNT_DISTINCT(${用户 ID})' },
+  MEDIAN: { title: '中位数', syntax: 'MEDIAN(数值)', desc: '一组行的中位数。各数据库的算法略有出入。', example: 'MEDIAN(${订单金额})' },
+  CASE: {
+    title: '分类赋值',
+    syntax: 'CASE WHEN 条件 THEN 值 … ELSE 值 END',
+    desc: '依次判断条件，取第一个成立的条件对应的值；都不成立时取 ELSE 的值，没有 ELSE 则为空。',
+    example: "CASE\n  WHEN ${金额} >= 1000 THEN '大单'\n  WHEN ${金额} >= 100 THEN '中单'\n  ELSE '小单'\nEND",
+  },
+  IF: { title: '条件判断', syntax: 'IF(条件, 成立时的值, 不成立时的值)', desc: '条件成立取第二个参数，否则取第三个。条件为空时按不成立处理。', example: "IF(${状态} = 'paid', ${金额}, 0)" },
+  COALESCE: { title: '取第一个非空值', syntax: 'COALESCE(值1, 值2, …)', desc: '从左到右取第一个不为空的值。', example: "COALESCE(${备注}, '无')" },
+  IFNULL: { title: '空值替换', syntax: 'IFNULL(值, 替换值)', desc: '值为空时用替换值。', example: 'IFNULL(${折扣}, 0)' },
+  NULLIF: { title: '相等时置空', syntax: 'NULLIF(值1, 值2)', desc: '两个值相等时得到空值，否则得到第一个值。', example: "NULLIF(${渠道}, '')" },
+  ABS: { title: '绝对值', syntax: 'ABS(数值)', desc: '去掉正负号。', example: 'ABS(${实际} - ${目标})' },
+  ROUND: { title: '四舍五入', syntax: 'ROUND(数值, [小数位数])', desc: '四舍五入到指定的小数位数，不写位数时取整。位数直接写成整数。', example: 'ROUND(${金额} / ${数量}, 2)' },
+  FLOOR: { title: '向下取整', syntax: 'FLOOR(数值)', desc: '不大于它的最大整数。', example: 'FLOOR(${金额})' },
+  CEIL: { title: '向上取整', syntax: 'CEIL(数值)', desc: '不小于它的最小整数。', example: 'CEIL(${金额})' },
+  MOD: { title: '取余', syntax: 'MOD(整数, 整数)', desc: '相除的余数，也可以写成 a % b。除数为 0 时得到空值。', example: 'MOD(${序号}, 2)' },
+  POWER: { title: '乘方', syntax: 'POWER(底数, 指数)', desc: '底数的若干次方。', example: 'POWER(${增长率} + 1, 12)' },
+  SQRT: { title: '平方根', syntax: 'SQRT(数值)', desc: '数值的平方根。', example: 'SQRT(${面积})' },
+  CONCAT: { title: '拼接文本', syntax: 'CONCAT(文本1, 文本2, …)', desc: '把几段文本接在一起。任何一段为空，结果就为空；数字和日期先用 TO_STRING 转成文本。', example: "CONCAT(${省份}, '-', ${城市})" },
+  UPPER: { title: '转大写', syntax: 'UPPER(文本)', desc: '字母全部变成大写。', example: 'UPPER(${编码})' },
+  LOWER: { title: '转小写', syntax: 'LOWER(文本)', desc: '字母全部变成小写。', example: 'LOWER(${邮箱})' },
+  TRIM: { title: '去掉首尾空格', syntax: 'TRIM(文本)', desc: '去掉开头和末尾的空格。', example: 'TRIM(${姓名})' },
+  LENGTH: { title: '文本长度', syntax: 'LENGTH(文本)', desc: '字符的个数，一个汉字算一个。', example: 'LENGTH(${标题})' },
+  SUBSTR: { title: '截取文本', syntax: 'SUBSTR(文本, 起始位置, [长度])', desc: '从第几个字符开始取，第一个字符是 1。不写长度时取到末尾。', example: 'SUBSTR(${订单号}, 1, 4)' },
+  LEFT: { title: '取开头几个字符', syntax: 'LEFT(文本, 个数)', desc: '开头的若干个字符。', example: 'LEFT(${邮编}, 2)' },
+  RIGHT: { title: '取末尾几个字符', syntax: 'RIGHT(文本, 个数)', desc: '末尾的若干个字符。', example: 'RIGHT(${手机号}, 4)' },
+  REPLACE: { title: '替换文本', syntax: 'REPLACE(文本, 查找, 替换为)', desc: '把文本里出现的每一处“查找”换成“替换为”。', example: "REPLACE(${电话}, '-', '')" },
+  CONTAINS: { title: '是否包含', syntax: 'CONTAINS(文本, 片段)', desc: '文本里有这个片段时成立。', example: "CONTAINS(${标题}, '促销')" },
+  STARTS_WITH: { title: '是否以…开头', syntax: 'STARTS_WITH(文本, 片段)', desc: '文本以这个片段开头时成立。', example: "STARTS_WITH(${订单号}, 'SO')" },
+  ENDS_WITH: { title: '是否以…结尾', syntax: 'ENDS_WITH(文本, 片段)', desc: '文本以这个片段结尾时成立。', example: "ENDS_WITH(${邮箱}, '.cn')" },
+  REGEXP_MATCH: { title: '正则匹配', syntax: 'REGEXP_MATCH(文本, 正则)', desc: '文本符合正则表达式时成立。各数据库的正则语法不完全相同。', example: "REGEXP_MATCH(${手机号}, '^1[3-9]')" },
+  TODAY: { title: '今天', syntax: 'TODAY()', desc: '今天的日期，按查询所用的时区。', example: 'DATE_DIFF(\'day\', ${下单日期}, TODAY())' },
+  DATE: { title: '取日期', syntax: 'DATE(时间或文本)', desc: "时间的日期部分，按查询所用的时区；或者把 '2026-01-31' 这样的文本读成日期。", example: 'DATE(${下单时间})' },
+  YEAR: { title: '年', syntax: 'YEAR(日期)', desc: '年份，如 2026。', example: 'YEAR(${下单日期})' },
+  QUARTER: { title: '季度', syntax: 'QUARTER(日期)', desc: '第几季度，1 到 4。', example: 'QUARTER(${下单日期})' },
+  MONTH: { title: '月', syntax: 'MONTH(日期)', desc: '月份，1 到 12。', example: 'MONTH(${下单日期})' },
+  DAY: { title: '日', syntax: 'DAY(日期)', desc: '一个月里的第几天，1 到 31。', example: 'DAY(${下单日期})' },
+  HOUR: { title: '小时', syntax: 'HOUR(时间)', desc: '小时，0 到 23，按查询所用的时区。只用于时间。', example: 'HOUR(${下单时间})' },
+  MINUTE: { title: '分钟', syntax: 'MINUTE(时间)', desc: '分钟，0 到 59。只用于时间。', example: 'MINUTE(${下单时间})' },
+  WEEKDAY: { title: '星期几', syntax: 'WEEKDAY(日期)', desc: '周一为 1，周日为 7。', example: 'WEEKDAY(${下单日期})' },
+  DATE_TRUNC: { title: '日期取整', syntax: "DATE_TRUNC('单位', 日期)", desc: "所在年、季度、月或周的第一天。单位是 'year'、'quarter'、'month'、'week'、'day'。一周从哪天开始按工作空间的设置。", example: "DATE_TRUNC('month', ${下单日期})" },
+  DATE_ADD: { title: '日期加减', syntax: "DATE_ADD(日期, 数量, '单位')", desc: "往后推若干个单位，数量为负就是往前。日期可以用 'year'、'quarter'、'month'、'week'、'day'，时间还可以用 'hour'、'minute'。", example: "DATE_ADD(${下单日期}, 7, 'day')" },
+  DATE_DIFF: { title: '日期间隔', syntax: "DATE_DIFF('单位', 开始, 结束)", desc: '从开始到结束跨过了多少个单位的边界：1 月 31 日到 2 月 1 日相差 1 个月。', example: "DATE_DIFF('day', ${下单日期}, TODAY())" },
+  TO_STRING: { title: '转为文本', syntax: 'TO_STRING(值)', desc: '把数字或日期变成文本。小数显示几位由数据库决定。', example: 'TO_STRING(${年份})' },
+  TO_INTEGER: { title: '转为整数', syntax: 'TO_INTEGER(值)', desc: '把数字或文本变成整数。小数部分直接舍去，不四舍五入。', example: 'TO_INTEGER(${金额})' },
+  TO_DECIMAL: { title: '转为小数', syntax: 'TO_DECIMAL(值)', desc: '把数字或文本变成精确的小数。', example: 'TO_DECIMAL(${单价文本})' },
+  TO_FLOAT: { title: '转为浮点数', syntax: 'TO_FLOAT(值)', desc: '把数字或文本变成浮点数。', example: 'TO_FLOAT(${评分})' },
+  NATIVE: {
+    title: '原生 SQL 片段',
+    syntax: "NATIVE('SQL 片段', 参数1, 参数2, …)",
+    desc: '平台函数不够用时，直接写一段数据源自己的 SQL，片段里用 {0}、{1} 代表后面的参数。用了它的字段换数据源时需要改写，类型也要自己选。',
+    example: "NATIVE('json_extract({0}, ''$.tier'')', ${扩展信息})",
+  },
+}
+
+export type FunctionMessages = typeof functionsZhCN
+
+/** What is wrong with an expression in the platform's language, by the code the server gives. */
+export const exprErrorsZhCN = {
+  expr_empty: '表达式是空的',
+  expr_incomplete: '表达式没有写完',
+  expr_expected: '这里缺少 {{expected}}',
+  expr_unexpected: '这里不应该出现 {{found}}',
+  expr_unclosed_string: '文本的引号没有闭合',
+  expr_unclosed_reference: '${ 没有闭合',
+  expr_quote: '文本用单引号，字段写成 ${名称}',
+  expr_bare_word: '不认识 {{word}}：字段写成 ${名称}，文本加单引号',
+  expr_empty_reference: '${} 里要写字段名称',
+  expr_unknown_field: '没有名为“{{name}}”的字段',
+  expr_unknown_function: '没有 {{name}} 这个函数',
+  expr_arguments: '{{name}} 需要 {{expected}} 个参数，这里有 {{actual}} 个',
+  expr_wrong_type: '这里需要{{expected}}，而它是{{actual}}',
+  expr_type_mismatch: '{{left}}和{{right}}不能放在一起比较或取值',
+  expr_unit: '这里要写 {{units}} 之一',
+  expr_literal_needed: '小数位数要直接写成整数',
+  expr_native_text: 'NATIVE 的第一个参数是直接写出的 SQL 文本',
+  expr_native_slot: '{{slot}} 没有对应的参数',
+  expr_aggregate_in_row: '维度和度量按行计算，表达式里不能聚合；要聚合请把它设为指标',
+  expr_metric_needs_aggregate: '指标的表达式要自己聚合，例如 SUM(${订单金额})',
+  expr_mixed_levels: '按行的值不能和聚合后的值直接放在一起，先把它也聚合',
+  expr_nested_aggregate: '{{name}} 里面已经聚合过了，不能再聚合',
+  function_unavailable: '当前数据源不支持 {{name}}',
+}
+
+export type ExprErrorMessages = typeof exprErrorsZhCN
+
+/** The same messages, said of a field by name: for where the mistake is met outside the field's own dialog. */
+export const ofField = <T extends Record<string, string>>(messages: T, prefix: string) =>
+  Object.fromEntries(Object.entries(messages).map(([code, text]) => [code, prefix + text])) as { [K in keyof T]: string }

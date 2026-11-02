@@ -1,0 +1,3911 @@
+openapi: 3.0.3
+info:
+  title: SupaBI API
+  version: 0.1.0
+  description: |
+    The contract between the SupaBI server and its clients. Server stubs and
+    the frontend's types are generated from this file; change it first.
+
+    Errors are returned as an Error object. `code` is stable and is what
+    clients translate; `message` is English text for developers.
+
+    Callers authenticate with the session cookie set by /auth/login. Apart
+    from the /auth endpoints, a call without a session is answered with 401
+    `unauthenticated`, and one the caller's role does not allow with 403
+    `forbidden`.
+servers:
+  - url: /api/v1
+paths:
+  /version:
+    get:
+      operationId: getVersion
+      summary: Version of the running server
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Version" }
+
+  /datasource-types:
+    get:
+      operationId: listDatasourceTypes
+      summary: Kinds of database that can be connected, with their connection settings
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DatasourceType" }
+
+  /datasources:
+    get:
+      operationId: listDatasources
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Datasource" }
+    post:
+      operationId: createDatasource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DatasourceInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Datasource" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /datasources/test:
+    post:
+      operationId: testDatasource
+      summary: Try to connect with the given settings without saving them
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DatasourceInput" }
+      responses:
+        "200":
+          description: The attempt was made; see `ok`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectionTest" }
+        "400": { $ref: "#/components/responses/Error" }
+
+  /datasources/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getDatasource
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Datasource" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      operationId: updateDatasource
+      summary: Change how a data source connects. Its type stays; a password left out is kept.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DatasourceInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Datasource" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteDatasource
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /datasources/{id}/test:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: testStoredDatasource
+      summary: >
+        Try to connect as a saved data source does, or with the given settings
+        before saving them over it. A password left out is the saved one.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DatasourceInput" }
+      responses:
+        "200":
+          description: The attempt was made; see `ok`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectionTest" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /datasources/{id}/describe:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: describeSource
+      summary: Columns a dataset source would produce, without fetching rows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DescribeRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SourceColumn" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /datasources/{id}/explain:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: explainSource
+      summary: How the database would run a dataset source, without running it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DescribeRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plan" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /datasources/{id}/tables:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: listSourceTables
+      summary: Tables and columns the data source holds, for helping an author write SQL
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SourceCatalog" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /datasources/{id}/functions:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: listFunctions
+      summary: The functions a calculated field can be written with on this data source
+      description: >
+        The platform's own functions, which mean the same on every database.
+        One this kind of database has no way to compute is left out. See
+        .agents/design/expressions.md.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ExpressionFunction" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /datasources/{id}/check-expression:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: checkExpression
+      summary: What an expression in the platform's language gives, or what is wrong with it
+      description: >
+        Reads an expression as it is written, with fields referred to by
+        name, without asking the database anything.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExpressionCheckInput" }
+      responses:
+        "200":
+          description: The expression was read; see `error`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExpressionCheck" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /datasets:
+    get:
+      operationId: listDatasets
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DatasetSummary" }
+    post:
+      operationId: createDataset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DatasetInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dataset" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /datasets/preview:
+    post:
+      operationId: previewDataset
+      summary: The first rows of a dataset definition that need not be saved yet
+      description: >
+        Returns every row-level field of the definition, without grouping, so
+        an author can see what the fields hold while editing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DatasetPreviewInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QueryResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /datasets/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getDataset
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dataset" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      operationId: updateDataset
+      summary: Save a new revision of the dataset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DatasetUpdateInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dataset" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteDataset
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /datasets/{id}/revisions:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: listDatasetRevisions
+      summary: Saved revisions, newest first, for data developers
+      parameters:
+        - $ref: "#/components/parameters/RevisionBefore"
+        - $ref: "#/components/parameters/RevisionLimit"
+      responses:
+        "200":
+          description: A page of revision summaries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RevisionPage" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /datasets/{id}/revisions/{revision}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: revision, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: getDatasetRevision
+      summary: Read an immutable dataset snapshot; restoring it requires the normal dataset save checks
+      responses:
+        "200":
+          description: The saved definition
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DatasetRevision" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /user-attributes:
+    get:
+      operationId: listUserAttributes
+      summary: Attributes and assignments in the current workspace
+      responses:
+        "200":
+          description: User attributes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/UserAttribute" }
+  /user-attributes/{key}:
+    parameters:
+      - in: path
+        name: key
+        required: true
+        schema: { type: string }
+    put:
+      operationId: setUserAttribute
+      summary: Create or replace a workspace attribute and its assignments (admins only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserAttributeInput" }
+      responses:
+        "200":
+          description: Saved attribute
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserAttribute" }
+    delete:
+      operationId: deleteUserAttribute
+      summary: Delete an attribute; rules referencing it fail closed
+      responses:
+        "204": { description: Deleted }
+
+  /datasets/{id}/impact:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: analyzeDatasetImpact
+      summary: Preview destructive changes and the charts and dashboards they affect
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DatasetUpdateInput" }
+      responses:
+        "200":
+          description: Impact of the proposed definition on the current revision
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DatasetImpact" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /datasets/{id}/policy:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getDatasetPolicy
+      summary: The dataset's data permissions, which restrict what viewers see of it
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DatasetPolicy" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      operationId: setDatasetPolicy
+      summary: Replace the dataset's data permissions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DatasetPolicy" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DatasetPolicy" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /datasets/{id}/policy/preview:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: previewDatasetPolicy
+      summary: The rows and fields of the dataset one user would see
+      description: Uses the saved permissions, or those given, which are not saved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PolicyPreviewRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PolicyPreview" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /query:
+    post:
+      operationId: runQuery
+      summary: Run a query described in the query IR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QueryRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QueryResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /time-ranges/resolve:
+    post:
+      operationId: resolveTimeRange
+      summary: The dates a time range stands for now
+      description: >
+        Resolves a time range of a filter as a query would, in the
+        workspace's time zone and with its first day of the week, so that a
+        filter can show the dates it keeps.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TimeRangeInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeRangeDates" }
+        "400": { $ref: "#/components/responses/Error" }
+
+  /exports:
+    get:
+      operationId: listExports
+      summary: The current user's exports in this workspace, from data exploration and dashboards
+      parameters:
+        - { name: before, in: query, schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          description: Export history and server limits
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExportPage" }
+    post:
+      operationId: createExport
+      summary: Queue an immutable SQL snapshot for a CSV or XLSX export
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExportInput" }
+      responses:
+        "202":
+          description: Queued for a worker; independent of the browser session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Export" }
+        "400": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+
+  /exports/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getExport
+      summary: Status of an export owned by the caller
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Export" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /exports/{id}/cancel:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: cancelExport
+      summary: Cancel a queued or running export
+      responses:
+        "204": { description: Cancellation requested }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /exports/{id}/file:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: downloadExport
+      summary: Download a completed, unexpired export after checking current permissions
+      responses:
+        "200":
+          description: Private CSV or XLSX attachment
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "410": { $ref: "#/components/responses/Error" }
+
+  /exports/seen:
+    post:
+      operationId: markExportsSeen
+      summary: Mark every new export result of the caller in this workspace as seen
+      responses:
+        "204": { description: Seen }
+
+  /auth/session:
+    get:
+      operationId: getSession
+      summary: Who the caller is. Always answers, signed in or not.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionInfo" }
+
+  /auth/setup:
+    post:
+      operationId: setup
+      summary: Create the first administrator. Only works while there are no accounts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetupInput" }
+      responses:
+        "200":
+          description: The administrator was created and is now signed in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionInfo" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /auth/login:
+    post:
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginInput" }
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionInfo" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+
+  /auth/logout:
+    post:
+      operationId: logout
+      responses:
+        "204": { description: Signed out }
+
+  /auth/password:
+    post:
+      operationId: changePassword
+      summary: Change the caller's own password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordChange" }
+      responses:
+        "204": { description: Changed. Other sessions of the user are ended. }
+        "400": { $ref: "#/components/responses/Error" }
+
+  /auth/workspace:
+    post:
+      operationId: switchWorkspace
+      summary: Move the session to another workspace the caller can enter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkspaceSwitch" }
+      responses:
+        "200":
+          description: Switched
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionInfo" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /users:
+    get:
+      operationId: listUsers
+      summary: Global accounts, readable by system admins or current workspace developers
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/User" }
+    post:
+      operationId: createUser
+      summary: Create a global account without granting workspace membership (system admins only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /users/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    patch:
+      operationId: updateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserChange" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /groups:
+    get:
+      operationId: listGroups
+      summary: Global groups, readable by system admins or current workspace developers
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Group" }
+    post:
+      operationId: createGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GroupInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Group" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /groups/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    put:
+      operationId: updateGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GroupInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Group" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteGroup
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /members:
+    get:
+      operationId: listMembers
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Member" }
+    post:
+      operationId: addMember
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MemberInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Member" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /members/{userId}:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: string } }
+    patch:
+      operationId: updateMember
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MemberChange" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Member" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: removeMember
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /group-members:
+    get:
+      operationId: listGroupMembers
+      summary: Groups that hold a role in the current workspace
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/GroupMember" }
+
+  /group-members/{groupId}:
+    parameters:
+      - { name: groupId, in: path, required: true, schema: { type: string } }
+    put:
+      operationId: setGroupMember
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MemberChange" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupMember" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: removeGroupMember
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /workspaces:
+    get:
+      operationId: listWorkspaces
+      description: |
+        The workspaces the caller can enter. For a system admin, that is all of
+        them, and the deleted ones too, which nobody can enter until restored.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Workspace" }
+    post:
+      operationId: createWorkspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkspaceInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /workspaces/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    delete:
+      operationId: deleteWorkspace
+      summary: Delete a workspace, which can be restored until it is purged (system admins only)
+      description: |
+        Hides the workspace from everyone; its exports are cancelled. The
+        caller's session, if it is in the workspace, moves to another the
+        caller can enter. Other sessions in it are left without a current
+        workspace, so that their requests fail with no_workspace rather than
+        act on another workspace. It is purged with everything in it after
+        purgeAt. See .agents/design/access-control.md §2.3.
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /workspaces/{id}/restore:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: restoreWorkspace
+      summary: Put a deleted workspace back in use, as it was (system admins only)
+      responses:
+        "200":
+          description: Restored
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /workspaces/{id}/purge:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: purgeWorkspace
+      summary: Delete a deleted workspace and everything in it now, for good (system admins only)
+      responses:
+        "204": { description: Purged }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /workspace:
+    put:
+      operationId: updateWorkspace
+      summary: Change the settings of the current workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkspaceInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workspace" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /system/settings:
+    get:
+      operationId: getSystemSettings
+      summary: The settings the organization has one value of, and their defaults (system admins only)
+      description: See .agents/design/configuration.md 10.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SystemSettings" }
+    put:
+      operationId: setSystemSettings
+      summary: Replace the system settings; a setting left out takes its default (system admins only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SystemSettingValues" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SystemSettings" }
+        "400": { $ref: "#/components/responses/Error" }
+
+  /audit-events:
+    get:
+      operationId: listAuditEvents
+      summary: Audit events of the organisation, newest first (system admins only)
+      parameters:
+        - { name: workspaceId, in: query, schema: { type: string } }
+        - { name: userId, in: query, description: The user who acted, schema: { type: string } }
+        - { name: category, in: query, schema: { $ref: "#/components/schemas/AuditCategory" } }
+        - { name: outcome, in: query, schema: { $ref: "#/components/schemas/AuditOutcome" } }
+        - { name: from, in: query, description: Inclusive start, schema: { type: string, format: date-time } }
+        - { name: to, in: query, description: Exclusive end, schema: { type: string, format: date-time } }
+        - { name: cursor, in: query, description: nextCursor of the previous page, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditEventPage" }
+        "400": { $ref: "#/components/responses/Error" }
+
+  /charts:
+    get:
+      operationId: listCharts
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ChartSummary" }
+    post:
+      operationId: createChart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChartInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Chart" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /charts/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getChart
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Chart" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      operationId: updateChart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChartUpdateInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Chart" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteChart
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /charts/{id}/revisions:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: listChartRevisions
+      summary: Who saved the chart and when, newest first, for data developers. The saved definitions are kept but not served.
+      parameters:
+        - $ref: "#/components/parameters/RevisionBefore"
+        - $ref: "#/components/parameters/RevisionLimit"
+      responses:
+        "200":
+          description: A page of revision summaries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RevisionPage" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /charts/{id}/data:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: getChartData
+      summary: Run the chart's own saved query
+      description: |
+        This is how viewers reach data: the caller cannot supply a query, only
+        values for the filters the chart offers them.
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChartDataRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QueryResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /charts/{id}/filters/{filterId}/options:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: filterId, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getChartFilterOptions
+      summary: The values one of the chart's interactive filters offers to choose from
+      parameters:
+        - { $ref: "#/components/parameters/OptionSearch" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FilterOptions" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+    post:
+      operationId: queryChartFilterOptions
+      summary: Filter choices within the configured cascade and current selections
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChartOptionsRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FilterOptions" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /dashboards:
+    get:
+      operationId: listDashboards
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DashboardSummary" }
+    post:
+      operationId: createDashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /dashboards/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getDashboard
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      operationId: updateDashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardUpdateInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteDashboard
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /dashboards/{id}/revisions:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: listDashboardRevisions
+      summary: Who saved the dashboard and when, newest first, for data developers. The saved definitions are kept but not served.
+      parameters:
+        - $ref: "#/components/parameters/RevisionBefore"
+        - $ref: "#/components/parameters/RevisionLimit"
+      responses:
+        "200":
+          description: A page of revision summaries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RevisionPage" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /dashboards/{id}/grants:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getDashboardGrants
+      summary: Who the dashboard is granted to; viewers see only dashboards granted to them
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Grants" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      operationId: setDashboardGrants
+      summary: Replace who the dashboard is granted to
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Grants" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Grants" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /dashboards/{id}/views:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: createDashboardView
+      summary: Keep the conditions a dashboard is shared with, for a share link to name by a short id
+      description: |
+        Anyone who can open the dashboard can share it; the link grants no
+        access. The same conditions shared again keep their id and the later
+        expiry. See .agents/design/chart-dashboard.md 3.10.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardViewInput" }
+      responses:
+        "201":
+          description: Kept
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardView" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /dashboards/{id}/views/{viewId}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: viewId, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getDashboardView
+      summary: The conditions a share link carries; 404 once they have expired
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardView" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /dashboards/preview/items/{itemId}/data:
+    parameters:
+      - { name: itemId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: previewDashboardItemData
+      summary: Preview one widget with unsaved dashboard filters
+      description: Validates the draft and queries saved charts without saving the dashboard.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardPreviewRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QueryResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /dashboards/preview/filters/{filterId}/options:
+    parameters:
+      - { name: filterId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: previewDashboardFilterOptions
+      summary: The values an unsaved dashboard filter offers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardPreviewRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FilterOptions" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /dashboards/{id}/items/{itemId}/exports:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: itemId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: createDashboardExport
+      summary: Queue a CSV or XLSX export of a widget's complete data, as the dashboard shows it
+      description: |
+        The chart must allow exports. The caller's filter values, dynamic
+        choices and links are applied as for the widget's data; the chart's
+        own sort and row limit are kept, and without a limit the complete
+        result is exported. Data permissions apply as the caller.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardExportInput" }
+      responses:
+        "202":
+          description: Queued for a worker; independent of the browser session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Export" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+
+  /dashboards/{id}/items/{itemId}/data:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: itemId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: getDashboardItemData
+      summary: Data of one widget, under the dashboard's global filters
+      description: |
+        The caller supplies only values: a time range, the values chosen in
+        the dashboard's filters, and what was clicked in other widgets. Which
+        fields those apply to is decided by the dashboard's definition, so
+        this cannot be used to filter by fields its author did not expose.
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardDataRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QueryResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /dashboards/{id}/filters/{filterId}/options:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: filterId, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getDashboardFilterOptions
+      summary: The values a global filter offers to choose from
+      parameters:
+        - { $ref: "#/components/parameters/OptionSearch" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FilterOptions" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+    post:
+      operationId: queryDashboardFilterOptions
+      summary: Filter choices within the configured cascade and current selections
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardFilterOptionsRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FilterOptions" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /charts/preview/data:
+    post:
+      operationId: previewChartData
+      summary: Run an unsaved chart as a saved one runs, down the levels clicked
+      description: |
+        For the chart editor once its chart is drilled: the server resolves
+        the draft's dynamic choices, filters and drill the way it does for a
+        saved chart, so that the rules live in one place. Requires the
+        developer role. See .agents/design/chart-dashboard.md §2.10.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChartPreviewDataRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QueryResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /charts/preview/filters/{filterId}/options:
+    parameters:
+      - { name: filterId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: previewChartFilterOptions
+      summary: Filter choices within the configured cascade and current selections
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChartPreviewRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FilterOptions" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /dashboards/{id}/items/{itemId}/filters/{filterId}/options:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+      - { name: itemId, in: path, required: true, schema: { type: string } }
+      - { name: filterId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: queryDashboardChartFilterOptions
+      summary: Filter choices within the configured cascade and current selections
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardFilterOptionsRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FilterOptions" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /dashboards/preview/items/{itemId}/filters/{filterId}/options:
+    parameters:
+      - { name: itemId, in: path, required: true, schema: { type: string } }
+      - { name: filterId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: previewDashboardChartFilterOptions
+      summary: Filter choices within the configured cascade and current selections
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardPreviewRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FilterOptions" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /folders:
+    get:
+      operationId: listFolders
+      summary: The folders of the workbench, of every kind
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Folder" }
+    post:
+      operationId: createFolder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FolderCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Folder" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /folders/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    put:
+      operationId: updateFolder
+      summary: Rename a folder and say which folder it is in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FolderInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Folder" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteFolder
+      summary: Delete an empty folder
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /folders/move:
+    post:
+      operationId: moveResource
+      summary: Put a dashboard, chart or dataset in a folder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MoveInput" }
+      responses:
+        "204": { description: Moved }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /usage:
+    get:
+      operationId: getUsage
+      summary: What reads a data source, a dataset or a chart
+      description: >
+        What would be affected by changing or deleting the resource: the
+        datasets of a data source, the charts of a dataset and the dashboards
+        showing them, the dashboards of a chart.
+      parameters:
+        - name: kind
+          in: query
+          required: true
+          schema: { type: string, enum: [datasource, dataset, chart] }
+        - { name: id, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Usage" }
+        "400": { $ref: "#/components/responses/Error" }
+
+  /lineage:
+    get:
+      operationId: getLineage
+      summary: What reads what, across the workspace
+      description: >
+        Every data source, dataset, chart and dashboard
+        of the workspace, and which of them reads which. A resource
+        of a kind the caller may not list is still given, so that what leads
+        to it and from it is not cut short, but without its name.
+
+        Between a data source and what reads it are the tables read: the one
+        a dataset is made of, and those named after FROM and JOIN in the SQL
+        of the dataset. The SQL is not parsed, so a table read some
+        other way, through a function for one, is not found; what names no
+        table that could be found is tied to the data source itself. A table
+        goes by the name the SQL gives it, with its schema only where the
+        SQL wrote one.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Lineage" }
+
+  /ai/config:
+    get:
+      operationId: getAIConfig
+      summary: The model providers, their models, and which model is set for what (system admins only)
+      description: |
+        API keys are never returned: a provider says only whether it has
+        one. See .agents/design/ai-assistant.md 3.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIConfig" }
+
+  /ai/providers:
+    post:
+      operationId: createAIProvider
+      summary: Add a service that runs models (system admins only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIProviderInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIProvider" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /ai/providers/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    patch:
+      operationId: updateAIProvider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIProviderInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIProvider" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteAIProvider
+      summary: Delete a provider with its models; refused while one of them is set for something
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /ai/providers/{id}/models:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: createAIModel
+      summary: Add a model of the provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIModelInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIModel" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /ai/models/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    patch:
+      operationId: updateAIModel
+      summary: Change a model's name, limits or prices; later calls are charged at the new prices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AIModelInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIModel" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteAIModel
+      summary: Delete a model; refused while it is set for something
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /ai/models/{id}/test:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: testAIModel
+      summary: Make a short call to the model, recorded as any other
+      description: |
+        A failure at the provider is a successful response that says what
+        went wrong, in the provider's words: only system administrators see it.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIModelTrial" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /ai/settings:
+    put:
+      operationId: setAISettings
+      summary: Set which model the assistant uses for what (system admins only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AISettings" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AISettings" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /ai/usage:
+    get:
+      operationId: getAIUsage
+      summary: What the calls to models used and cost, in all and by group (system admins only)
+      description: |
+        Costs are summed in each currency apart, never across currencies.
+        See .agents/design/ai-assistant.md 13.
+      parameters:
+        - { name: groupBy, in: query, required: true, schema: { $ref: "#/components/schemas/AIUsageGroupBy" } }
+        - { name: from, in: query, description: Inclusive start, schema: { type: string, format: date-time } }
+        - { name: to, in: query, description: Exclusive end, schema: { type: string, format: date-time } }
+        - { name: timeZone, in: query, description: "IANA name of the zone that days are counted in, for groupBy=day; UTC when left out", schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AIUsageReport" }
+        "400": { $ref: "#/components/responses/Error" }
+
+  /assistant:
+    get:
+      operationId: getAssistantStatus
+      summary: Whether the assistant can answer, which it can once a model is set for it
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssistantStatus" }
+
+  /assistant/conversations:
+    get:
+      operationId: listConversations
+      summary: The caller's conversations in the current workspace, the latest first
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Conversation" }
+    post:
+      operationId: createConversation
+      summary: Start a conversation, to send its first message to
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Conversation" }
+
+  /assistant/conversations/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    patch:
+      operationId: renameConversation
+      summary: Give the conversation a title, which it keeps from then on
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConversationChange" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Conversation" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteConversation
+      summary: Delete the conversation with its messages
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /assistant/conversations/{id}/messages:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: listConversationMessages
+      summary: The messages of the conversation, in order
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AssistantMessage" }
+        "404": { $ref: "#/components/responses/Error" }
+    post:
+      operationId: sendAssistantMessage
+      summary: Send a message and receive the answer as it is written
+      description: |
+        The answer comes as server-sent events, each a `data:` line holding
+        an AssistantEvent: `start` with both messages as kept, `status` and
+        `delta` while the answer is written, `tool` as each tool the answer
+        calls starts and is done, `done` with the answer as it ended, and for
+        the first answer of a conversation possibly `title`.
+        Closing the connection stops the answer; what was written is kept.
+        Refused with 409 `assistant_busy` while the conversation has an
+        answer being written, and `assistant_not_configured` while no model
+        is set; with 400 `message_too_long` for a message the model cannot read.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AssistantMessageInput" }
+      responses:
+        "200":
+          description: The answer's events
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /assistant/messages/{id}/retry:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: retryAssistantMessage
+      summary: Write a failed answer again, as sendAssistantMessage writes one
+      description: |
+        Only the last message of a conversation can be written again, and
+        only once it failed: 409 `not_retryable` otherwise.
+      responses:
+        "200":
+          description: The answer's events
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+components:
+  parameters:
+    RevisionBefore:
+      name: before
+      in: query
+      description: Only revisions older than this revision
+      schema: { type: integer, minimum: 1 }
+    RevisionLimit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 30 }
+    OptionSearch:
+      name: search
+      in: query
+      description: Only values containing this text. For fields with too many values to list.
+      schema: { type: string }
+
+  responses:
+    Error:
+      description: The request could not be fulfilled
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    ExportInput:
+      type: object
+      additionalProperties: false
+      required: [datasourceId, sql, format, name]
+      properties:
+        datasourceId: { type: string }
+        sql: { type: string, minLength: 1, maxLength: 1000000 }
+        format: { type: string, enum: [csv, xlsx] }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        params:
+          type: array
+          items: { type: object, additionalProperties: true }
+    DashboardExportInput:
+      type: object
+      additionalProperties: false
+      required: [format, name]
+      properties:
+        format: { type: string, enum: [csv, xlsx] }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        headers:
+          description: |
+            Column headings by output column, as the page names them in the
+            viewer's language. Columns without one use the dataset's name.
+          type: object
+          additionalProperties: { type: string, maxLength: 200 }
+        links:
+          description: Selected scalar categories by saved link ID, as for the widget's data.
+          type: object
+          additionalProperties: {}
+        selections:
+          description: Saved dynamic slot IDs mapped to option IDs; omitted slots use their first option.
+          type: object
+          additionalProperties: { type: string }
+        filters:
+          description: Values of the dashboard's global filters, by filter id, as for the widget's data.
+          type: object
+          additionalProperties: {}
+        chartFilters:
+          description: Values for the widget's interactive filters, by the chart's filter id.
+          type: object
+          additionalProperties: {}
+        useChartFilters:
+          description: Use this widget's chart filters and ignore global dashboard filters.
+          type: boolean
+        drill: { $ref: "#/components/schemas/DrillPath" }
+    Export:
+      type: object
+      required: [id, name, format, source, status, createdAt, rows, sizeBytes, cancelRequested, unseen]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        format: { type: string, enum: [csv, xlsx] }
+        source:
+          description: Data exploration SQL, or a chart on a dashboard.
+          type: string
+          enum: [sql, chart]
+        dashboardName:
+          description: For a chart export, the dashboard's name when the export was made.
+          type: string
+        chartName:
+          description: For a chart export, the chart's name when the export was made.
+          type: string
+        unseen:
+          description: A finished result the owner has not looked at yet.
+          type: boolean
+        denied:
+          description: |
+            Why a succeeded, unexpired file cannot be downloaded now:
+            export_role, export_chart_disabled, export_dashboard_unavailable
+            or export_source_missing. Absent when it can be.
+          type: string
+        status: { type: string, enum: [queued, running, succeeded, failed, cancelled, expired] }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        rows: { type: integer, format: int64 }
+        sizeBytes: { type: integer, format: int64 }
+        cancelRequested: { type: boolean }
+        errorCode: { type: string }
+    ExportPage:
+      type: object
+      required: [items, unseen, maxRows, maxBytes, retentionSeconds, timeoutSeconds]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Export" } }
+        unseen:
+          description: Finished results in this workspace the owner has not looked at yet.
+          type: integer
+        nextBefore: { type: string, format: date-time }
+        maxRows: { type: integer, format: int64 }
+        maxBytes: { type: integer, format: int64 }
+        retentionSeconds: { type: integer, format: int64 }
+        timeoutSeconds: { type: integer, format: int64 }
+
+    SystemSettingValues:
+      description: |
+        The system settings, in the units the settings page shows. A setting
+        left out takes its default, which a newer version may change. See
+        .agents/design/configuration.md 10.
+      type: object
+      additionalProperties: false
+      properties:
+        exportRetentionHours: { description: How long a finished export file can be downloaded, type: integer, minimum: 1, maximum: 8760 }
+        exportTimeoutMinutes: { description: The longest one attempt at an export may run, type: integer, minimum: 1, maximum: 1440 }
+        exportMaxRows: { description: The most rows an export may have, type: integer, format: int64, minimum: 1, maximum: 100000000 }
+        exportMaxSizeMb: { description: The largest file an export may write, in MiB, type: integer, minimum: 1, maximum: 1048576 }
+        auditRetentionDays: { description: How long audit events and records of calls to AI models are kept; 0 keeps them, type: integer, minimum: 0, maximum: 36500 }
+        queryCacheTtlMinutes: { description: How long query results are kept unless a data source says otherwise, type: integer, minimum: 1, maximum: 1440 }
+        queryTimeoutSeconds: { description: The longest a statement of a query, a preview or a look at a data source may run, type: integer, minimum: 1, maximum: 3600 }
+        queryDefaultRows: { description: How many rows a query that does not say returns; at most queryMaxRows, type: integer, minimum: 1, maximum: 100000 }
+        queryMaxRows: { description: The most rows a query returns whatever it says, type: integer, minimum: 1, maximum: 100000 }
+        sessionLifetimeHours: { description: How long a session lasts without activity, type: integer, minimum: 1, maximum: 8760 }
+        workspaceRetentionDays: { description: How long a deleted workspace can be restored before it is purged, type: integer, minimum: 1, maximum: 3650 }
+    SystemSettingDefaults:
+      description: What each system setting is when left out.
+      type: object
+      required: [exportRetentionHours, exportTimeoutMinutes, exportMaxRows, exportMaxSizeMb, auditRetentionDays, queryCacheTtlMinutes, queryTimeoutSeconds, queryDefaultRows, queryMaxRows, sessionLifetimeHours, workspaceRetentionDays]
+      properties:
+        exportRetentionHours: { type: integer }
+        exportTimeoutMinutes: { type: integer }
+        exportMaxRows: { type: integer, format: int64 }
+        exportMaxSizeMb: { type: integer }
+        auditRetentionDays: { type: integer }
+        queryCacheTtlMinutes: { type: integer }
+        queryTimeoutSeconds: { type: integer }
+        queryDefaultRows: { type: integer }
+        queryMaxRows: { type: integer }
+        sessionLifetimeHours: { type: integer }
+        workspaceRetentionDays: { type: integer }
+    SystemSettings:
+      type: object
+      required: [values, defaults]
+      properties:
+        values: { $ref: "#/components/schemas/SystemSettingValues" }
+        defaults: { $ref: "#/components/schemas/SystemSettingDefaults" }
+
+    AuditCategory:
+      type: string
+      enum: [auth, account, workspace, access, content, query, export, ai, system]
+    AuditOutcome:
+      description: Denied is a refusal by a permission check; failure is recorded for sign-ins, queries and exports.
+      type: string
+      enum: [success, failure, denied]
+    AuditEvent:
+      type: object
+      required: [id, occurredAt, category, action, outcome, actor, detail, clientIp, forwardedFor, userAgent]
+      properties:
+        id: { type: string }
+        occurredAt: { type: string, format: date-time }
+        category: { $ref: "#/components/schemas/AuditCategory" }
+        action:
+          description: What happened, such as dataset.update or query.run.
+          type: string
+        outcome: { $ref: "#/components/schemas/AuditOutcome" }
+        workspace:
+          description: Absent for sign-in, account and group events.
+          type: object
+          required: [id, name]
+          properties:
+            id: { type: string }
+            name: { type: string, description: The current name; empty if the workspace no longer exists. }
+        actor:
+          type: object
+          required: [email]
+          properties:
+            id: { type: string, description: Absent when a sign-in named no existing account. }
+            email: { type: string, description: As it was at the time, or as typed at a failed sign-in. }
+            displayName: { type: string, description: The current name. }
+        object:
+          description: What the event acted on, named as it was at the time. Absent when there is none.
+          type: object
+          required: [type, id, name]
+          properties:
+            type: { type: string }
+            id: { type: string }
+            name: { type: string }
+        detail:
+          description: |
+            Facts that depend on the action: request content with passwords
+            redacted (request), previousName after a rename, reason of a failed
+            sign-in or refused download, statements of a query, export results.
+          type: object
+          additionalProperties: true
+        clientIp: { type: string, description: Address of the connection; a reverse proxy's when there is one. }
+        forwardedFor: { type: string, description: X-Forwarded-For as sent; clients can forge it. }
+        userAgent: { type: string }
+    AuditEventPage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/AuditEvent" } }
+        nextCursor: { type: string, description: Absent on the last page. }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, example: unknown_field }
+        message: { type: string }
+        params:
+          type: object
+          additionalProperties: { type: string }
+        position:
+          description: >
+            For an error the database found in SQL the caller wrote, when it
+            said where: the number of characters (Unicode code points) of that
+            SQL before the problem.
+          type: integer
+
+    Version:
+      type: object
+      required: [version, commit, features]
+      properties:
+        version: { type: string }
+        commit: { type: string }
+        features:
+          description: Optional capabilities this build has; none at the moment
+          type: array
+          items: { type: string }
+
+    LogicalType:
+      type: string
+      enum: [string, integer, decimal, float, boolean, date, timestamp]
+
+    DatasourceType:
+      type: object
+      required: [name, category, settings]
+      properties:
+        name: { type: string, example: postgres }
+        category:
+          description: What the database is built for, by which the kinds are grouped when one is chosen
+          type: string
+          enum: [oltp, olap]
+        settings:
+          type: array
+          items: { $ref: "#/components/schemas/SettingField" }
+
+    SettingField:
+      type: object
+      required: [name, required]
+      properties:
+        name: { type: string, example: host }
+        required: { type: boolean }
+        default: { type: string }
+        options:
+          description: Allowed values, when the setting is a choice
+          type: array
+          items: { type: string }
+
+    Datasource:
+      type: object
+      required: [id, name, type, settings, dataTimezone, hasPassword, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string }
+        settings:
+          type: object
+          additionalProperties: { type: string }
+        dataTimezone: { type: string, example: Asia/Shanghai }
+        hasPassword:
+          description: The password itself is never returned
+          type: boolean
+        cacheTtlSeconds: { $ref: "#/components/schemas/CacheTtlSeconds" }
+        maxConcurrentQueries: { $ref: "#/components/schemas/MaxConcurrentQueries" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    DatasourceInput:
+      type: object
+      required: [name, type, settings]
+      properties:
+        name: { type: string }
+        type: { type: string }
+        settings:
+          type: object
+          additionalProperties: { type: string }
+        password: { type: string }
+        dataTimezone:
+          description: IANA zone of timestamps stored without one. Defaults to UTC.
+          type: string
+        cacheTtlSeconds: { $ref: "#/components/schemas/CacheTtlSeconds" }
+        maxConcurrentQueries: { $ref: "#/components/schemas/MaxConcurrentQueries" }
+
+    MaxAge:
+      description: |
+        Use a kept result only if its statement started less than this many
+        seconds ago; otherwise ask the database again and keep the answer, as
+        a refresh does. For timed refresh. Not with refresh, nor with a cache
+        mode other than default. See .agents/design/query-ir.md §6.6.
+      type: integer
+      minimum: 1
+      maximum: 86400
+
+    DrillPath:
+      description: |
+        The values clicked on the way down the chart's drill, one for each
+        level from the first, raw as results return them; null picks missing
+        values. Empty or absent is the first level. Filter options ignore it.
+        See .agents/design/chart-dashboard.md §2.10.
+      type: array
+      maxItems: 7
+      items: {}
+
+    CacheTtlSeconds:
+      description: |
+        How long query results are kept, in seconds: 0 keeps none, 60 to 86400
+        keeps them that long. Absent follows the system setting
+        queryCacheTtlMinutes.
+      type: integer
+      minimum: 0
+      maximum: 86400
+
+    MaxConcurrentQueries:
+      description: How many statements each instance runs on the data source at once. Absent is 8.
+      type: integer
+      minimum: 1
+      maximum: 64
+
+    ConnectionTest:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        message:
+          description: The database's own error message when the attempt failed
+          type: string
+        code:
+          description: >
+            Set when the failure is one the system recognises, for a client to
+            explain it in the reader's language with params; message says the
+            same in English. mysql_version: the server is older than required;
+            mysql_tls: the encrypted connection could not be set up, as with an
+            old server; mysql_too_old: the server is older than MySQL 5.7.20 or
+            not MySQL; trino_version: the Trino server is older than required.
+          type: string
+          enum: [mysql_version, mysql_tls, mysql_too_old, trino_version]
+        params:
+          type: object
+          additionalProperties: { type: string }
+
+    DescribeRequest:
+      type: object
+      required: [source]
+      properties:
+        source: { type: object, additionalProperties: true }
+        params:
+          description: Declared parameters; their defaults are used for the probe
+          type: array
+          items: { type: object, additionalProperties: true }
+
+    SourceColumn:
+      type: object
+      required: [name, type, dbType]
+      properties:
+        name: { type: string }
+        type: { $ref: "#/components/schemas/LogicalType" }
+        dbType: { type: string }
+
+    SourceCatalog:
+      type: object
+      required: [tables, truncated]
+      properties:
+        tables:
+          type: array
+          items: { $ref: "#/components/schemas/SourceTable" }
+        truncated:
+          description: The data source holds more than is listed
+          type: boolean
+
+    SourceTable:
+      type: object
+      required: [path, name, columns]
+      properties:
+        path:
+          description: >
+            Where the table is, outermost first: the catalog and the schema,
+            or the one level of a database with two-part names. Given even
+            when a statement need not write it; empty when there are no levels.
+          type: array
+          items: { type: string }
+        catalog:
+          description: >
+            Absent when the table can be named without one, which is always so
+            but for a database that lists more than one catalog.
+          type: string
+        schema:
+          description: Absent when the table can be named without one
+          type: string
+        name: { type: string }
+        comment: { type: string, description: What the database's owners wrote about the table. Absent when nothing. }
+        columns:
+          type: array
+          items: { $ref: "#/components/schemas/SourceTableColumn" }
+
+    SourceTableColumn:
+      type: object
+      required: [name, dbType]
+      properties:
+        name: { type: string }
+        dbType: { type: string }
+        comment: { type: string, description: What the database's owners wrote about the column. Absent when nothing. }
+
+    Plan:
+      description: A database's account of how it would run a statement, in the database's own shape
+      type: object
+      required: [columns, rows]
+      properties:
+        columns:
+          type: array
+          items: { type: string }
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+
+    DatasetImpact:
+      type: object
+      required: [revision, confirmationToken, changes, charts, dashboards]
+      properties:
+        revision: { type: integer }
+        confirmationToken: { type: string, description: "Confirms this proposal and these resource definitions only. Reanalyze if any have changed." }
+        changes:
+          type: array
+          items: { $ref: "#/components/schemas/DatasetChange" }
+        charts:
+          type: array
+          items: { $ref: "#/components/schemas/DatasetImpactChart" }
+        dashboards:
+          type: array
+          items: { $ref: "#/components/schemas/DatasetImpactDashboard" }
+
+    DatasetChange:
+      type: object
+      required: [kind, key, label, reason]
+      properties:
+        kind: { type: string, enum: [field, parameter] }
+        key: { type: string }
+        label: { type: string }
+        reason: { type: string, enum: [removed, type_changed, role_changed, required, multi_changed] }
+
+    DatasetImpactChart:
+      type: object
+      required: [id, name, changeIndexes]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        changeIndexes:
+          type: array
+          items: { type: integer }
+
+    DatasetImpactDashboard:
+      type: object
+      required: [id, name, chartIds, changeIndexes]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        chartIds:
+          type: array
+          items: { type: string }
+        changeIndexes:
+          type: array
+          items: { type: integer }
+
+    DatasetUpdateInput:
+      allOf:
+        - $ref: "#/components/schemas/DatasetInput"
+        - type: object
+          required: [expectedRevision]
+          properties:
+            expectedRevision:
+              type: integer
+              minimum: 1
+              description: The content revision being edited. Required for updates; a mismatch returns resource_revision_conflict without changing the resource.
+
+    DatasetInput:
+      type: object
+      required: [name, datasourceId, spec]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        datasourceId: { type: string }
+        impactToken: { type: string, description: "The confirmationToken from impact analysis, required when existing charts or dashboards are affected." }
+        spec:
+          description: Dataset spec; see .agents/design/dataset.md
+          type: object
+          additionalProperties: true
+
+    ExpressionFunction:
+      type: object
+      required: [name, category, aggregate, extended]
+      properties:
+        name: { type: string, example: DATE_DIFF }
+        category:
+          type: string
+          enum: [aggregate, logic, math, text, date, convert, native]
+        aggregate:
+          description: Turns the rows of a group into one value, so it belongs in a metric
+          type: boolean
+        extended:
+          description: >
+            Beyond the core: not every database has it, so an expression that
+            uses it is not promised to move to another one.
+          type: boolean
+
+    ExpressionCheckInput:
+      type: object
+      required: [expr, metric, fields]
+      properties:
+        expr: { type: string }
+        metric:
+          description: Whether the expression is that of a metric, which aggregates
+          type: boolean
+        fields:
+          description: The fields the expression can refer to, by name
+          type: array
+          items:
+            type: object
+            required: [label, type, metric]
+            properties:
+              label: { type: string }
+              type: { $ref: "#/components/schemas/LogicalType" }
+              metric: { type: boolean }
+
+    ExpressionCheck:
+      type: object
+      required: [native]
+      properties:
+        type:
+          description: What the expression gives. Absent when it has a mistake, or gives whatever a piece of native SQL in it does.
+          $ref: "#/components/schemas/LogicalType"
+        native:
+          description: A piece of the database's own SQL is part of it, so it will not move to another database as it is
+          type: boolean
+        error:
+          type: object
+          required: [code, message, from, to]
+          properties:
+            code: { type: string, example: expr_unknown_function }
+            message: { type: string }
+            params:
+              type: object
+              additionalProperties: { type: string }
+            from:
+              description: Where the mistake starts, in characters (Unicode code points) of the expression
+              type: integer
+            to: { type: integer }
+
+    DatasetPreviewInput:
+      type: object
+      required: [datasourceId, spec]
+      properties:
+        datasourceId: { type: string }
+        spec:
+          description: Dataset spec; see .agents/design/dataset.md
+          type: object
+          additionalProperties: true
+        limit:
+          description: How many rows to return at most. 100 when left out.
+          type: integer
+          minimum: 1
+          maximum: 1000
+        refresh:
+          description: Ask the database again instead of using a kept result.
+          type: boolean
+
+    FolderKind:
+      description: What a folder holds. Each kind has its own tree.
+      type: string
+      enum: [dashboard, chart, dataset]
+
+    Folder:
+      type: object
+      required: [id, kind, name]
+      properties:
+        id: { type: string }
+        kind: { $ref: "#/components/schemas/FolderKind" }
+        parentId: { type: string, description: Absent at the top of the tree }
+        name: { type: string }
+
+    FolderInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        parentId: { type: string, description: Leave out to put the folder at the top of the tree }
+
+    FolderCreate:
+      allOf:
+        - $ref: "#/components/schemas/FolderInput"
+        - type: object
+          required: [kind]
+          properties:
+            kind: { $ref: "#/components/schemas/FolderKind" }
+
+    MoveInput:
+      type: object
+      required: [kind, id]
+      properties:
+        kind: { $ref: "#/components/schemas/FolderKind" }
+        id: { type: string, description: "The dashboard, chart or dataset to move" }
+        folderId: { type: string, description: Leave out to put it at the top of the tree }
+
+    ResourceRef:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+
+    Usage:
+      type: object
+      required: [datasets, charts, dashboards]
+      properties:
+        datasets:
+          type: array
+          items: { $ref: "#/components/schemas/ResourceRef" }
+        charts:
+          type: array
+          items: { $ref: "#/components/schemas/ResourceRef" }
+        dashboards:
+          type: array
+          items: { $ref: "#/components/schemas/ResourceRef" }
+
+    Lineage:
+      type: object
+      required: [nodes, edges]
+      properties:
+        nodes:
+          type: array
+          items: { $ref: "#/components/schemas/LineageNode" }
+        edges:
+          type: array
+          items: { $ref: "#/components/schemas/LineageEdge" }
+
+    LineageNode:
+      type: object
+      required: [id, kind, name]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [datasource, table, dataset, chart, dashboard] }
+        name: { type: string, description: "Of a table, the name as the SQL that reads it has it." }
+        sourceType: { type: string, description: "The driver of a data source, e.g. postgres. Absent for other kinds." }
+
+    LineageEdge:
+      description: What is read, and what reads it
+      type: object
+      required: [from, to]
+      properties:
+        from: { type: string, description: The id of what is read }
+        to: { type: string, description: The id of what reads it }
+
+    DatasetSummary:
+      type: object
+      required: [id, name, description, datasourceId, revision, validationStatus, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        datasourceId: { type: string }
+        revision: { type: integer }
+        validationStatus:
+          type: string
+          enum: [unvalidated, valid, invalid]
+        folderId: { type: string, description: Absent at the top of the tree }
+        updatedAt: { type: string, format: date-time }
+
+    Dataset:
+      allOf:
+        - $ref: "#/components/schemas/DatasetSummary"
+        - type: object
+          required: [spec]
+          properties:
+            spec:
+              type: object
+              additionalProperties: true
+
+    RevisionSummary:
+      type: object
+      description: One save of a dataset, chart or dashboard
+      required: [revision, name, createdAt]
+      properties:
+        revision: { type: integer }
+        name: { type: string, description: Name when this revision was saved }
+        createdAt: { type: string, format: date-time }
+        createdBy: { type: string, description: User ID; absent for system changes }
+        createdByName: { type: string, description: Current display name of the author }
+
+    RevisionPage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/RevisionSummary" } }
+        nextBefore: { type: integer, description: Cursor for the next page; absent at the end }
+
+    DatasetRevision:
+      allOf:
+        - $ref: "#/components/schemas/RevisionSummary"
+        - type: object
+          required: [description, datasourceId, datasourceName, spec]
+          properties:
+            description: { type: string }
+            datasourceId: { type: string }
+            datasourceName: { type: string, description: Data source name at the time of saving }
+            spec: { type: object, additionalProperties: true }
+
+    QueryRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          description: Query IR; see .agents/design/query-ir.md
+          type: object
+          additionalProperties: true
+        options:
+          type: object
+          properties:
+            diagnostics:
+              description: Include SQL, bound arguments and per-statement execution metadata with this result. Requires the developer role.
+              type: boolean
+            cache:
+              description: |
+                default reads a kept result and keeps a new one; refresh asks the
+                database again and keeps its answer; bypass neither reads nor
+                keeps. See .agents/design/query-ir.md §6.6.
+              type: string
+              enum: [default, refresh, bypass]
+            maxAge: { $ref: "#/components/schemas/MaxAge" }
+
+    TimeRangeInput:
+      type: object
+      required: [range]
+      properties:
+        range:
+          description: The value of a time condition; see .agents/design/query-ir.md
+          type: object
+          additionalProperties: true
+
+    TimeRangeDates:
+      type: object
+      description: >
+        Wall times in the workspace's time zone, as YYYY-MM-DDTHH:MM:SS.
+        The start is kept and the end is not; a side left out is open.
+      properties:
+        start: { type: string }
+        end: { type: string }
+
+    QueryResult:
+      type: object
+      required: [columns, rows, meta]
+      properties:
+        diagnostics:
+          $ref: "#/components/schemas/QueryDiagnostics"
+        columns:
+          type: array
+          items: { $ref: "#/components/schemas/ResultColumn" }
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+        totals:
+          description: The query's totals, in the order it asks for them; see .agents/design/query-ir.md.
+          type: array
+          items: { $ref: "#/components/schemas/QueryTotal" }
+        meta:
+          type: object
+          required: [truncated, durationMs, cached]
+          properties:
+            truncated: { type: boolean }
+            durationMs:
+              description: How long the database took; for a kept result, how long it took then.
+              type: integer
+              format: int64
+            cached:
+              description: Every statement of the result was answered from the query cache.
+              type: boolean
+            cachedAt:
+              description: When the database returned the result; for one with totals, the earliest of its parts.
+              type: string
+              format: date-time
+            totalsOmitted:
+              description: The query asked for totals but has a condition on aggregated results, which a coarser grouping would not mean the same by; no totals are returned.
+              type: boolean
+            overriddenFilters:
+              description: Chart filter IDs taken over by global filters for this resolved widget query; empty when using chart filters.
+              type: array
+              items: { type: string }
+
+    QueryDiagnostics:
+      description: >
+        A snapshot of the statements used to produce this response, including
+        statements answered from cache. Only returned when explicitly requested
+        by a developer or administrator; never stored in the result cache.
+      type: object
+      required: [requestId, requestedAt, statements]
+      properties:
+        requestId: { type: string }
+        requestedAt: { type: string, format: date-time }
+        statements:
+          type: array
+          items: { $ref: "#/components/schemas/QueryStatement" }
+
+    QueryStatement:
+      type: object
+      required: [kind, by, sql, args, durationMs, cached, shared, fetchedAt, rowCount, truncated]
+      properties:
+        kind: { type: string, enum: [main, total, subtotal] }
+        by:
+          description: Output dimension names retained by a subtotal; empty for the main query and grand total.
+          type: array
+          items: { type: string }
+        sql:
+          description: The compiled SQL passed to the data source driver, with its placeholders intact.
+          type: string
+        args:
+          description: Bound arguments in placeholder order, kept separate from SQL.
+          type: array
+          items: {}
+        durationMs:
+          description: Database duration, including queueing; for a cached result, the original duration, not the cache lookup time.
+          type: integer
+          format: int64
+        cached: { type: boolean }
+        shared:
+          description: This request waited for an identical in-flight query.
+          type: boolean
+        fetchedAt:
+          description: When these rows were fetched from the database, including for a cache hit.
+          type: string
+          format: date-time
+        rowCount: { type: integer }
+        truncated: { type: boolean }
+
+    QueryTotal:
+      description: The measures over coarser groups, grouped by the dimensions in by.
+      type: object
+      required: [by, columns, rows]
+      properties:
+        by:
+          type: array
+          items: { type: string }
+        columns:
+          type: array
+          items: { $ref: "#/components/schemas/ResultColumn" }
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+
+    ResultColumn:
+      type: object
+      required: [name, type, role]
+      properties:
+        name: { type: string }
+        type: { $ref: "#/components/schemas/LogicalType" }
+        role:
+          type: string
+          enum: [dimension, measure]
+        label: { type: string }
+        format: { $ref: "#/components/schemas/DisplayFormat" }
+        grain:
+          description: What a dimension's dates were truncated to, which says how much of them to write; absent when they were not.
+          type: string
+          enum: [year, quarter, month, week, day, hour, minute]
+        comparison: { $ref: "#/components/schemas/Comparison" }
+        compute:
+          description: Derived calculation, omitted when the column has an explicit label.
+          type: string
+          enum: [percent_of_total, compare, cumulative]
+        agg:
+          description: How a measure column was aggregated, by the dataset's default or for this query alone; absent on a metric. The label is the field's own, so a client adds this to it.
+          type: string
+
+    Comparison:
+      type: object
+      required: [offset, output]
+      properties:
+        offset:
+          type: object
+          required: [n, unit]
+          properties:
+            n: { type: integer }
+            unit: { type: string, enum: [day, week, month, quarter, year] }
+        output: { type: string, enum: [value, delta, ratio] }
+    DisplayFormat:
+      description: How a number or a date is written for people to read; see .agents/design/dataset.md §5.5. A number takes the number properties, from style to suffix, and a date the date properties, from date to week. A count has none.
+      type: object
+      properties:
+        style:
+          description: None shows the number as the query returned it and takes no other property; on a chart it sets the dataset's format aside. A percent shows a ratio as a percentage, 0.25 as 25%. Number when left out.
+          type: string
+          enum: [none, number, percent]
+        decimals:
+          description: A fixed number of decimal places. When left out, up to two are shown without trailing zeros.
+          type: integer
+          minimum: 0
+          maximum: 10
+        grouping:
+          description: Whether thousands are separated. True when left out.
+          type: boolean
+        unit:
+          description: Divides the number before it is shown. Auto picks a unit for each value by the reader's language. Not with percent.
+          type: string
+          enum: [auto, K, wan, M, yi, B]
+        prefix: { type: string, maxLength: 16 }
+        suffix: { type: string, maxLength: 16 }
+        date:
+          description: How a date is written, 2026-01-05, 2026/01/05 or 2026年1月5日; how much of it, by the grain. Dash when left out.
+          type: string
+          enum: [dash, slash, chinese]
+        time:
+          description: How much of the time of day a timestamp not grouped by a grain shows; none is the date alone. Second when left out. A date has none.
+          type: string
+          enum: [second, minute, none]
+        week:
+          description: How a week is written, its first and last days, its first day or its number in the year. Range when left out.
+          type: string
+          enum: [range, start, number]
+
+    SessionInfo:
+      type: object
+      required: [authenticated, setupRequired]
+      properties:
+        authenticated: { type: boolean }
+        setupRequired:
+          description: True while no account exists; the client should offer the setup form.
+          type: boolean
+        user: { $ref: "#/components/schemas/SessionUser" }
+        workspace: { $ref: "#/components/schemas/SessionWorkspace" }
+        workspaces:
+          description: The workspaces the user can switch to, the current one included
+          type: array
+          items: { $ref: "#/components/schemas/SessionWorkspace" }
+        role:
+          description: The user's role in the current workspace; absent without one
+          allOf: [{ $ref: "#/components/schemas/WorkspaceRole" }]
+        queryRows:
+          description: How many rows queries return, for those writing them; absent when not signed in.
+          allOf: [{ $ref: "#/components/schemas/SessionQueryRows" }]
+
+    SessionUser:
+      type: object
+      required: [id, email, displayName, isOrgAdmin]
+      properties:
+        id: { type: string }
+        email: { type: string }
+        displayName: { type: string }
+        isOrgAdmin: { type: boolean }
+
+    SessionQueryRows:
+      type: object
+      required: [default, max]
+      properties:
+        default:
+          description: How many rows a query that does not say returns.
+          type: integer
+        max:
+          description: The most rows a query returns, whatever it says.
+          type: integer
+
+    SessionWorkspace:
+      type: object
+      required: [id, name, timezone, weekStart, firstWeekDays]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        timezone: { type: string }
+        weekStart:
+          type: integer
+          description: ISO weekday that weeks start on, 1 Monday or 7 Sunday
+        firstWeekDays:
+          $ref: "#/components/schemas/FirstWeekDays"
+
+    SetupInput:
+      type: object
+      required: [email, displayName, password]
+      properties:
+        email: { type: string }
+        displayName: { type: string }
+        password: { type: string }
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string }
+        password: { type: string }
+
+    PasswordChange:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string }
+        newPassword: { type: string }
+
+    WorkspaceRole:
+      description: |
+        What a member may do in a workspace, from least to most able: viewer
+        looks at dashboards and charts; developer also connects data sources,
+        writes SQL and makes datasets, charts and dashboards; admin also
+        manages the workspace's members and settings.
+      type: string
+      enum: [viewer, developer, admin]
+
+    User:
+      type: object
+      required: [id, email, displayName, status, isOrgAdmin]
+      properties:
+        id: { type: string }
+        email: { type: string }
+        displayName: { type: string }
+        status:
+          type: string
+          enum: [active, disabled]
+        isOrgAdmin: { type: boolean }
+
+    UserInput:
+      type: object
+      required: [email, displayName, password]
+      properties:
+        email: { type: string }
+        displayName: { type: string }
+        password:
+          description: Initial password, to be passed to the user out of band
+          type: string
+        isOrgAdmin: { type: boolean }
+
+    UserChange:
+      type: object
+      properties:
+        displayName: { type: string }
+        status:
+          type: string
+          enum: [active, disabled]
+        password:
+          description: A new password for the user; ends their sessions
+          type: string
+        isOrgAdmin: { type: boolean }
+
+    Group:
+      type: object
+      required: [id, name, userIds]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        userIds:
+          type: array
+          items: { type: string }
+
+    GroupInput:
+      type: object
+      required: [name, userIds]
+      properties:
+        name: { type: string }
+        userIds:
+          type: array
+          items: { type: string }
+
+    Member:
+      type: object
+      required: [userId, email, displayName, status, isOrgAdmin, role]
+      properties:
+        userId: { type: string }
+        email: { type: string }
+        displayName: { type: string }
+        status:
+          type: string
+          enum: [active, disabled]
+        isOrgAdmin: { type: boolean }
+        role: { $ref: "#/components/schemas/WorkspaceRole" }
+
+    MemberInput:
+      type: object
+      required: [userId, role]
+      properties:
+        userId: { type: string }
+        role: { $ref: "#/components/schemas/WorkspaceRole" }
+
+    MemberChange:
+      type: object
+      required: [role]
+      properties:
+        role: { $ref: "#/components/schemas/WorkspaceRole" }
+
+    GroupMember:
+      type: object
+      required: [groupId, name, role]
+      properties:
+        groupId: { type: string }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/WorkspaceRole" }
+
+    Workspace:
+      type: object
+      required: [id, name, timezone, weekStart, firstWeekDays]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        timezone:
+          description: Default query time zone
+          type: string
+        weekStart:
+          description: ISO weekday that weeks start on, 1 Monday or 7 Sunday
+          type: integer
+        firstWeekDays:
+          $ref: "#/components/schemas/FirstWeekDays"
+        deletedAt:
+          description: When the workspace was deleted; absent while it is in use
+          type: string
+          format: date-time
+        purgeAt:
+          description: When the hourly maintenance purges a deleted workspace, at the latest an hour after this
+          type: string
+          format: date-time
+
+    FirstWeekDays:
+      description: How many days of the first week of a year are in that year, which says which week is numbered 1 when weeks are written by number. 4 is ISO 8601 when weeks start on Monday, 1 the week of January 1 and 7 the first whole week. Queries do not use it. See .agents/design/architecture.md §10.2.
+      type: integer
+      enum: [1, 4, 7]
+
+    WorkspaceInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        timezone: { type: string }
+        weekStart: { type: integer }
+        firstWeekDays: { type: integer }
+
+    WorkspaceSwitch:
+      type: object
+      required: [workspaceId]
+      properties:
+        workspaceId: { type: string }
+
+    ChartUpdateInput:
+      allOf:
+        - $ref: "#/components/schemas/ChartInput"
+        - type: object
+          required: [expectedRevision]
+          properties:
+            expectedRevision:
+              type: integer
+              minimum: 1
+              description: The content revision being edited. Required for updates; a mismatch returns resource_revision_conflict without changing the resource.
+
+    ChartInput:
+      type: object
+      required: [name, spec]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        spec:
+          description: Chart spec; see .agents/design/chart-dashboard.md
+          type: object
+          additionalProperties: true
+
+    ChartSummary:
+      type: object
+      required: [id, name, description, datasetId, vizType, updatedAt, revision]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        datasetId: { type: string }
+        vizType: { type: string, example: bar }
+        folderId: { type: string, description: Absent at the top of the tree }
+        revision: { type: integer, minimum: 1, description: Content revision used when saving changes }
+        updatedAt: { type: string, format: date-time }
+
+    Chart:
+      allOf:
+        - $ref: "#/components/schemas/ChartSummary"
+        - type: object
+          required: [spec]
+          properties:
+            spec:
+              type: object
+              additionalProperties: true
+            params:
+              description: |
+                What showing the chart's parameter filters takes from its
+                dataset, by filter id, for viewers who cannot read the dataset.
+                Absent when the chart has none.
+              type: object
+              additionalProperties: { $ref: "#/components/schemas/ParamControl" }
+
+    ParamControl:
+      type: object
+      required: [type]
+      properties:
+        type: { $ref: "#/components/schemas/LogicalType" }
+        multi: { type: boolean }
+        needsValue:
+          description: The SQL cannot run without a value, so the control cannot be cleared.
+          type: boolean
+        default:
+          description: The value a viewer starts with; absent when it is none.
+        options:
+          description: What a dropdown offers, the default always among them.
+          type: array
+          items: {}
+
+    ChartDataRequest:
+      type: object
+      properties:
+        diagnostics:
+          description: Include query diagnostics in chart data responses. Requires the developer role; not used for filter options.
+          type: boolean
+        refresh:
+          description: Ask the database again instead of using a kept result.
+          type: boolean
+        selections:
+          description: Saved dynamic slot IDs mapped to option IDs; omitted slots use their first option.
+          type: object
+          additionalProperties: { type: string }
+        filters:
+          description: |
+            Values for the chart's interactive filters, by filter id. A filter
+            that is absent keeps its own value; an empty value means no restriction.
+          type: object
+          additionalProperties: {}
+        drill: { $ref: "#/components/schemas/DrillPath" }
+
+    DashboardUpdateInput:
+      allOf:
+        - $ref: "#/components/schemas/DashboardInput"
+        - type: object
+          required: [expectedRevision]
+          properties:
+            expectedRevision:
+              type: integer
+              minimum: 1
+              description: The content revision being edited. Required for updates; a mismatch returns resource_revision_conflict without changing the resource.
+
+    DashboardInput:
+      type: object
+      required: [name, spec]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        spec:
+          description: Dashboard spec; see .agents/design/chart-dashboard.md
+          type: object
+          additionalProperties: true
+
+    DashboardSummary:
+      type: object
+      required: [id, name, description, updatedAt, revision]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        folderId: { type: string, description: Absent at the top of the tree }
+        revision: { type: integer, minimum: 1, description: Content revision used when saving changes }
+        updatedAt: { type: string, format: date-time }
+
+    Subject:
+      description: Who a grant or a rule is for. Exactly one property is set.
+      type: object
+      properties:
+        user: { type: string, description: A user's ID }
+        group: { type: string, description: A group's ID }
+        everyone: { type: boolean, description: Every member of the workspace }
+
+    AttributeAssignment:
+      type: object
+      required: [subject, values]
+      properties:
+        subject: { $ref: "#/components/schemas/Subject" }
+        values:
+          description: Exact text values. Empty explicitly denies matching rows; no wildcard expansion.
+          type: array
+          items: { type: string }
+    UserAttributeInput:
+      type: object
+      required: [name, assignments]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        assignments:
+          type: array
+          items: { $ref: "#/components/schemas/AttributeAssignment" }
+    UserAttribute:
+      type: object
+      required: [key, name, assignments, builtin]
+      properties:
+        key: { type: string }
+        name: { type: string }
+        builtin: { type: boolean }
+        assignments:
+          type: array
+          items: { $ref: "#/components/schemas/AttributeAssignment" }
+
+    DatasetPolicy:
+      description: What viewers see of a dataset. Empty rows and columns mean permissions are not enabled, regardless of scope settings. Developers and admins see all of it.
+      type: object
+      required: [unmatched, rows, columns]
+      properties:
+        unmatched:
+          description: What a viewer no row rule covers sees, all rows or none
+          type: string
+          enum: [all, none]
+        rows:
+          type: array
+          items: { $ref: "#/components/schemas/RowRule" }
+        columns:
+          type: array
+          items: { $ref: "#/components/schemas/ColumnRule" }
+        columnMode:
+          description: Whether each column rule makes its fields visible or hidden to its applicable subjects. Results of rules are unioned. Defaults to visible when omitted.
+          type: string
+          enum: [visible, hidden]
+        invalidRows:
+          description: Indexes of the row rules that no longer fit the dataset; those they cover see no row
+          type: array
+          items: { type: integer }
+          readOnly: true
+        updatedAt: { type: string, format: date-time, readOnly: true }
+        updatedBy: { type: string, readOnly: true }
+
+    RowRule:
+      description: Its subjects see the rows that pass the required condition. Someone covered by several rules sees what any of them lets through. Missing or incomplete conditions never grant access.
+      type: object
+      required: [subjects, filter]
+      properties:
+        name: { type: string, maxLength: 100 }
+        subjects:
+          type: array
+          items: { $ref: "#/components/schemas/Subject" }
+        filter:
+          description: 'A complete, nonempty query condition, optionally using value: {userAttr: key} with in on text fields. Attributes resolve on the server; missing values deny the rule.'
+          type: object
+          additionalProperties: true
+
+    ColumnRule:
+      description: Applicable subjects are stored in visibleTo. With columnMode visible they see the fields; with hidden they do not. Other subjects have the opposite visibility. Results of rules are unioned.
+      type: object
+      required: [fields, visibleTo]
+      properties:
+        name: { type: string, maxLength: 100 }
+        fields:
+          type: array
+          items: { type: string }
+        visibleTo:
+          type: array
+          items: { $ref: "#/components/schemas/Subject" }
+
+    PolicyPreviewRequest:
+      type: object
+      required: [userId]
+      properties:
+        userId: { type: string }
+        policy: { $ref: "#/components/schemas/DatasetPolicy" }
+
+    PolicyPreview:
+      type: object
+      required: [restricted, hiddenFields, result]
+      properties:
+        restricted:
+          description: False when the user is a developer or admin, whom data permissions do not restrict
+          type: boolean
+        hiddenFields:
+          description: Fields the user may not see
+          type: array
+          items: { type: string }
+        result: { $ref: "#/components/schemas/QueryResult" }
+
+    Grants:
+      type: object
+      required: [subjects]
+      properties:
+        name: { type: string, maxLength: 100 }
+        subjects:
+          type: array
+          items: { $ref: "#/components/schemas/Subject" }
+
+    Dashboard:
+      allOf:
+        - $ref: "#/components/schemas/DashboardSummary"
+        - type: object
+          required: [spec, charts]
+          properties:
+            spec:
+              type: object
+              additionalProperties: true
+            charts:
+              description: The charts the dashboard shows, so a client can draw it without further lookups
+              type: array
+              items: { $ref: "#/components/schemas/Chart" }
+
+    DashboardDataRequest:
+      type: object
+      properties:
+        refresh:
+          description: Ask the database again instead of using a kept result.
+          type: boolean
+        maxAge: { $ref: "#/components/schemas/MaxAge" }
+        drill: { $ref: "#/components/schemas/DrillPath" }
+        links:
+          description: Selected scalar categories by saved link ID. Omit to clear; null selects missing values.
+          type: object
+          additionalProperties: {}
+        selections:
+          description: Saved dynamic slot IDs mapped to option IDs; omitted slots use their first option.
+          type: object
+          additionalProperties: { type: string }
+        filters:
+          description: |
+            Values of the dashboard's global filters, by filter id. A filter
+            that is absent uses its default; an empty value means no restriction.
+          type: object
+          additionalProperties: {}
+        chartFilters:
+          description: |
+            Values for the widget's interactive filters, by the chart's filter id.
+            While global filters are active, values of controls they take over
+            are retained by the client but ignored by the server.
+          type: object
+          additionalProperties: {}
+        useChartFilters:
+          description: |
+            Use this widget's chart filters and ignore global dashboard filters for
+            this request. Click links still apply. False (the default) restores global filter control.
+          type: boolean
+
+    DashboardViewState:
+      description: What a viewer has chosen on a dashboard, as its data requests send it, by widget where it belongs to one.
+      type: object
+      properties:
+        filters:
+          description: Global filter values by filter id.
+          type: object
+          additionalProperties: {}
+        chartFilters:
+          description: Each widget's own filter values, by widget id and then the chart's filter id.
+          type: object
+          additionalProperties: { type: object, additionalProperties: {} }
+        selections:
+          description: Each widget's dynamic choices, by widget id and then slot id.
+          type: object
+          additionalProperties: { type: object, additionalProperties: { type: string } }
+        useChartFilters:
+          description: Widgets using their own filters instead of the global ones.
+          type: array
+          items: { type: string }
+        links:
+          description: Link clicks by link id; null selects missing values.
+          type: object
+          additionalProperties: {}
+        drill:
+          description: Where each widget's chart is drilled down to, by widget id, where it is below the first level.
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/DrillState" }
+        tabs:
+          description: The tab each tab container shows, by container id, where it is not the one shown first.
+          type: object
+          additionalProperties: { type: string }
+        page:
+          description: The page of a split dashboard shown, by its id, where it is not the first.
+          type: string
+
+    DrillState:
+      description: |
+        Where a chart is drilled down to, as its breadcrumb shows it: what the
+        first level is called, and the value clicked at each level on the way
+        down, as data requests send it in `drill`.
+      type: object
+      required: [root, steps]
+      properties:
+        root: { type: string }
+        steps:
+          type: array
+          items: { $ref: "#/components/schemas/DrillStep" }
+
+    DrillStep:
+      type: object
+      required: [value]
+      properties:
+        value:
+          description: The raw value clicked, null for a missing value.
+        text:
+          description: How the chart wrote the value; when absent, it is written from the value.
+          type: string
+
+    DashboardViewInput:
+      type: object
+      required: [state, validDays]
+      properties:
+        state: { $ref: "#/components/schemas/DashboardViewState" }
+        validDays:
+          description: How many days the link carries the conditions.
+          type: integer
+          enum: [1, 7, 30, 90]
+
+    DashboardView:
+      type: object
+      required: [id, state, expiresAt]
+      properties:
+        id: { type: string }
+        state: { $ref: "#/components/schemas/DashboardViewState" }
+        expiresAt: { type: string, format: date-time }
+
+    DashboardPreviewRequest:
+      allOf:
+        - $ref: "#/components/schemas/DashboardFilterOptionsRequest"
+        - type: object
+          required: [spec]
+          properties:
+            spec:
+              description: Unsaved dashboard spec, validated as saving validates it.
+              type: object
+              additionalProperties: true
+
+    ChartOptionsRequest:
+      allOf:
+        - $ref: "#/components/schemas/ChartDataRequest"
+        - type: object
+          properties:
+            search: { type: string }
+            related:
+              type: boolean
+              description: Use all connected cascade selections for reverse matching; otherwise only ancestors apply.
+
+    ChartPreviewRequest:
+      allOf:
+        - $ref: "#/components/schemas/ChartOptionsRequest"
+        - type: object
+          required: [spec]
+          properties:
+            spec:
+              description: Unsaved chart spec; requires the developer role.
+              type: object
+              additionalProperties: true
+
+    ChartPreviewDataRequest:
+      allOf:
+        - $ref: "#/components/schemas/ChartDataRequest"
+        - type: object
+          required: [spec]
+          properties:
+            spec:
+              description: Unsaved chart spec, validated as saving validates it.
+              type: object
+              additionalProperties: true
+
+    DashboardFilterOptionsRequest:
+      allOf:
+        - $ref: "#/components/schemas/DashboardDataRequest"
+        - type: object
+          properties:
+            search: { type: string }
+            related:
+              type: boolean
+              description: Include connected filters when matching cascade selections in reverse.
+
+    FilterOptions:
+      type: object
+      required: [values, truncated]
+      properties:
+        values:
+          type: array
+          items: {}
+        truncated:
+          description: True when the field has more distinct values than are listed
+          type: boolean
+
+    AIProtocol:
+      description: openai is OpenAI-compatible chat completions.
+      type: string
+      enum: [openai]
+
+    AIProvider:
+      type: object
+      required: [id, name, protocol, baseUrl, hasApiKey]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        protocol: { $ref: "#/components/schemas/AIProtocol" }
+        baseUrl: { type: string }
+        hasApiKey: { type: boolean }
+
+    AIProviderInput:
+      type: object
+      additionalProperties: false
+      required: [name, protocol, baseUrl]
+      properties:
+        name: { type: string }
+        protocol: { $ref: "#/components/schemas/AIProtocol" }
+        baseUrl:
+          description: Address of the API, such as https://api.deepseek.com/v1
+          type: string
+        apiKey:
+          description: A new key; an empty string removes it. Left out, the key stays as it is.
+          type: string
+
+    AIPrice:
+      description: Price of a million tokens, a decimal with at most six places.
+      type: string
+
+    AIModel:
+      type: object
+      required: [id, providerId, model, contextTokens, maxOutputTokens, currency, inputPrice, outputPrice]
+      properties:
+        id: { type: string }
+        providerId: { type: string }
+        model: { type: string }
+        contextTokens: { type: integer }
+        maxOutputTokens: { type: integer }
+        currency: { type: string }
+        inputPrice: { $ref: "#/components/schemas/AIPrice" }
+        cachedInputPrice: { $ref: "#/components/schemas/AIPrice" }
+        cacheWritePrice: { $ref: "#/components/schemas/AIPrice" }
+        outputPrice: { $ref: "#/components/schemas/AIPrice" }
+        thinkingLevel: { type: string }
+
+    AIModelInput:
+      type: object
+      additionalProperties: false
+      required: [model, contextTokens, maxOutputTokens, currency, inputPrice, outputPrice]
+      properties:
+        model:
+          description: Name of the model in calls to the provider
+          type: string
+        contextTokens:
+          description: Tokens the model reads and writes in one call at most
+          type: integer
+        maxOutputTokens:
+          description: Tokens one answer may have at most; less than contextTokens
+          type: integer
+        currency:
+          description: ISO 4217 code of the currency of the prices, such as CNY
+          type: string
+        inputPrice: { $ref: "#/components/schemas/AIPrice" }
+        cachedInputPrice:
+          description: Price of input read from the provider's cache; left out, such input is charged as other input
+          allOf: [{ $ref: "#/components/schemas/AIPrice" }]
+        cacheWritePrice:
+          description: Price of input written to the provider's cache; left out, such input is charged as other input
+          allOf: [{ $ref: "#/components/schemas/AIPrice" }]
+        outputPrice: { $ref: "#/components/schemas/AIPrice" }
+        thinkingLevel:
+          description: Sent as it is as reasoning_effort when answering and when tried; left out, none is sent
+          type: string
+          maxLength: 32
+
+    AISettings:
+      description: The model set for each purpose; left out is unset. Titles and summaries then use the chat model.
+      type: object
+      additionalProperties: false
+      properties:
+        chatModelId: { type: string }
+        titleModelId: { type: string }
+        compressionModelId: { type: string }
+
+    AIConfig:
+      type: object
+      required: [providers, models, settings]
+      properties:
+        providers:
+          type: array
+          items: { $ref: "#/components/schemas/AIProvider" }
+        models:
+          type: array
+          items: { $ref: "#/components/schemas/AIModel" }
+        settings: { $ref: "#/components/schemas/AISettings" }
+
+    AIUsageGroupBy:
+      type: string
+      enum: [user, model, workspace, purpose, day]
+
+    AICost:
+      type: object
+      required: [currency, amount]
+      properties:
+        currency: { type: string }
+        amount: { description: A decimal, type: string }
+
+    AIUsage:
+      description: What some calls to models used. The four kinds of tokens do not overlap.
+      type: object
+      required: [calls, failed, stopped, estimated, inputTokens, cachedInputTokens, cacheWriteTokens, outputTokens, costs]
+      properties:
+        calls: { type: integer, format: int64 }
+        failed: { description: Calls that failed, type: integer, format: int64 }
+        stopped: { description: Calls stopped before the model was done, type: integer, format: int64 }
+        estimated: { description: Calls whose tokens the provider did not report, so that they were estimated from the length of the text, type: integer, format: int64 }
+        inputTokens: { description: Input read without the provider's cache, type: integer, format: int64 }
+        cachedInputTokens: { description: Input read from the provider's cache, type: integer, format: int64 }
+        cacheWriteTokens: { description: Input written to the provider's cache, type: integer, format: int64 }
+        outputTokens: { type: integer, format: int64 }
+        costs:
+          description: What the calls cost in each currency, in the order of the currency codes
+          type: array
+          items: { $ref: "#/components/schemas/AICost" }
+
+    AIUsageGroup:
+      type: object
+      required: [key, usage]
+      properties:
+        key:
+          description: |
+            What the calls have in common: the ID of a user or a workspace
+            (empty for tests of models, which belong to no workspace), a
+            purpose, a day as YYYY-MM-DD, or a provider and a model as a
+            JSON array of the two names.
+          type: string
+        displayName: { description: The user's name now, type: string }
+        email: { description: The user's email now, type: string }
+        workspaceName: { description: The workspace's name now; left out once it is purged, type: string }
+        provider: { description: Name of the provider when the calls were made, type: string }
+        model: { description: Name of the model when the calls were made, type: string }
+        usage: { $ref: "#/components/schemas/AIUsage" }
+
+    AIUsageReport:
+      type: object
+      required: [total, answers, groups]
+      properties:
+        total: { $ref: "#/components/schemas/AIUsage" }
+        answers: { description: Answers that the calls to chat wrote, type: integer, format: int64 }
+        groups:
+          description: Most calls first; days the latest first, leaving out days without calls
+          type: array
+          items: { $ref: "#/components/schemas/AIUsageGroup" }
+
+    AIModelTrial:
+      type: object
+      required: [ok, durationMs]
+      properties:
+        ok: { type: boolean }
+        durationMs: { type: integer }
+        reply:
+          description: What the model wrote
+          type: string
+        error: { $ref: "#/components/schemas/AIModelTrialError" }
+        tools:
+          description: |
+            Once the model answered, how it did when asked to call a tool,
+            which the assistant looks data up with.
+          type: object
+          required: [called]
+          properties:
+            called:
+              description: It called the tool
+              type: boolean
+            error: { $ref: "#/components/schemas/AIModelTrialError" }
+
+    AIModelTrialError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          description: unauthorized, rate_limited, context_too_long, unreachable, timeout or provider_error
+          type: string
+        status:
+          description: HTTP status the provider answered with
+          type: integer
+        message:
+          description: What the provider said
+          type: string
+
+    AssistantStatus:
+      type: object
+      required: [configured]
+      properties:
+        configured: { type: boolean }
+
+    Conversation:
+      type: object
+      required: [id, title, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        title:
+          description: Empty until the first message
+          type: string
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ConversationChange:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string }
+
+    AssistantMessagePart:
+      description: |
+        A piece of a message: text, or a tool the assistant called while it
+        answered, which tells what it looked at and where its figures came
+        from, not what the model read.
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [text, tool]
+        text: { type: string }
+        callId:
+          description: With tool, the call, which the part keeps from when it starts until it is done
+          type: string
+        tool:
+          description: With tool, which one
+          type: string
+        subject:
+          description: With tool, what it looked at, such as a dashboard and a chart on it
+          type: string
+        done:
+          description: With tool, false while it runs
+          type: boolean
+        failed:
+          description: With tool, it could not do what was asked, and the model was told why
+          type: boolean
+        source: { $ref: "#/components/schemas/AnswerSource" }
+        calculation: { $ref: "#/components/schemas/Calculation" }
+
+    Calculation:
+      description: |
+        A figure the assistant worked out from figures it looked up, cited as
+        [n] among the sources of its answer. See .agents/design/ai-assistant.md 12.9.
+      type: object
+      required: [n, expression, inputs, result]
+      properties:
+        n: { type: integer }
+        expression:
+          description: With + - * / and parentheses, naming its inputs
+          type: string
+        inputs:
+          type: array
+          items: { $ref: "#/components/schemas/CalculationInput" }
+        result: { type: string }
+
+    CalculationInput:
+      type: object
+      required: [name, label, value, source]
+      properties:
+        name:
+          description: As the expression names it
+          type: string
+        label:
+          description: What the figure is
+          type: string
+        value:
+          description: The figure, as its source has it
+          type: string
+        source:
+          description: The number of the source it came from
+          type: integer
+
+    AnswerSource:
+      description: |
+        Where the figures an answer cites as [n] came from: a chart on a
+        dashboard, read under the conditions given. See .agents/design/ai-assistant.md 12.3.
+      type: object
+      required: [n, dashboardId, dashboardName, itemId, chartName, dashboardRevision, chartRevision, datasetRevision, conditions, state, rows, truncated]
+      properties:
+        n: { type: integer }
+        dashboardId: { type: string }
+        dashboardName: { type: string }
+        itemId: { type: string }
+        chartName: { type: string }
+        dashboardRevision: { type: integer }
+        chartRevision: { type: integer }
+        datasetRevision: { type: integer }
+        conditions:
+          description: The conditions in effect, the dashboard's defaults among them
+          type: array
+          items: { $ref: "#/components/schemas/SourceCondition" }
+        state:
+          description: The conditions as a share link carries them, to open the dashboard with
+          allOf: [{ $ref: "#/components/schemas/DashboardViewState" }]
+        rows:
+          description: How many rows the chart had
+          type: integer
+        truncated:
+          description: The model read only some of the rows
+          type: boolean
+        dataAt:
+          description: When the database returned the data
+          type: string
+          format: date-time
+
+    SourceCondition:
+      type: object
+      required: [kind, label, value]
+      properties:
+        kind:
+          type: string
+          enum: [filter, chartFilter, selection, drill, link]
+        label: { type: string }
+        value:
+          description: The value as the data request had it
+        text:
+          description: What the value stands for where it does not say so itself, such as the dates of a time range
+          type: string
+        default:
+          description: The dashboard's own value, not chosen
+          type: boolean
+
+    AssistantMessage:
+      type: object
+      required: [id, seq, role, parts, status, createdAt]
+      properties:
+        id: { type: string }
+        seq: { type: integer }
+        role:
+          type: string
+          enum: [user, assistant]
+        parts:
+          type: array
+          items: { $ref: "#/components/schemas/AssistantMessagePart" }
+        status:
+          type: string
+          enum: [generating, done, stopped, failed]
+        error:
+          description: |
+            Why an answer failed: unauthorized, rate_limited, context_too_long,
+            unreachable, timeout, provider_error, interrupted when the server
+            writing it stopped, not_configured or internal.
+          type: string
+        createdAt: { type: string, format: date-time }
+
+    AssistantMessageInput:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text: { type: string }
+
+    AssistantEvent:
+      description: One event of an answer, sent as the data of a server-sent event.
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [start, status, delta, tool, done, title]
+        question:
+          description: With start, the message sent; absent when an answer is written again
+          allOf: [{ $ref: "#/components/schemas/AssistantMessage" }]
+        answer:
+          description: With start, the answer begun; with done, the answer as it ended
+          allOf: [{ $ref: "#/components/schemas/AssistantMessage" }]
+        status:
+          description: With status, what happens before text arrives
+          type: string
+          enum: [thinking, compressing]
+        text:
+          description: With delta, the next piece of the answer
+          type: string
+        part:
+          description: With tool, a tool called, as it starts and again once it is done
+          allOf: [{ $ref: "#/components/schemas/AssistantMessagePart" }]
+        title:
+          description: With title, the conversation's new title
+          type: string

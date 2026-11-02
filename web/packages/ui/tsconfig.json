@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "paths": { "#ui/*": ["./src/*"] } },
+  "include": ["src"]
+}

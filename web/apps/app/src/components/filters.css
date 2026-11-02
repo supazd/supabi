@@ -1,0 +1,89 @@
+/* A filter's settings: the field on top, then two cards: which rows it keeps, and whether viewers can change it. */
+.filter-config-heading { display: flex; align-items: center; gap: 12px; min-height: 28px; }
+.filter-config-field { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.filter-config-field strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-config-heading > .note, .filter-scope { margin-left: auto; }
+.filter-scope { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.filter-scope-hint { margin: 4px 0 0; }
+.filter-config-section { display: grid; gap: 12px; min-width: 0; margin-top: 16px; padding: 16px; border: 1px solid var(--lb-color-border); border-radius: calc(var(--lb-radius) + 2px); }
+.filter-config-section p { margin: 0; }
+.filter-config-section .note.danger { color: var(--lb-color-danger); }
+.filter-condition-row { display: grid; grid-template-columns: minmax(0, 200px) minmax(0, 1fr); gap: 12px; align-items: start; }
+/* Excluding turns the meaning of the chosen values around, so the list says so where they are chosen. */
+.filter-values-foot { display: flex; align-items: center; gap: 12px; }
+.filter-values-foot > .lb-checkbox { margin-left: auto; }
+.exact-filter-values.excluded .exact-filter-count { color: var(--lb-color-danger); }
+.exact-filter-values.excluded .lb-checkbox:has([data-state=checked]) .lb-checkbox-label, .exact-filter-values.excluded .lb-radio:has(:checked) .lb-radio-label { text-decoration: line-through; color: var(--lb-color-text-secondary); }
+/* Off, the second card is one line that says what turning it on would do. */
+.filter-config-display:not(.on) { background: color-mix(in srgb, var(--lb-color-text) 3%, transparent); }
+.filter-config-toggle { display: grid; gap: 2px; }
+.filter-config-toggle > p { padding-left: 24px; }
+.filter-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-width: 0; }
+.exact-filter-values { min-width: 0; }
+.exact-filter-values > .row { flex-wrap: nowrap; }
+.exact-filter-values > .row > .lb-input { flex: 1; }
+.exact-filter-actions { display: flex; align-items: center; gap: 4px; margin-block: 8px; }
+.exact-filter-actions .spacer { flex: 1; }
+.exact-filter-list { display: flex; flex-direction: column; gap: 4px; min-height: 120px; max-height: 220px; overflow: auto; padding: 4px 0; }
+.filter-csv-input { position: relative; display: inline-flex; align-self: start; cursor: pointer; color: var(--lb-color-primary); }
+.filter-csv-input input { position: absolute; opacity: 0; inset: 0; width: 100%; cursor: pointer; }
+.filter-select-control { display: inline-flex; min-width: 0; max-width: 100%; width: 100%; }
+.filter-select-control > .lb-select, .filter-select-control > .lb-multi-select { min-width: 0; width: 100%; }
+.filter-tiles { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; max-height: 140px; overflow: auto; }
+.filter-tiles button { border: 1px solid transparent; border-radius: 4px; background: color-mix(in srgb, var(--lb-color-text) 5%, transparent); color: inherit; font: inherit; padding: 3px 9px; cursor: pointer; overflow-wrap: anywhere; }
+.filter-tiles button.selected { color: var(--lb-color-primary); background: color-mix(in srgb, var(--lb-color-primary) 12%, transparent); border-color: color-mix(in srgb, var(--lb-color-primary) 28%, transparent); }
+.filter-tiles button:disabled { cursor: default; opacity: .5; }
+.widget-filter .filter-tiles { max-height: 60px; }
+.filter-op-tag { display: inline-block; margin-left: 4px; padding: 0 4px; border: 1px solid var(--lb-color-border); border-radius: 3px; font-size: 11px; line-height: 15px; color: var(--lb-color-text); background: color-mix(in srgb, var(--lb-color-text) 6%, transparent); white-space: nowrap; vertical-align: 1px; }
+.date-filter-trigger { display: inline-flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-width: 140px; max-width: 100%; height: 32px; padding: 4px 11px; border: 1px solid var(--lb-color-border); border-radius: 4px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.date-filter-trigger.small { height: 24px; padding: 0 7px; }
+.date-filter-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.date-filter-trigger svg { flex: none; }
+.date-filter-trigger:hover:not(:disabled) { border-color: var(--lb-color-primary); }
+.date-filter-trigger:focus-visible { outline: none; border-color: var(--lb-color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--lb-color-primary) 20%, transparent); }
+.date-filter-trigger[aria-expanded=true] { border-color: var(--lb-color-primary); }
+.date-filter-trigger .placeholder { color: var(--lb-color-text-secondary); }
+.date-filter-trigger:disabled { opacity: .5; cursor: default; }
+.date-filter-content { padding: 16px; }
+.date-filter-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--lb-color-border); }
+/* The date editor: how a range is said, the dates it keeps today, then what it is said with. */
+.date-editor { display: grid; gap: 12px; min-width: 0; }
+.date-editor p { margin: 0; }
+.date-editor .note.danger { color: var(--lb-color-danger); }
+.date-preview { display: flex; align-items: baseline; gap: 8px; min-width: 0; min-height: 28px; }
+.date-preview strong { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.date-preview strong.placeholder { color: var(--lb-color-text-secondary); font-weight: 500; }
+.date-preview > button { margin-left: auto; }
+.date-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.date-presets button { border: 1px solid transparent; border-radius: var(--lb-radius); background: color-mix(in srgb, var(--lb-color-text) 5%, transparent); color: inherit; font: inherit; padding: 5px 8px; cursor: pointer; }
+.date-presets button:hover { background: color-mix(in srgb, var(--lb-color-text) 9%, transparent); }
+.date-presets button[aria-checked=true] { color: var(--lb-color-primary); background: color-mix(in srgb, var(--lb-color-primary) 12%, transparent); border-color: color-mix(in srgb, var(--lb-color-primary) 28%, transparent); }
+.date-presets button:focus-visible { outline: 2px solid color-mix(in srgb, var(--lb-color-primary) 50%, transparent); outline-offset: 1px; }
+.date-custom, .date-bound-row, .date-fixed-days { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.date-bound-count { width: 72px; }
+.date-fixed-days > .lb-input { flex: 1 1 120px; }
+.date-bounds { display: grid; gap: 10px; }
+.date-bound-label { flex: 0 0 104px; color: var(--lb-color-text-secondary); font-size: 13px; }
+.date-special { display: grid; gap: 10px; }
+.date-editor .rdp-root { margin-inline: auto; }
+.date-editor-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.date-editor-head > :first-child { flex: none; width: 132px; }
+.date-editor-head > :last-child { flex: 1; min-width: 0; }
+.date-editor .lb-month-range { margin-inline: auto; }
+.date-options { display: grid; gap: 10px; justify-items: start; }
+.date-week-logic { display: flex; align-items: center; gap: 8px; }
+.date-week-logic > :last-child { min-width: 200px; }
+@media (max-width: 640px) { .filter-condition-row, .filter-pair { grid-template-columns: 1fr; } }
+/* Long dialogs open near the top, so that growing does not move what is already read. */
+.lb-dialog:has(.filter-config-heading), .lb-dialog:has(.dynamic-dialog), .lb-dialog:has(.target-list) { top: 32px; translate: -50% 0; max-height: calc(100dvh - 64px); }
+.widget-filter > .filter-select-control { width: 180px; }
+.widget-filter > .date-filter-trigger { width: 200px; min-width: 0; }
+.global-filter.tiled { flex: 1 1 360px; max-width: 100%; }
+/* A parameter's dropdown options: which are the default, the value as typed, and how a relative day reads now. */
+.param-option-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; max-height: 300px; overflow-y: auto; }
+.param-option-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+.param-option-row:has(> .lb-radio:only-child) { grid-template-columns: auto; }
+.param-option-shown:empty { display: none; }
+.param-option-actions { display: inline-flex; gap: 2px; }
+.param-move-up .icon { transform: rotate(180deg); }
+.param-default-line { display: flex; align-items: center; gap: 8px; margin: 0; }

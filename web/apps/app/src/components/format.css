@@ -1,0 +1,22 @@
+.format-dialog { display: flex; flex-direction: column; align-items: stretch; gap: 16px; padding-top: 4px; }
+.format-dialog > :first-child { align-self: flex-start; }
+.format-preview {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--lb-color-border);
+  border-radius: var(--lb-radius);
+  background: var(--lb-color-bg);
+  font-variant-numeric: tabular-nums;
+}
+.format-preview-title { font-size: 12px; color: var(--lb-color-text-secondary); }
+.format-preview-row { display: grid; grid-template-columns: 11ch auto minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.format-preview-from { color: var(--lb-color-text-secondary); font-family: var(--lb-font-mono); font-size: 12px; overflow-wrap: anywhere; }
+.format-preview-arrow { color: var(--lb-color-text-secondary); }
+.format-preview-to { font-size: 16px; font-weight: 600; color: var(--lb-color-text); overflow-wrap: anywhere; }
+.format-note { margin: -4px 0 0; font-size: 13px; color: var(--lb-color-text-secondary); }
+.format-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+.format-wide { grid-column: 1 / -1; }
+@media (max-width: 640px) {
+  .format-form { grid-template-columns: minmax(0, 1fr); }
+}

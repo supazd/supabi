@@ -1,0 +1,29 @@
+/* An item being resized keeps to the grid: it takes the size it would land
+   on, which the layout sets as it goes, in place of the pointer's. */
+.react-grid-item[data-grid-snap] {
+  width: var(--grid-snap-width) !important;
+  height: var(--grid-snap-height) !important;
+}
+
+/* The grid itself, drawn behind the items of a layout that is being arranged. */
+.lb-grid { position: relative; }
+.lb-grid-cells {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--lb-color-text, #888);
+  opacity: 0.035;
+  transition: opacity 0.4s ease;
+}
+.lb-grid-cells.active { opacity: 0.11; transition-duration: 0.15s; }
+
+/* The layout being arranged is never without height, and has room under its last item. */
+.lb-grid.editable > .react-grid-layout { box-sizing: content-box; min-height: var(--lb-grid-least); padding-bottom: var(--lb-grid-room); }
+
+.lb-grid-item-content { height: 100%; min-height: 0; }
+/* After the library's own styles, which this file follows wherever the grid's code is loaded. */
+.react-grid-item.react-grid-placeholder { background: var(--lb-color-primary); border-radius: var(--lb-radius); }
+.react-grid-item > .react-resizable-handle::after { border-color: var(--lb-color-text-secondary); }
+
+/* Dragged over another grid of its group, the item no longer marks where it would land here. */
+.lb-grid.away > .react-grid-layout > .react-grid-placeholder { visibility: hidden; }

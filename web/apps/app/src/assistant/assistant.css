@@ -1,0 +1,33 @@
+/* The assistant fills the window under the top bar: the conversations on the
+   left, the open one on the right, each an island of its own. */
+.workbench-host > .assistant { flex: 1; min-width: 0; display: grid; grid-template-columns: 248px minmax(0, 1fr); gap: var(--island-gap); padding: 0 var(--island-gap) var(--island-gap); font-size: 14px; }
+
+.assistant-list { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.assistant-list-head { flex: none; padding: 12px; }
+.assistant-list-head .lb-button, .assistant-list-head button { width: 100%; }
+.assistant-list-empty { padding: 4px 16px; }
+.assistant-conversations { flex: 1; min-height: 0; overflow: auto; display: grid; align-content: start; gap: 1px; padding: 0 8px 12px; }
+.assistant-conversation { position: relative; display: flex; align-items: center; border-radius: 8px; }
+.assistant-conversation > a { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 7px 34px 7px 10px; border-radius: 8px; color: var(--lb-color-text-secondary); font-size: 13px; text-decoration: none; }
+.assistant-conversation:hover > a { color: var(--lb-color-text); background: color-mix(in srgb, var(--lb-color-text) 5%, transparent); }
+.assistant-conversation > a.active { color: var(--lb-color-text); background: color-mix(in srgb, var(--lb-color-primary) 10%, transparent); font-weight: 600; }
+.assistant-conversation-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assistant-conversation-more { position: absolute; right: 4px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--lb-color-text-secondary); cursor: pointer; opacity: 0; }
+.assistant-conversation:hover .assistant-conversation-more, .assistant-conversation-more:focus-visible, .assistant-conversation-more[aria-expanded='true'] { opacity: 1; }
+.assistant-conversation-more:hover { background: color-mix(in srgb, var(--lb-color-text) 8%, transparent); color: var(--lb-color-text); }
+.assistant-writing-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--lb-color-primary); animation: assistant-pulse 1.2s ease-in-out infinite; }
+
+.assistant-chat { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.assistant-loading { text-align: center; }
+.assistant-welcome { padding: 18vh 0 0; text-align: center; }
+.assistant-welcome h2 { margin: 0 0 8px; font-size: 22px; font-weight: 650; letter-spacing: -0.3px; }
+@keyframes assistant-pulse { 0%, 100% { opacity: 0.25; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+
+/* The box to write in lines up with the messages above it. */
+.assistant-footer { flex: none; display: grid; gap: 8px; width: 100%; max-width: 780px; margin: 0 auto; padding: 8px 24px 20px; }
+
+@media (max-width: 760px) {
+  .workbench-host > .assistant { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .assistant-list { max-height: 30vh; }
+  .assistant-footer { padding-left: 16px; padding-right: 16px; }
+}

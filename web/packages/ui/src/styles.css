@@ -1,0 +1,129 @@
+/*
+ * Tailwind is for the components in this package only: it scans nothing
+ * outside it, and the product's own stylesheets stay plain CSS. Its classes
+ * carry the tw: prefix, so that a class of the product's own (.outline-none
+ * names a state of the workbench outline) never restyles a component. Its global
+ * reset (preflight) is left out because it would restyle every heading, list
+ * and button of the product; the few rules shadcn's components rely on are
+ * applied to them alone below.
+ */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme) prefix(tw);
+@import 'tailwindcss/utilities.css' layer(utilities) source(none);
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@source './';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * shadcn's variables, taken from our design tokens (tokens.ts), which
+ * ThemeProvider writes onto the root element. White-labelling and the dark
+ * scheme change the tokens, never these. A part of the page drawn in a scheme
+ * of its own (.lb-ink, with themeVariables written onto it) takes them anew.
+ */
+:root, .lb-ink {
+  /*
+   * Elevation: how far a surface stands off the page. Islands lie flat with a
+   * hairline; menus and popovers float; dialogs float highest. Shadows are
+   * soft and cool in the light scheme and close to black in the dark one,
+   * where an edge of light does more than a shadow can.
+   */
+  --lb-shadow-xs: 0 1px 2px rgb(16 24 40 / 0.05);
+  --lb-shadow-sm: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.08);
+  --lb-shadow-md: 0 4px 8px -2px rgb(16 24 40 / 0.08), 0 2px 4px -2px rgb(16 24 40 / 0.05);
+  --lb-shadow-lg: 0 12px 24px -6px rgb(16 24 40 / 0.12), 0 4px 8px -4px rgb(16 24 40 / 0.06);
+  --lb-shadow-xl: 0 24px 48px -12px rgb(16 24 40 / 0.22);
+  --lb-ring: 0 0 0 3px color-mix(in srgb, var(--lb-color-primary) 22%, transparent);
+  --background: var(--lb-color-surface);
+  --foreground: var(--lb-color-text);
+  --card: var(--lb-color-surface);
+  --card-foreground: var(--lb-color-text);
+  --popover: var(--lb-color-surface);
+  --popover-foreground: var(--lb-color-text);
+  --primary: var(--lb-color-primary);
+  --primary-foreground: #ffffff;
+  --secondary: color-mix(in srgb, var(--lb-color-text) 6%, var(--lb-color-surface));
+  --secondary-foreground: var(--lb-color-text);
+  --muted: color-mix(in srgb, var(--lb-color-text) 6%, var(--lb-color-surface));
+  --muted-foreground: var(--lb-color-text-secondary);
+  --accent: color-mix(in srgb, var(--lb-color-text) 7%, var(--lb-color-surface));
+  --accent-foreground: var(--lb-color-text);
+  --destructive: var(--lb-color-danger);
+  --border: var(--lb-color-border);
+  /* Controls take a firmer edge than the hairlines that divide a page, so a field reads as a field. */
+  --input: color-mix(in srgb, var(--lb-color-text) 12%, var(--lb-color-border));
+  --ring: var(--lb-color-primary);
+  --radius: var(--lb-radius);
+}
+
+:root.dark, .lb-ink.dark {
+  --lb-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
+  --lb-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.03);
+  --lb-shadow-md: 0 6px 16px -4px rgb(0 0 0 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --lb-shadow-lg: 0 16px 32px -8px rgb(0 0 0 / 0.65), inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --lb-shadow-xl: 0 28px 56px -12px rgb(0 0 0 / 0.75), inset 0 1px 0 rgb(255 255 255 / 0.06);
+  --lb-ring: 0 0 0 3px color-mix(in srgb, var(--lb-color-primary) 35%, transparent);
+  /* A floating surface is a step lighter than the island it opens over. */
+  --popover: color-mix(in srgb, var(--lb-color-text) 4%, var(--lb-color-surface));
+}
+
+@theme inline {
+  --font-sans: var(--lb-font-family);
+  --font-mono: var(--lb-font-mono);
+  --shadow-2xs: var(--lb-shadow-xs);
+  --shadow-xs: var(--lb-shadow-xs);
+  --shadow-sm: var(--lb-shadow-sm);
+  --shadow-md: var(--lb-shadow-md);
+  --shadow-lg: var(--lb-shadow-lg);
+  --shadow-xl: var(--lb-shadow-xl);
+  --shadow-2xl: var(--lb-shadow-xl);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+/* The part of Tailwind's reset that shadcn's components assume, for them alone. */
+@layer base {
+  [data-slot],
+  [data-slot]::before,
+  [data-slot]::after {
+    margin: 0;
+    padding: 0;
+    border: 0 solid var(--border);
+    outline-color: color-mix(in srgb, var(--ring) 50%, transparent);
+  }
+  :where(button, input, textarea, select)[data-slot] {
+    font: inherit;
+    color: inherit;
+    background-color: transparent;
+  }
+  :where(button, [role='button'])[data-slot]:not(:disabled) {
+    cursor: pointer;
+  }
+  table[data-slot] {
+    border-collapse: collapse;
+    border-spacing: 0;
+    text-indent: 0;
+  }
+}

@@ -1,0 +1,100 @@
+---
+title: Expressions and functions
+description: The language of calculated fields, and every function in it.
+---
+
+import FunctionList from '../../../components/FunctionList.astro'
+
+A [calculated field](/data/datasets/#calculated-fields) can be written in two ways, chosen under **Written in**:
+
+| Way | Meaning |
+|---|---|
+| **Standard functions** | SupaBI's own language, used by default. It means the same on every database, needs no change when the data source changes, and errors are shown before you save |
+| **Native SQL** | The data source's own SQL, used as it is. It has to be rewritten for another kind of database |
+
+The source SQL of a dataset is always in the data source's own syntax. Standard functions cover calculated fields only.
+
+## The language
+
+```sql
+IF(${Order amount} >= 1000, 'Large order', 'Small order')
+SUM(${Order amount}) / COUNT_DISTINCT(${User ID})
+CASE WHEN ${Status} = 'paid' AND ${Note} IS NOT NULL THEN 1 ELSE 0 END
+```
+
+| Element | How it is written |
+|---|---|
+| Field | `${name}`. Renaming a field updates the expressions that refer to it |
+| Text | Single quotes. A quote inside is written twice: `'it''s'` |
+| Number | `12`, `3.5` |
+| Other values | `TRUE`, `FALSE`, `NULL` |
+| Arithmetic | `+` `-` `*` `/` `%` |
+| Comparison | `=` `<>` `!=` `<` `<=` `>` `>=` |
+| Logic | `AND` `OR` `NOT` |
+| Conditions | `x IN (a, b)`, `x BETWEEN a AND b`, `x IS NULL`, and the `NOT` form of each |
+| Branch | `CASE WHEN condition THEN value ELSE value END`, or `CASE x WHEN value THEN value END` |
+| Function | `name(argument, …)` |
+
+Keywords and function names can be in any case.
+
+## Each row or a group of rows
+
+A dimension or a measure has a value on every row. A metric aggregates a group of rows. So:
+
+- The expression of a dimension or a measure cannot aggregate, and cannot refer to a metric.
+- The expression of a metric must aggregate. In a metric, write `SUM(${Order amount})`, not `${Order amount}`.
+- A value of each row cannot stand next to an aggregate: `SUM(${Amount}) / ${Quantity}` is an error.
+- Aggregates cannot be nested.
+
+## What every database agrees on
+
+Where databases differ, standard functions behave one way everywhere:
+
+| Item | Behavior |
+|---|---|
+| Division | Dividing two integers keeps the decimals. A divisor of 0 gives null, not an error |
+| `CONCAT` | Takes text only, and gives null if any part is null. Convert numbers and dates with `TO_STRING` first |
+| Text length and position | Counted in characters, and positions start at 1 |
+| `ROUND` | Decimals round half up |
+| `TO_INTEGER` | Drops the fractional part and does not round |
+| Parts of a date | Taken in the time zone of the query |
+| `WEEKDAY` | Monday is 1 and Sunday is 7 |
+| `DATE_TRUNC` with `'week'` | A week starts on the day set for the workspace |
+| `DATE_ADD` | Past the end of a month, it gives the last day of that month |
+| `DATE_DIFF` | Counts the unit boundaries crossed: January 31 to February 1 is 1 month |
+
+A few things still depend on the database: whether comparing text is case-sensitive, how a Boolean is returned (0 or 1 on MySQL, StarRocks, Doris and ClickHouse), how many digits `TO_STRING` shows for a decimal, and which way `ROUND` goes for a float exactly halfway.
+
+:::note[Extended functions]
+`MEDIAN` and `REGEXP_MATCH` are extended functions, marked **Extended** in the function panel. `MEDIAN` is not available on MySQL, and its algorithm differs slightly between databases. Regular expression syntax also differs somewhat. A function the data source lacks does not appear in the panel, and an expression that uses it cannot be saved.
+:::
+
+## Aggregates
+
+<FunctionList category="aggregate" />
+
+## Conditions and nulls
+
+<FunctionList category="logic" />
+
+## Numbers
+
+<FunctionList category="math" />
+
+## Text
+
+<FunctionList category="text" />
+
+## Dates and times
+
+<FunctionList category="date" />
+
+## Conversions
+
+<FunctionList category="convert" />
+
+## Native SQL
+
+`NATIVE` lets a standard expression include a piece of the data source's SQL, which is checked by no one but the database. One expression cannot otherwise mix the two ways of writing.
+
+<FunctionList category="native" />

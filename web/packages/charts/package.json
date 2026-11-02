@@ -1,0 +1,14 @@
+{
+  "name": "@supabi/charts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "echarts": "^6.1.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
+}

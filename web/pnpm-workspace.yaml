@@ -1,0 +1,7 @@
+packages:
+  - packages/*
+  - apps/*
+patchedDependencies:
+  # Fix pixel dragging, edge scrolling, and reflow when custom compaction options change.
+  # GridLayout.test.tsx exercises the real library; keep it when upgrading.
+  react-grid-layout@2.3.0: patches/react-grid-layout@2.3.0.patch

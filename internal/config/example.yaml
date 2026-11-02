@@ -1,0 +1,115 @@
+# SupaBI config file
+#
+# Start with: supabi serve --config /etc/supabi/supabi.yaml
+# The environment variable SUPABI_CONFIG can name the file instead.
+#
+# Each setting can also be given as a flag or an environment variable:
+# http-addr is --http-addr and SUPABI_HTTP_ADDR. A flag wins over the
+# variable, and the variable over this file; the settings of this file that
+# were replaced are listed in the log at startup.
+#
+# A commented setting takes the program's default, which is the value shown.
+# To change it, remove the leading "# ". Settings left commented follow the
+# defaults of newer versions after an upgrade. A key without a value is as if
+# the line were not there; for an empty string, write "".
+#
+# Once this file holds secrets, make it readable only by the user SupaBI runs
+# as (chmod 600). To keep the secrets out of the file, for instance when it
+# is kept in version control or a configuration centre, delete those lines
+# and give them as environment variables instead.
+#
+# Relative paths are taken from the working directory of the process; prefer
+# absolute paths.
+#
+# This file holds what each instance may have of its own, and what it needs
+# before it reaches the metadata database. Settings the whole organization has
+# one value of, such as the limits of exports and how long audit events are
+# kept, are set in System administration > General in the web interface.
+
+# ---- Basics ----
+
+# The metadata database; required. For example
+# postgres://supabi:PASSWORD@db.internal:5432/supabi
+database-url:
+
+# The key that encrypts stored data source passwords; required. Create it
+# once with supabi generate-key and keep it safe: if it is changed or lost,
+# the stored passwords cannot be decrypted and have to be entered again.
+secret-key:
+
+# The roles to run, separated by commas: api, worker, scheduler. Empty runs
+# them all. Instances that run different roles can share this file and each
+# set their own with --roles or SUPABI_ROLES.
+# roles:
+
+# The listen address of the api role. By default only this machine can
+# connect; to serve others, use 0.0.0.0:8080 behind a reverse proxy that
+# handles HTTPS.
+# http-addr: 127.0.0.1:8080
+
+# Apply pending database migrations on startup. When off, run
+# supabi migrate before starting a new version.
+# auto-migrate: true
+
+# The data directory. With export-storage local, export files are kept here,
+# and the api and worker instances must share it on persistent storage.
+# data-dir: data
+
+# ---- Logging ----
+
+# debug, info, warn or error.
+# log-level: info
+
+# text or json.
+# log-format: text
+
+# ---- Exports ----
+
+# Where export files are kept: local (in the data directory) or s3 (see the
+# S3 settings below).
+# export-storage: local
+
+# Background jobs each worker process runs at once, 1 to 32.
+# export-workers: 2
+
+# ---- S3, for export-storage s3 ----
+
+# The address of an S3-compatible store, such as https://s3.example.com;
+# empty for AWS S3.
+# s3-endpoint:
+
+# The region of the bucket, which requests are also signed for.
+# s3-region: us-east-1
+
+# The bucket for export files, which must already exist.
+# s3-bucket:
+
+# A prefix for every object key, for installations sharing a bucket, such
+# as prod/.
+# s3-prefix:
+
+# Address the bucket as endpoint/bucket rather than bucket.endpoint, as
+# self-hosted stores such as RustFS and Ceph usually need.
+# s3-path-style: false
+
+# The access keys: set both or neither. With neither, the AWS SDK's default
+# credentials are used, such as AWS_ACCESS_KEY_ID and the other variables,
+# or an IAM role on EKS, ECS or EC2.
+# s3-access-key-id:
+# s3-secret-access-key:
+
+# ---- Query cache ----
+
+# Where query results are kept: memory (each instance its own), redis
+# (shared by all instances) or off. Use redis with several instances.
+# query-cache: memory
+
+# The most memory the cache takes with query-cache memory.
+# query-cache-size: 256MB
+
+# The Redis for query-cache redis, such as
+# rediss://:PASSWORD@redis.internal:6379/0
+# redis-url:
+
+# A prefix for every key written to Redis.
+# redis-key-prefix: "supabi:"

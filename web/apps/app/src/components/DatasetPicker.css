@@ -1,0 +1,17 @@
+.dataset-picker { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; height: 28px; border-bottom: 1px solid var(--lb-color-border); }
+.dataset-picker:hover:not(.disabled) { border-bottom-color: var(--lb-color-text-secondary); }
+.dataset-picker:focus-within { border-bottom-color: var(--lb-color-primary); }
+.dataset-picker input { flex: 1; min-width: 0; width: 100%; height: 100%; padding: 0 2px; border: 0; outline: none; background: transparent; color: var(--lb-color-text); font: inherit; text-overflow: ellipsis; cursor: pointer; }
+.dataset-picker input:focus { cursor: text; }
+.dataset-picker input::placeholder { color: var(--lb-color-text-secondary); }
+.dataset-picker-name { flex: 1; min-width: 0; padding: 0 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; cursor: default; }
+.dataset-picker-actions { flex: none; display: contents; }
+.dataset-picker .wb-icon-button { flex: none; }
+.dataset-picker .icon { color: var(--lb-color-text-secondary); }
+.dataset-picker > .icon { flex: none; margin: 0 2px 0 2px; }
+.dataset-picker.disabled { opacity: 0.5; }
+.dataset-picker input:disabled { cursor: not-allowed; }
+.dataset-picker-panel { display: flex; flex-direction: column; padding-top: 6px; }
+.dataset-picker-panel > .wb-tree { max-height: min(320px, 60vh); }
+.dataset-picker-panel > .lb-alert { margin: 4px 8px 8px; }
+.dataset-picker-action { padding: 0 12px 12px; }

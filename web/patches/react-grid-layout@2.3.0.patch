@@ -1,0 +1,340 @@
+diff --git a/dist/chunk-CUP5Y2ZG.js b/dist/chunk-CUP5Y2ZG.js
+index 23399caefebeefb2038279331382aa20e5932bc1..b3af104a052fedac8625adfe75328ba47198daf8 100644
+--- a/dist/chunk-CUP5Y2ZG.js
++++ b/dist/chunk-CUP5Y2ZG.js
+@@ -28,7 +28,7 @@ function getNearestScrollable(node) {
+   }
+   return null;
+ }
+-function createEdgeScrollController(node) {
++function createEdgeScrollController(node, onScroll) {
+   const scrollContainer = getNearestScrollable(node);
+   let rafId = null;
+   let lastX = 0;
+@@ -55,6 +55,9 @@ function createEdgeScrollController(node) {
+     if (dy !== 0 || dx !== 0) {
+       container.scrollTop += dy;
+       container.scrollLeft += dx;
++      const movedX = container.scrollLeft - scrollLeft;
++      const movedY = container.scrollTop - scrollTop;
++      if (movedX !== 0 || movedY !== 0) onScroll(movedX, movedY);
+     }
+     if (running) {
+       rafId = requestAnimationFrame(step);
+@@ -124,6 +127,8 @@ function GridItemInner(props) {
+     onResizeStop: onResizeStopProp
+   } = props;
+   const [dragging, setDragging] = React2.useState(false);
++  // Pixel movement must render even when memoized grid coordinates stay unchanged.
++  const [dragPosition, setDragPosition] = React2.useState({ left: 0, top: 0 });
+   const [resizing, setResizing] = React2.useState(false);
+   const elementRef = React2.useRef(null);
+   const dragPositionRef = React2.useRef({ left: 0, top: 0 });
+@@ -144,6 +149,9 @@ function GridItemInner(props) {
+   const initialDragClientRef = React2.useRef({ x: 0, y: 0 });
+   const thresholdExceededRef = React2.useRef(false);
+   const edgeScrollRef = React2.useRef(null);
++  const lastDragEventRef = React2.useRef(null);
++  const compensatedScrollRef = React2.useRef({ x: 0, y: 0 });
++  React2.useEffect(() => () => edgeScrollRef.current?.stop(), []);
+   const positionParams = React2.useMemo(
+     () => ({
+       cols,
+@@ -239,9 +247,20 @@ function GridItemInner(props) {
+         };
+       }
+       dragPositionRef.current = newPosition;
++      setDragPosition(newPosition);
+       if (!edgeScrollRef.current) {
+         edgeScrollRef.current = createEdgeScrollController(
+-          node instanceof HTMLElement ? node : null
++          node instanceof HTMLElement ? node : null,
++          (dx, dy) => {
++            // Keep both the tile and its landing cell under a stationary pointer.
++            const event = lastDragEventRef.current;
++            if (!event) return;
++            const deltaX = dx / transformScale;
++            const deltaY = dy / transformScale;
++            compensatedScrollRef.current.x += deltaX;
++            compensatedScrollRef.current.y += deltaY;
++            onDragRef.current?.(event, { node, deltaX, deltaY }, true);
++          }
+         );
+       }
+       if (dragThreshold > 0) {
+@@ -287,14 +306,28 @@ function GridItemInner(props) {
+     ]
+   );
+   const onDrag = React2.useCallback(
+-    (e, { node, deltaX, deltaY }) => {
++    (e, { node, deltaX, deltaY }, fromScroll = false, fromDrop = false) => {
+       if (!onDragProp || !dragging) return;
++      if (!fromScroll) {
++        // DraggableCore's next delta already includes the parent's scroll.
++        // External drops already calculate against the compensated position.
++        if (!fromDrop) {
++          deltaX -= compensatedScrollRef.current.x;
++          deltaY -= compensatedScrollRef.current.y;
++        }
++        compensatedScrollRef.current = { x: 0, y: 0 };
++      }
+       const mouseEvent = e;
+       if (dragPendingRef.current && !thresholdExceededRef.current) {
+         const dx = mouseEvent.clientX - initialDragClientRef.current.x;
+         const dy = mouseEvent.clientY - initialDragClientRef.current.y;
+         const distance = Math.hypot(dx, dy);
+         if (distance < dragThreshold) {
++          // DraggableCore advances its last pointer position even while pending.
++          dragPositionRef.current = {
++            left: dragPositionRef.current.left + deltaX,
++            top: dragPositionRef.current.top + deltaY
++          };
+           return;
+         }
+         thresholdExceededRef.current = true;
+@@ -319,7 +352,10 @@ function GridItemInner(props) {
+           });
+         }
+       }
+-      edgeScrollRef.current?.feed(mouseEvent.clientX, mouseEvent.clientY);
++      if (!fromScroll) {
++        lastDragEventRef.current = e;
++        edgeScrollRef.current?.feed(mouseEvent.clientX, mouseEvent.clientY);
++      }
+       let top = dragPositionRef.current.top + deltaY;
+       let left = dragPositionRef.current.left + deltaX;
+       if (isBounded) {
+@@ -334,6 +370,7 @@ function GridItemInner(props) {
+       }
+       const newPosition = { top, left };
+       dragPositionRef.current = newPosition;
++      setDragPosition(newPosition);
+       const rawPos = chunkVJJIA3HC_js.calcXYRaw(positionParams, top, left);
+       const { x: newX, y: newY } = chunkQAIA5KAO_js.applyPositionConstraints(
+         constraints,
+@@ -371,6 +408,8 @@ function GridItemInner(props) {
+       if (!onDragStopProp || !dragging) return;
+       edgeScrollRef.current?.stop();
+       edgeScrollRef.current = null;
++      lastDragEventRef.current = null;
++      compensatedScrollRef.current = { x: 0, y: 0 };
+       const wasPending = dragPendingRef.current;
+       dragPendingRef.current = false;
+       thresholdExceededRef.current = false;
+@@ -540,7 +579,9 @@ function GridItemInner(props) {
+       };
+       onDragRef.current?.(
+         droppingPosition.e,
+-        fakeData
++        fakeData,
++        false,
++        true
+       );
+     }
+     prevDroppingPositionRef.current = droppingPosition;
+@@ -551,7 +592,7 @@ function GridItemInner(props) {
+     y,
+     w,
+     h,
+-    dragging ? dragPositionRef.current : null,
++    dragging ? dragPosition : null,
+     resizing ? resizePositionRef.current : null
+   );
+   const child = React2__default.default.Children.only(children);
+@@ -876,6 +917,7 @@ function GridLayout(props) {
+   const prevPropsLayoutRef = React2.useRef(propsLayout);
+   const prevChildrenRef = React2.useRef(children);
+   const prevCompactTypeRef = React2.useRef(compactType);
++  const prevCompactorRef = React2.useRef(compactor);
+   const gridContainerRef = React2.useRef(null);
+   const touchDragActiveRef = React2.useRef(false);
+   const activeTouchIdRef = React2.useRef(null);
+@@ -899,7 +941,9 @@ function GridLayout(props) {
+     const layoutChanged = !fastEquals.deepEqual(propsLayout, prevPropsLayoutRef.current);
+     const childrenChanged = !childrenEqual(children, prevChildrenRef.current);
+     const compactTypeChanged = compactType !== prevCompactTypeRef.current;
+-    if (layoutChanged || childrenChanged || compactTypeChanged) {
++    // Custom compaction options can change without changing the compact type.
++    const compactorChanged = compactor !== prevCompactorRef.current;
++    if (layoutChanged || childrenChanged || compactTypeChanged || compactorChanged) {
+       const baseLayout = layoutChanged ? propsLayout : layout;
+       const newLayout = synchronizeLayoutWithChildren(
+         baseLayout,
+@@ -914,6 +958,7 @@ function GridLayout(props) {
+     prevPropsLayoutRef.current = propsLayout;
+     prevChildrenRef.current = children;
+     prevCompactTypeRef.current = compactType;
++    prevCompactorRef.current = compactor;
+   }, [
+     propsLayout,
+     children,
+diff --git a/dist/chunk-Z6CWRR74.mjs b/dist/chunk-Z6CWRR74.mjs
+index 5d3ee00ad7b14cfe15445fcf7bfdbee04408236e..48cfd0dbc88362b3e110a29dc3e48378e0276bb5 100644
+--- a/dist/chunk-Z6CWRR74.mjs
++++ b/dist/chunk-Z6CWRR74.mjs
+@@ -21,7 +21,7 @@ function getNearestScrollable(node) {
+   }
+   return null;
+ }
+-function createEdgeScrollController(node) {
++function createEdgeScrollController(node, onScroll) {
+   const scrollContainer = getNearestScrollable(node);
+   let rafId = null;
+   let lastX = 0;
+@@ -48,6 +48,9 @@ function createEdgeScrollController(node) {
+     if (dy !== 0 || dx !== 0) {
+       container.scrollTop += dy;
+       container.scrollLeft += dx;
++      const movedX = container.scrollLeft - scrollLeft;
++      const movedY = container.scrollTop - scrollTop;
++      if (movedX !== 0 || movedY !== 0) onScroll(movedX, movedY);
+     }
+     if (running) {
+       rafId = requestAnimationFrame(step);
+@@ -117,6 +120,8 @@ function GridItemInner(props) {
+     onResizeStop: onResizeStopProp
+   } = props;
+   const [dragging, setDragging] = useState(false);
++  // Pixel movement must render even when memoized grid coordinates stay unchanged.
++  const [dragPosition, setDragPosition] = useState({ left: 0, top: 0 });
+   const [resizing, setResizing] = useState(false);
+   const elementRef = useRef(null);
+   const dragPositionRef = useRef({ left: 0, top: 0 });
+@@ -137,6 +142,9 @@ function GridItemInner(props) {
+   const initialDragClientRef = useRef({ x: 0, y: 0 });
+   const thresholdExceededRef = useRef(false);
+   const edgeScrollRef = useRef(null);
++  const lastDragEventRef = useRef(null);
++  const compensatedScrollRef = useRef({ x: 0, y: 0 });
++  useEffect(() => () => edgeScrollRef.current?.stop(), []);
+   const positionParams = useMemo(
+     () => ({
+       cols,
+@@ -232,9 +240,20 @@ function GridItemInner(props) {
+         };
+       }
+       dragPositionRef.current = newPosition;
++      setDragPosition(newPosition);
+       if (!edgeScrollRef.current) {
+         edgeScrollRef.current = createEdgeScrollController(
+-          node instanceof HTMLElement ? node : null
++          node instanceof HTMLElement ? node : null,
++          (dx, dy) => {
++            // Keep both the tile and its landing cell under a stationary pointer.
++            const event = lastDragEventRef.current;
++            if (!event) return;
++            const deltaX = dx / transformScale;
++            const deltaY = dy / transformScale;
++            compensatedScrollRef.current.x += deltaX;
++            compensatedScrollRef.current.y += deltaY;
++            onDragRef.current?.(event, { node, deltaX, deltaY }, true);
++          }
+         );
+       }
+       if (dragThreshold > 0) {
+@@ -280,14 +299,28 @@ function GridItemInner(props) {
+     ]
+   );
+   const onDrag = useCallback(
+-    (e, { node, deltaX, deltaY }) => {
++    (e, { node, deltaX, deltaY }, fromScroll = false, fromDrop = false) => {
+       if (!onDragProp || !dragging) return;
++      if (!fromScroll) {
++        // DraggableCore's next delta already includes the parent's scroll.
++        // External drops already calculate against the compensated position.
++        if (!fromDrop) {
++          deltaX -= compensatedScrollRef.current.x;
++          deltaY -= compensatedScrollRef.current.y;
++        }
++        compensatedScrollRef.current = { x: 0, y: 0 };
++      }
+       const mouseEvent = e;
+       if (dragPendingRef.current && !thresholdExceededRef.current) {
+         const dx = mouseEvent.clientX - initialDragClientRef.current.x;
+         const dy = mouseEvent.clientY - initialDragClientRef.current.y;
+         const distance = Math.hypot(dx, dy);
+         if (distance < dragThreshold) {
++          // DraggableCore advances its last pointer position even while pending.
++          dragPositionRef.current = {
++            left: dragPositionRef.current.left + deltaX,
++            top: dragPositionRef.current.top + deltaY
++          };
+           return;
+         }
+         thresholdExceededRef.current = true;
+@@ -312,7 +345,10 @@ function GridItemInner(props) {
+           });
+         }
+       }
+-      edgeScrollRef.current?.feed(mouseEvent.clientX, mouseEvent.clientY);
++      if (!fromScroll) {
++        lastDragEventRef.current = e;
++        edgeScrollRef.current?.feed(mouseEvent.clientX, mouseEvent.clientY);
++      }
+       let top = dragPositionRef.current.top + deltaY;
+       let left = dragPositionRef.current.left + deltaX;
+       if (isBounded) {
+@@ -327,6 +363,7 @@ function GridItemInner(props) {
+       }
+       const newPosition = { top, left };
+       dragPositionRef.current = newPosition;
++      setDragPosition(newPosition);
+       const rawPos = calcXYRaw(positionParams, top, left);
+       const { x: newX, y: newY } = applyPositionConstraints(
+         constraints,
+@@ -364,6 +401,8 @@ function GridItemInner(props) {
+       if (!onDragStopProp || !dragging) return;
+       edgeScrollRef.current?.stop();
+       edgeScrollRef.current = null;
++      lastDragEventRef.current = null;
++      compensatedScrollRef.current = { x: 0, y: 0 };
+       const wasPending = dragPendingRef.current;
+       dragPendingRef.current = false;
+       thresholdExceededRef.current = false;
+@@ -533,7 +572,9 @@ function GridItemInner(props) {
+       };
+       onDragRef.current?.(
+         droppingPosition.e,
+-        fakeData
++        fakeData,
++        false,
++        true
+       );
+     }
+     prevDroppingPositionRef.current = droppingPosition;
+@@ -544,7 +585,7 @@ function GridItemInner(props) {
+     y,
+     w,
+     h,
+-    dragging ? dragPositionRef.current : null,
++    dragging ? dragPosition : null,
+     resizing ? resizePositionRef.current : null
+   );
+   const child = React2.Children.only(children);
+@@ -869,6 +910,7 @@ function GridLayout(props) {
+   const prevPropsLayoutRef = useRef(propsLayout);
+   const prevChildrenRef = useRef(children);
+   const prevCompactTypeRef = useRef(compactType);
++  const prevCompactorRef = useRef(compactor);
+   const gridContainerRef = useRef(null);
+   const touchDragActiveRef = useRef(false);
+   const activeTouchIdRef = useRef(null);
+@@ -892,7 +934,9 @@ function GridLayout(props) {
+     const layoutChanged = !deepEqual(propsLayout, prevPropsLayoutRef.current);
+     const childrenChanged = !childrenEqual(children, prevChildrenRef.current);
+     const compactTypeChanged = compactType !== prevCompactTypeRef.current;
+-    if (layoutChanged || childrenChanged || compactTypeChanged) {
++    // Custom compaction options can change without changing the compact type.
++    const compactorChanged = compactor !== prevCompactorRef.current;
++    if (layoutChanged || childrenChanged || compactTypeChanged || compactorChanged) {
+       const baseLayout = layoutChanged ? propsLayout : layout;
+       const newLayout = synchronizeLayoutWithChildren(
+         baseLayout,
+@@ -907,6 +951,7 @@ function GridLayout(props) {
+     prevPropsLayoutRef.current = propsLayout;
+     prevChildrenRef.current = children;
+     prevCompactTypeRef.current = compactType;
++    prevCompactorRef.current = compactor;
+   }, [
+     propsLayout,
+     children,

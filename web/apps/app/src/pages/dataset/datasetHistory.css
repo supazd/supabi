@@ -1,0 +1,39 @@
+.editor-pane.history { overflow: hidden; }
+.dataset-history { display: grid; grid-template-columns: 210px minmax(0, 1fr); height: 100%; min-height: 0; }
+.revision-list { overflow: auto; padding: 12px 8px; border-right: 1px solid var(--lb-color-border); display: flex; flex-direction: column; gap: 3px; }
+.revision-list-title { margin: 0; padding: 4px 8px 9px; color: var(--lb-color-text-secondary); font-size: 12px; font-weight: 500; }
+.revision-list > button[aria-pressed] { flex: 0 0 auto; min-width: 0; height: 36px; text-align: left; display: grid; grid-template-columns: minmax(0, 1fr) max-content 46px; align-items: center; gap: 6px; padding: 0 8px; background: transparent; color: inherit; border: 1px solid transparent; border-radius: var(--lb-radius); cursor: pointer; font-size: 12px; white-space: nowrap; }
+.revision-list > button[aria-pressed]:hover { background: var(--lb-color-surface); }
+.revision-list > button[aria-pressed=true] { background: color-mix(in srgb, var(--lb-color-primary) 12%, transparent); }
+.revision-list > button[aria-pressed=true] .revision-label { color: var(--lb-color-primary); }
+.revision-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 500; font-variant-numeric: tabular-nums; }
+.revision-time { color: var(--lb-color-text-secondary); font-variant-numeric: tabular-nums; }
+.revision-current { justify-self: end; padding: 1px 4px; border-radius: 3px; background: var(--lb-color-surface); color: var(--lb-color-text-secondary); font-size: 11px; line-height: 18px; }
+.revision-metadata { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 5px 0 0; color: var(--lb-color-text-secondary); font-size: 12px; }
+.revision-changes small { color: var(--lb-color-text-secondary); font-size: 12px; }
+.revision-content { min-width: 0; overflow: auto; padding: 16px 20px; }
+.revision-toolbar, .revision-actions { display: flex; align-items: center; gap: 12px; justify-content: space-between; margin-bottom: 12px; }
+.revision-actions { margin-top: 16px; }
+.revision-actions h3, .revision-definition h3, .revision-comparison h3 { font-size: 14px; margin: 0 0 10px; }
+.revision-actions h3 { margin: 0; }
+.revision-definition section, .revision-comparison section { margin-top: 24px; }
+.revision-properties { margin: 0; display: grid; gap: 6px; }
+.revision-properties > div { display: grid; grid-template-columns: minmax(70px, 100px) minmax(0, 1fr); gap: 12px; }
+.revision-properties dt { color: var(--lb-color-text-secondary); }
+.revision-properties dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.revision-entries { display: grid; gap: 10px; }
+.dataset-history summary { cursor: pointer; }
+.dataset-history details[open] > summary { margin-bottom: 10px; }
+.revision-sql-diff, .revision-changes { overflow: auto; border: 1px solid var(--lb-color-border); border-radius: var(--lb-radius); }
+.revision-sql-diff table, .revision-changes table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.revision-sql-diff td { vertical-align: top; }
+.revision-sql-diff pre { margin: 0; font: inherit; font-family: var(--lb-font-mono); line-height: 1.6; white-space: pre; }
+.revision-sql-diff .line-number, .revision-sql-diff .diff-sign { width: 1%; min-width: 28px; padding: 0 8px; text-align: right; color: var(--lb-color-text-secondary); user-select: none; }
+.revision-sql-diff .added { background: color-mix(in srgb, var(--lb-color-success) 12%, transparent); }
+.revision-sql-diff .removed { background: color-mix(in srgb, var(--lb-color-danger) 12%, transparent); }
+.revision-changes th, .revision-changes td { padding: 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--lb-color-border); white-space: pre-wrap; overflow-wrap: anywhere; }
+.revision-changes th { font-weight: 500; }
+.revision-changes small { display: block; margin-top: 5px; }
+.revision-changes td { width: 36%; }
+@media (max-width: 900px) { .revision-content { padding: 12px; } .revision-toolbar { flex-wrap: wrap; } }
+@media (pointer: coarse) { .revision-list > button[aria-pressed] { height: 44px; } }

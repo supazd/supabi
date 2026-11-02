@@ -1,0 +1,129 @@
+# Local development dependencies. Not a production deployment.
+name: supabi-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: supabi
+      POSTGRES_PASSWORD: supabi
+      POSTGRES_DB: supabi
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U supabi -d supabi"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # For --query-cache=redis and the tests of the Redis query cache.
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
+    ports:
+      - "127.0.0.1:16379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # S3-compatible object storage for --export-storage=s3 and the tests of
+  # it. Pinned, as each release of an object store may answer differently.
+  rustfs:
+    image: rustfs/rustfs:1.0.3
+    environment:
+      RUSTFS_ACCESS_KEY: supabi
+      RUSTFS_SECRET_KEY: supabi-secret
+    ports:
+      - "127.0.0.1:19100:9000" # S3 API
+      - "127.0.0.1:19101:9001" # web console, to look at what was written
+    volumes:
+      - rustfs-data:/data
+    healthcheck:
+      # Healthy once the bucket for development and tests exists: the first
+      # check that finds it missing creates it.
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null --aws-sigv4 aws:amz:us-east-1:s3 --user supabi:supabi-secret -I http://127.0.0.1:9000/supabi || curl -fsS -o /dev/null --aws-sigv4 aws:amz:us-east-1:s3 --user supabi:supabi-secret -X PUT http://127.0.0.1:9000/supabi"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # A second kind of database for the query conformance tests. SupaBI itself
+  # does not need it.
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: supabi
+    ports:
+      - "127.0.0.1:13306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      # Over TCP on purpose: the temporary server used during first-time
+      # initialisation does not listen there, so this only passes once the
+      # real server is up.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-psupabi"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
+  # For the query conformance tests, like MySQL above.
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.9
+    environment:
+      CLICKHOUSE_USER: supabi
+      CLICKHOUSE_PASSWORD: supabi
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "127.0.0.1:19000:9000" # native protocol: the product's driver, clickhouse-client
+      - "127.0.0.1:18123:8123" # HTTP: JDBC tools such as DataGrip
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "supabi", "--password", "supabi", "--query", "SELECT 1"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
+  # StarRocks and Doris are large and slow to start, so they are only started
+  # on request: `make dev-up-olap`. They are for the conformance tests.
+  starrocks:
+    image: starrocks/allin1-ubuntu:latest
+    profiles: ["olap"]
+    ports:
+      - "127.0.0.1:19030:9030"
+
+  doris:
+    image: apache/doris:doris-all-in-one-2.1.0
+    profiles: ["olap"]
+    ports:
+      - "127.0.0.1:19031:9030"
+
+  # Also large, so also on request. Its catalogs are in dev/trino/catalog:
+  # memory for the conformance tests, postgres for the sample data; what
+  # may be seen of them is in dev/trino/rules.json.
+  trino:
+    image: trinodb/trino:483
+    profiles: ["olap"]
+    ports:
+      - "127.0.0.1:18080:8080"
+    volumes:
+      - ./dev/trino/catalog:/etc/trino/catalog:ro
+      - ./dev/trino/access-control.properties:/etc/trino/access-control.properties:ro
+      - ./dev/trino/rules.json:/etc/trino/rules.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/usr/lib/trino/bin/health-check"]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+
+volumes:
+  postgres-data:
+  mysql-data:
+  clickhouse-data:
+  rustfs-data:
