@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push to a pull request cancels the run still going for the one before.
+# Each commit on main gets a run of its own.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+# Actions from outside are pinned to a commit, since a tag can be moved.
+jobs:
+  # The same command as locally: it starts the services in compose.yaml, so
+  # their versions stay in one place.
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Go, Node and pnpm at the versions in mise.toml.
+      - uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+      - id: dirs
+        run: |
+          echo "go-mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+          echo "go-build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "pnpm-store=$(cd web && pnpm store path)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ steps.dirs.outputs.go-mod }}
+            ${{ steps.dirs.outputs.go-build }}
+            ${{ steps.dirs.outputs.pnpm-store }}
+          key: test-${{ runner.os }}-${{ hashFiles('go.sum', 'web/pnpm-lock.yaml') }}
+          restore-keys: test-${{ runner.os }}-
+      - run: make test
+
+  # make test leaves the docs site out, but a change to the function packs in
+  # web/ can still break its build; see .agents/design/docs-site.md.
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        with:
+          install_args: node pnpm
+      - id: dirs
+        run: echo "pnpm-store=$(cd docs && pnpm store path)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.dirs.outputs.pnpm-store }}
+          key: docs-${{ runner.os }}-${{ hashFiles('docs/pnpm-lock.yaml') }}
+          restore-keys: docs-${{ runner.os }}-
+      - run: make docs-build
