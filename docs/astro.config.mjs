@@ -1,8 +1,32 @@
+import { satteri } from '@astrojs/markdown-satteri'
 import starlight from '@astrojs/starlight'
 import { defineConfig } from 'astro/config'
 
+// The site is served under /supabi/, see .agents/design/docs-site.md §7.
+const base = '/supabi'
+
+// Pages link to each other from the site root, as in [Datasets](/data/datasets/).
+// Astro puts the base in front of the links it builds but not of those written
+// in Markdown, so they get it here.
+const baseLinks = {
+  name: 'base-links',
+  element: {
+    filter: ['a'],
+    visit(node, ctx) {
+      const href = node.properties?.href
+      if (typeof href === 'string' && href.startsWith('/') && !href.startsWith('//')) {
+        ctx.setProperty(node, 'href', base + href)
+      }
+    },
+  },
+}
+
 // See .agents/design/docs-site.md.
 export default defineConfig({
+  site: 'https://supazd.github.io',
+  base,
+  // Starlight adds its own plugins to this processor.
+  markdown: { processor: satteri({ hastPlugins: [baseLinks] }) },
   integrations: [
     starlight({
       title: 'SupaBI',

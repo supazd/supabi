@@ -29,7 +29,7 @@ make dev-seed
 make run
 ```
 
-打开 http://localhost:8080，创建管理员账号，然后[制作第一个仪表盘](docs/src/content/docs/zh-cn/getting-started/first-dashboard.md)。要给团队使用，见[安装 SupaBI](docs/src/content/docs/zh-cn/getting-started/install.md)。
+打开 http://localhost:8080，创建管理员账号，然后[制作第一个仪表盘](https://supazd.github.io/supabi/zh-cn/getting-started/first-dashboard/)。要给团队使用，见[安装 SupaBI](https://supazd.github.io/supabi/zh-cn/getting-started/install/)。
 
 SupaBI 以 [Apache 2.0](LICENSE) 协议开源。设计文档见 [.agents/design](.agents/design/architecture.zh.md)，暂缓事项见 [.agents/backlog.zh.md](.agents/backlog.zh.md)。
 
@@ -113,4 +113,4 @@ StarRocks、Doris 和 Trino 平时不启动。StarRocks 和 Doris 的示例数�
 
 ## 文档
 
-给安装和使用 SupaBI 的人看的文档在 `docs/`，是一个中英双语的 [Starlight](https://starlight.astro.build) 站点，和前端工作区分开。`make docs-dev` 在 http://localhost:4321 启动它，`make docs-build` 把静态站点构建到 `docs/dist/`。页面要遵守的规则见[文档站](.agents/design/docs-site.zh.md)。
+给安装和使用 SupaBI 的人看的文档在 https://supazd.github.io/supabi/zh-cn/。源文件在 `docs/`，是一个中英双语的 [Starlight](https://starlight.astro.build) 站点，和前端工作区分开，`main` 上改动了它的推送会重新发布它。`make docs-dev` 在 http://localhost:4321/supabi/ 启动它，`make docs-build` 把静态站点构建到 `docs/dist/`。页面要遵守的规则见[文档站](.agents/design/docs-site.zh.md)。

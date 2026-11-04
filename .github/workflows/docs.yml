@@ -1,0 +1,59 @@
+name: Docs
+
+# Publishes the documentation site to GitHub Pages; see
+# .agents/design/docs-site.md §7. The site also reads the function packs in
+# web/, so a change to them publishes it too.
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - web/apps/app/src/i18n/functions.*.ts
+      - mise.toml
+      - .github/workflows/docs.yml
+  workflow_dispatch:
+
+# One deployment at a time. A newer one waits instead of cancelling the one
+# under way, so the site is never left half deployed.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+# Actions from outside are pinned to a commit, since a tag can be moved.
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        with:
+          install_args: node pnpm
+      - id: dirs
+        run: echo "pnpm-store=$(cd docs && pnpm store path)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.dirs.outputs.pnpm-store }}
+          key: docs-${{ runner.os }}-${{ hashFiles('docs/pnpm-lock.yaml') }}
+          restore-keys: docs-${{ runner.os }}-
+      - run: make docs-build
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: docs/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

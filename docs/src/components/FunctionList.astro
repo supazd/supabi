@@ -20,7 +20,8 @@ const categories = {
 }
 
 const { category } = Astro.props
-const pack = (Astro.locals.starlightRoute.lang === 'zh-CN' ? functionsZhCN : functionsEnUS) as unknown as Record<string, { title: string; syntax: string; desc: string; example: string }>
+const { lang } = Astro.locals.starlightRoute
+const pack = (lang === 'zh-CN' ? functionsZhCN : functionsEnUS) as unknown as Record<string, { title: string; syntax: string; desc: string; example: string }>
 
 // A function added to the packs has to be placed in a category above, or the build fails.
 const listed = new Set(Object.values(categories).flat())
@@ -38,7 +39,8 @@ if (missing.length > 0) throw new Error(`FunctionList: no category for ${missing
         <code>{pack[name].syntax}</code>
       </p>
       <p>{pack[name].desc}</p>
-      <Code code={pack[name].example} lang="sql" />
+      {/* Starlight reads the language of a block from its URL without the base, and gets English. */}
+      <Code code={pack[name].example} lang="sql" locale={lang} />
     </section>
   ))
 }
