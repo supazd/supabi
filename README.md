@@ -29,7 +29,7 @@ make dev-seed
 make run
 ```
 
-Open http://localhost:8080 and create the administrator account. Then [build your first dashboard](docs/src/content/docs/getting-started/first-dashboard.md). To run it for a team, see [Install SupaBI](docs/src/content/docs/getting-started/install.md).
+Open http://localhost:8080 and create the administrator account. Then [build your first dashboard](https://supazd.github.io/supabi/getting-started/first-dashboard/). To run it for a team, see [Install SupaBI](https://supazd.github.io/supabi/getting-started/install/).
 
 SupaBI is released under the [Apache 2.0](LICENSE) license. For the design documents see [.agents/design](.agents/design/architecture.md), and for deferred items see [.agents/backlog.md](.agents/backlog.md).
 
@@ -113,4 +113,4 @@ These boundaries are enforced by lint rules. All UI text is in the language pack
 
 ## Documentation
 
-The documentation for people who install and use SupaBI is in `docs/`, a [Starlight](https://starlight.astro.build) site in English and Chinese, kept apart from the frontend workspace. `make docs-dev` starts it at http://localhost:4321, and `make docs-build` builds the static site into `docs/dist/`. For the rules its pages follow see [Documentation site](.agents/design/docs-site.md).
+The documentation for people who install and use SupaBI is at https://supazd.github.io/supabi/. Its source is in `docs/`, a [Starlight](https://starlight.astro.build) site in English and Chinese, kept apart from the frontend workspace, and a push to `main` that changes it publishes it again. `make docs-dev` starts it at http://localhost:4321/supabi/, and `make docs-build` builds the static site into `docs/dist/`. For the rules its pages follow see [Documentation site](.agents/design/docs-site.md).

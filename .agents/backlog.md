@@ -139,7 +139,6 @@ Acceptance conditions for removing the patch:
 | Live charts in the pages, using `packages/charts` | It needs the site in the `web/` workspace and Astro's React integration, and has not been tried | When a page explains a chart better live than in words |
 | Screenshots | They go stale whenever the interface changes, and the interface is still moving | When the interface settles |
 | Versioned documentation | There are no releases yet. `starlight-versions` exists if it is needed | When people run more than one released version |
-| Publishing the site | The repository has no remote or CI yet. The output is static, so it can go anywhere | When the repository goes public |
 
 ## Checklist before the repository goes public
 

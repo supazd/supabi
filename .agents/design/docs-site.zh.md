@@ -39,9 +39,20 @@ Starlight 还在 0.x，小版本可能改配置，0.39 就改过侧边栏分组�
 
 | 命令 | 说明 |
 |---|---|
-| `make docs-dev` | 启动站点并实时刷新，端口 4321 |
+| `make docs-dev` | 启动站点并实时刷新，地址 http://localhost:4321/supabi/ |
 | `make docs-build` | 把静态站点构建到 `docs/dist/`，包括搜索索引 |
 
 ## 6. 内容
 
-快速开始、概念，然后是数据、图表、仪表盘、管理和部署各一章，两种语言都有。暂缓的内容和站点发布到哪里，见[暂缓事项](../backlog.zh.md)的“文档站”一节。
+快速开始、概念，然后是数据、图表、仪表盘、管理和部署各一章，两种语言都有。暂缓的内容见[暂缓事项](../backlog.zh.md)的“文档站”一节。
+
+## 7. 发布
+
+站点由 GitHub Pages 托管，地址是 https://supazd.github.io/supabi/。站点没有自己的域名，所以用的是 GitHub 给仓库的地址。
+
+- `.github/workflows/docs.yml` 用 `make docs-build` 构建站点，然后部署 `docs/dist/`。`main` 上的推送改动了 `docs/`，或者改动了 `FunctionList.astro` 读取的函数语言包（第 2 节）时，它就会运行，也可以手动运行。产物从运行中直接交给 Pages，不会提交进仓库，也没有 `gh-pages` 分支。仓库的 Pages 来源设为 “GitHub Actions”。
+- 站点在 `/supabi/` 下，所以 `docs/astro.config.mjs` 里的 `base` 是 `/supabi`，开发时也一样。Astro 会给它自己生成的链接加上 base，但不会给页面里写的链接加。
+  - 页面之间照旧从站点根目录写链接，例如 `[数据集](/zh-cn/data/datasets/)`，构建时由 `astro.config.mjs` 里的一个小插件加上 base。页面自己不写 `/supabi`。这个插件运行在 Sätteri 里，它是 Astro 7 默认的 Markdown 处理器；为了在配置里写出这个处理器，`@astrojs/markdown-satteri` 是 `docs/` 的依赖，Starlight 也把它自己的插件加到同一个处理器上。为旧的 unified 处理器写的插件（remark 和 rehype）需要另外安装它，装上后所有 Markdown 都会改由它处理。
+  - frontmatter 里的链接（例如首页的按钮）不是 Markdown，插件处理不到，所以写成相对于本页的链接，例如 `getting-started/install/`。
+  - Starlight 根据 URL 判断 `<Code>` 组件的语言，但没有先去掉 base，所以在中文页面上会退回英文。`FunctionList.astro` 把页面的语言作为 `locale` 传进去，以后其他用到 `<Code>` 的组件也要这样做。
+- 如果以后站点有了自己的域名，把 `site` 改成这个域名，再删掉 `base` 和插件即可，页面不用改。

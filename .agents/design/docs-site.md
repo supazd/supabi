@@ -39,9 +39,20 @@ Starlight is still at 0.x and a minor release can change its configuration, as 0
 
 | Command | Description |
 |---|---|
-| `make docs-dev` | Starts the site with live reload, on port 4321 |
+| `make docs-dev` | Starts the site with live reload, at http://localhost:4321/supabi/ |
 | `make docs-build` | Builds the static site into `docs/dist/`, including the search index |
 
 ## 6. Contents
 
-Getting started, concepts, then a chapter each for data, charts, dashboards, administration and deployment, in both languages. Anything deferred, and where the site will be published, is in [Deferred items](../backlog.md) under "Documentation site".
+Getting started, concepts, then a chapter each for data, charts, dashboards, administration and deployment, in both languages. Anything deferred is in [Deferred items](../backlog.md) under "Documentation site".
+
+## 7. Publishing
+
+The site is served by GitHub Pages at https://supazd.github.io/supabi/. It has no domain of its own, so this is the address GitHub gives the repository.
+
+- `.github/workflows/docs.yml` builds the site with `make docs-build` and deploys `docs/dist/`. It runs when a push to `main` changes `docs/` or the function packs that `FunctionList.astro` reads (section 2), and it can also be run by hand. The output goes from the run straight to Pages: it is never committed, and there is no `gh-pages` branch. The repository's Pages source is set to "GitHub Actions".
+- The site lives under `/supabi/`, so `base` in `docs/astro.config.mjs` is `/supabi`, in development too. Astro puts the base in front of the links it builds itself, but not in front of links written in the pages.
+  - Pages go on linking to each other from the site root, as in `[Datasets](/data/datasets/)`, and a small plugin in `astro.config.mjs` adds the base when the site is built. Pages never write `/supabi` themselves. The plugin runs in Sätteri, the Markdown processor Astro 7 uses by default, so `@astrojs/markdown-satteri` is a dependency of `docs/` to name it; Starlight adds its own plugins to the same processor. Plugins written for the older unified processor (remark and rehype) would need it installed, and all Markdown would then go through it.
+  - Links in frontmatter, such as the buttons on the home pages, are not Markdown and the plugin never sees them, so they are written relative to the page, as in `getting-started/install/`.
+  - Starlight works out the language of a `<Code>` component from its URL without removing the base first, so it falls back to English on Chinese pages. `FunctionList.astro` passes the page's language as `locale`, and any other component that uses `<Code>` has to do the same.
+- If the site gets a domain of its own, set `site` to it and remove `base` and the plugin. The pages stay as they are.

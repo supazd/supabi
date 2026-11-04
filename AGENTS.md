@@ -33,7 +33,7 @@ make test           # everything: frontend type check, lint and unit tests, back
 make generate       # regenerate the Go server code and TypeScript types from api/openapi.yaml
 make build-go       # build the backend only, no Node needed
 cd web && pnpm dev  # frontend dev server
-make docs-dev       # documentation site, at http://localhost:4321
+make docs-dev       # documentation site, at http://localhost:4321/supabi/
 ```
 
 ## How we work
