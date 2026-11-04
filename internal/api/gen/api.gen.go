@@ -2475,6 +2475,27 @@ type LoginInput struct {
 	Password string `json:"password"`
 }
 
+// MCPAuthorization defines model for MCPAuthorization.
+type MCPAuthorization struct {
+	AuthorizedAt time.Time `json:"authorizedAt"`
+	ClientName   string    `json:"clientName"`
+	Id           string    `json:"id"`
+
+	// LastUsedAt To within a few minutes.
+	LastUsedAt   time.Time `json:"lastUsedAt"`
+	RedirectHost string    `json:"redirectHost"`
+}
+
+// MCPAuthorizations defines model for MCPAuthorizations.
+type MCPAuthorizations struct {
+	// Address The MCP address to give a client, as this server was reached.
+	Address string `json:"address"`
+
+	// Enabled False when an administrator has turned MCP off.
+	Enabled bool               `json:"enabled"`
+	Items   []MCPAuthorization `json:"items"`
+}
+
 // MaxAge Use a kept result only if its statement started less than this many
 // seconds ago; otherwise ask the database again and keep the answer, as
 // a refresh does. For timed refresh. Not with refresh, nor with a cache
@@ -2531,6 +2552,27 @@ type MoveInput struct {
 
 	// Kind What a folder holds. Each kind has its own tree.
 	Kind FolderKind `json:"kind"`
+}
+
+// OAuthRedirect defines model for OAuthRedirect.
+type OAuthRedirect struct {
+	// RedirectTo The client's address, with the code or the refusal.
+	RedirectTo string `json:"redirectTo"`
+}
+
+// OAuthRequestInfo defines model for OAuthRequestInfo.
+type OAuthRequestInfo struct {
+	// ClientName The name the client registered with. Nobody vouches for it.
+	ClientName string `json:"clientName"`
+
+	// Loopback The answer goes to a program on the person's own computer.
+	Loopback bool `json:"loopback"`
+
+	// McpEnabled False when an administrator has turned MCP off; the request cannot be allowed.
+	McpEnabled bool `json:"mcpEnabled"`
+
+	// RedirectHost Host the answer goes back to, for the person to judge the client by.
+	RedirectHost string `json:"redirectHost"`
 }
 
 // ParamControl defines model for ParamControl.
@@ -2883,6 +2925,7 @@ type SystemSettingDefaults struct {
 	ExportMaxSizeMb        int   `json:"exportMaxSizeMb"`
 	ExportRetentionHours   int   `json:"exportRetentionHours"`
 	ExportTimeoutMinutes   int   `json:"exportTimeoutMinutes"`
+	McpEnabled             bool  `json:"mcpEnabled"`
 	QueryCacheTtlMinutes   int   `json:"queryCacheTtlMinutes"`
 	QueryDefaultRows       int   `json:"queryDefaultRows"`
 	QueryMaxRows           int   `json:"queryMaxRows"`
@@ -2909,6 +2952,9 @@ type SystemSettingValues struct {
 
 	// ExportTimeoutMinutes The longest one attempt at an export may run
 	ExportTimeoutMinutes *int `json:"exportTimeoutMinutes,omitempty"`
+
+	// McpEnabled Whether people may connect MCP clients to read their dashboards
+	McpEnabled *bool `json:"mcpEnabled,omitempty"`
 
 	// QueryCacheTtlMinutes How long query results are kept unless a data source says otherwise
 	QueryCacheTtlMinutes *int `json:"queryCacheTtlMinutes,omitempty"`
@@ -3615,6 +3661,12 @@ type ServerInterface interface {
 	// GetLineage What reads what, across the workspace
 	// (GET /lineage)
 	GetLineage(w http.ResponseWriter, r *http.Request)
+	// ListMCPAuthorizations The MCP clients the caller has allowed, and the address to connect them to
+	// (GET /mcp/authorizations)
+	ListMCPAuthorizations(w http.ResponseWriter, r *http.Request)
+	// RevokeMCPAuthorization Revoke one of the caller's authorizations; its tokens stop working at once
+	// (DELETE /mcp/authorizations/{id})
+	RevokeMCPAuthorization(w http.ResponseWriter, r *http.Request, id string)
 
 	// (GET /members)
 	ListMembers(w http.ResponseWriter, r *http.Request)
@@ -3627,6 +3679,15 @@ type ServerInterface interface {
 
 	// (PATCH /members/{userId})
 	UpdateMember(w http.ResponseWriter, r *http.Request, userId string)
+	// GetOAuthRequest What an MCP client asks for, for the consent page
+	// (GET /oauth/requests/{id})
+	GetOAuthRequest(w http.ResponseWriter, r *http.Request, id string)
+	// ApproveOAuthRequest Allow the client to read the caller's dashboards as them
+	// (POST /oauth/requests/{id}/approve)
+	ApproveOAuthRequest(w http.ResponseWriter, r *http.Request, id string)
+	// DenyOAuthRequest Refuse the client, and say where to send the browser to tell it
+	// (POST /oauth/requests/{id}/deny)
+	DenyOAuthRequest(w http.ResponseWriter, r *http.Request, id string)
 	// RunQuery Run a query described in the query IR
 	// (POST /query)
 	RunQuery(w http.ResponseWriter, r *http.Request)
@@ -6200,6 +6261,46 @@ func (siw *ServerInterfaceWrapper) GetLineage(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ListMCPAuthorizations operation middleware
+func (siw *ServerInterfaceWrapper) ListMCPAuthorizations(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMCPAuthorizations(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeMCPAuthorization operation middleware
+func (siw *ServerInterfaceWrapper) RevokeMCPAuthorization(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeMCPAuthorization(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListMembers operation middleware
 func (siw *ServerInterfaceWrapper) ListMembers(w http.ResponseWriter, r *http.Request) {
 
@@ -6271,6 +6372,84 @@ func (siw *ServerInterfaceWrapper) UpdateMember(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateMember(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetOAuthRequest operation middleware
+func (siw *ServerInterfaceWrapper) GetOAuthRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetOAuthRequest(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ApproveOAuthRequest operation middleware
+func (siw *ServerInterfaceWrapper) ApproveOAuthRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApproveOAuthRequest(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DenyOAuthRequest operation middleware
+func (siw *ServerInterfaceWrapper) DenyOAuthRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DenyOAuthRequest(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6876,6 +7055,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/assistant/conversations/{id}/messages", wrapper.ListConversationMessages)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/assistant/conversations/{id}/messages", wrapper.SendAssistantMessage)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/assistant/messages/{id}/retry", wrapper.RetryAssistantMessage)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/requests/{id}", wrapper.GetOAuthRequest)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/requests/{id}/approve", wrapper.ApproveOAuthRequest)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/requests/{id}/deny", wrapper.DenyOAuthRequest)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/mcp/authorizations", wrapper.ListMCPAuthorizations)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/mcp/authorizations/{id}", wrapper.RevokeMCPAuthorization)
 
 	return m
 }
@@ -11563,6 +11747,57 @@ func (response GetLineage200JSONResponse) VisitGetLineageResponse(w http.Respons
 	return err
 }
 
+type ListMCPAuthorizationsRequestObject struct {
+}
+
+type ListMCPAuthorizationsResponseObject interface {
+	VisitListMCPAuthorizationsResponse(w http.ResponseWriter) error
+}
+
+type ListMCPAuthorizations200JSONResponse MCPAuthorizations
+
+func (response ListMCPAuthorizations200JSONResponse) VisitListMCPAuthorizationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeMCPAuthorizationRequestObject struct {
+	Id string `json:"id"`
+}
+
+type RevokeMCPAuthorizationResponseObject interface {
+	VisitRevokeMCPAuthorizationResponse(w http.ResponseWriter) error
+}
+
+type RevokeMCPAuthorization204Response struct {
+}
+
+func (response RevokeMCPAuthorization204Response) VisitRevokeMCPAuthorizationResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RevokeMCPAuthorization404JSONResponse struct{ ErrorJSONResponse }
+
+func (response RevokeMCPAuthorization404JSONResponse) VisitRevokeMCPAuthorizationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListMembersRequestObject struct {
 }
 
@@ -11739,6 +11974,128 @@ func (response UpdateMember409JSONResponse) VisitUpdateMemberResponse(w http.Res
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetOAuthRequestRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetOAuthRequestResponseObject interface {
+	VisitGetOAuthRequestResponse(w http.ResponseWriter) error
+}
+
+type GetOAuthRequest200JSONResponse OAuthRequestInfo
+
+func (response GetOAuthRequest200JSONResponse) VisitGetOAuthRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetOAuthRequest404JSONResponse struct{ ErrorJSONResponse }
+
+func (response GetOAuthRequest404JSONResponse) VisitGetOAuthRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveOAuthRequestRequestObject struct {
+	Id string `json:"id"`
+}
+
+type ApproveOAuthRequestResponseObject interface {
+	VisitApproveOAuthRequestResponse(w http.ResponseWriter) error
+}
+
+type ApproveOAuthRequest200JSONResponse OAuthRedirect
+
+func (response ApproveOAuthRequest200JSONResponse) VisitApproveOAuthRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveOAuthRequest403JSONResponse struct{ ErrorJSONResponse }
+
+func (response ApproveOAuthRequest403JSONResponse) VisitApproveOAuthRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveOAuthRequest404JSONResponse Error
+
+func (response ApproveOAuthRequest404JSONResponse) VisitApproveOAuthRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DenyOAuthRequestRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DenyOAuthRequestResponseObject interface {
+	VisitDenyOAuthRequestResponse(w http.ResponseWriter) error
+}
+
+type DenyOAuthRequest200JSONResponse OAuthRedirect
+
+func (response DenyOAuthRequest200JSONResponse) VisitDenyOAuthRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DenyOAuthRequest404JSONResponse struct{ ErrorJSONResponse }
+
+func (response DenyOAuthRequest404JSONResponse) VisitDenyOAuthRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -12714,6 +13071,12 @@ type StrictServerInterface interface {
 	// GetLineage What reads what, across the workspace
 	// (GET /lineage)
 	GetLineage(ctx context.Context, request GetLineageRequestObject) (GetLineageResponseObject, error)
+	// ListMCPAuthorizations The MCP clients the caller has allowed, and the address to connect them to
+	// (GET /mcp/authorizations)
+	ListMCPAuthorizations(ctx context.Context, request ListMCPAuthorizationsRequestObject) (ListMCPAuthorizationsResponseObject, error)
+	// RevokeMCPAuthorization Revoke one of the caller's authorizations; its tokens stop working at once
+	// (DELETE /mcp/authorizations/{id})
+	RevokeMCPAuthorization(ctx context.Context, request RevokeMCPAuthorizationRequestObject) (RevokeMCPAuthorizationResponseObject, error)
 
 	// (GET /members)
 	ListMembers(ctx context.Context, request ListMembersRequestObject) (ListMembersResponseObject, error)
@@ -12726,6 +13089,15 @@ type StrictServerInterface interface {
 
 	// (PATCH /members/{userId})
 	UpdateMember(ctx context.Context, request UpdateMemberRequestObject) (UpdateMemberResponseObject, error)
+	// GetOAuthRequest What an MCP client asks for, for the consent page
+	// (GET /oauth/requests/{id})
+	GetOAuthRequest(ctx context.Context, request GetOAuthRequestRequestObject) (GetOAuthRequestResponseObject, error)
+	// ApproveOAuthRequest Allow the client to read the caller's dashboards as them
+	// (POST /oauth/requests/{id}/approve)
+	ApproveOAuthRequest(ctx context.Context, request ApproveOAuthRequestRequestObject) (ApproveOAuthRequestResponseObject, error)
+	// DenyOAuthRequest Refuse the client, and say where to send the browser to tell it
+	// (POST /oauth/requests/{id}/deny)
+	DenyOAuthRequest(ctx context.Context, request DenyOAuthRequestRequestObject) (DenyOAuthRequestResponseObject, error)
 	// RunQuery Run a query described in the query IR
 	// (POST /query)
 	RunQuery(ctx context.Context, request RunQueryRequestObject) (RunQueryResponseObject, error)
@@ -15664,6 +16036,56 @@ func (sh *strictHandler) GetLineage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ListMCPAuthorizations operation middleware
+func (sh *strictHandler) ListMCPAuthorizations(w http.ResponseWriter, r *http.Request) {
+	var request ListMCPAuthorizationsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMCPAuthorizations(ctx, request.(ListMCPAuthorizationsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMCPAuthorizations")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListMCPAuthorizationsResponseObject); ok {
+		if err := validResponse.VisitListMCPAuthorizationsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RevokeMCPAuthorization operation middleware
+func (sh *strictHandler) RevokeMCPAuthorization(w http.ResponseWriter, r *http.Request, id string) {
+	var request RevokeMCPAuthorizationRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RevokeMCPAuthorization(ctx, request.(RevokeMCPAuthorizationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RevokeMCPAuthorization")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RevokeMCPAuthorizationResponseObject); ok {
+		if err := validResponse.VisitRevokeMCPAuthorizationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListMembers operation middleware
 func (sh *strictHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 	var request ListMembersRequestObject
@@ -15771,6 +16193,84 @@ func (sh *strictHandler) UpdateMember(w http.ResponseWriter, r *http.Request, us
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateMemberResponseObject); ok {
 		if err := validResponse.VisitUpdateMemberResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetOAuthRequest operation middleware
+func (sh *strictHandler) GetOAuthRequest(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetOAuthRequestRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetOAuthRequest(ctx, request.(GetOAuthRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetOAuthRequest")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetOAuthRequestResponseObject); ok {
+		if err := validResponse.VisitGetOAuthRequestResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ApproveOAuthRequest operation middleware
+func (sh *strictHandler) ApproveOAuthRequest(w http.ResponseWriter, r *http.Request, id string) {
+	var request ApproveOAuthRequestRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ApproveOAuthRequest(ctx, request.(ApproveOAuthRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApproveOAuthRequest")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ApproveOAuthRequestResponseObject); ok {
+		if err := validResponse.VisitApproveOAuthRequestResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DenyOAuthRequest operation middleware
+func (sh *strictHandler) DenyOAuthRequest(w http.ResponseWriter, r *http.Request, id string) {
+	var request DenyOAuthRequestRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DenyOAuthRequest(ctx, request.(DenyOAuthRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DenyOAuthRequest")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DenyOAuthRequestResponseObject); ok {
+		if err := validResponse.VisitDenyOAuthRequestResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

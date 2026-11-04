@@ -103,6 +103,20 @@ For the steps after the first one, see [AI assistant](design/ai-assistant.md) se
 | Workspace admins seeing only the AI usage of their own workspace | Models and costs belong to the whole organization; the audit log too can be seen only by system administrators | When each workspace needs to control its own cost; do it together with the workspace view of the audit log |
 | A separate retention period for AI usage | It shares one retention period with the audit log, one less setting, see [AI assistant](design/ai-assistant.md) 13.5 | When cost records must be kept longer than audit events, such as budgeting by year |
 
+## MCP service
+
+What section 14 of [AI assistant](design/ai-assistant.md) decided not to do in its first version.
+
+| Item | Why deferred | When to re-evaluate |
+|---|---|---|
+| Personal access tokens | The MCP clients people use support OAuth, and Claude's connectors and ChatGPT accept nothing else; a token copied by hand would serve only scripts | When a data API is built, or a script needs to fetch data as a person |
+| Limiting an authorization to chosen workspaces | An authorization sees what the person sees in the app, which has the fewest concepts; the consent page would need a list of workspaces to tick | When people want to keep some workspace away from a local Agent while using it for others |
+| A switch per workspace, or allowing MCP only for some groups | One switch for the organization covers the governance question "may data go to a model the administrator did not choose" | When a workspace holds data that must not leave through MCP while others may, or only some people are allowed to use it |
+| Client ID Metadata Documents | The server would fetch the client's description from the internet, which a deployment inside a company network often cannot do, and once advertised, clients use them instead of registering and fail; dynamic registration is deprecated in the MCP specification but every client in use supports it | When a client that matters supports only Client ID Metadata Documents, or the specification drops dynamic registration; then advertise them only when the server can reach the internet, for example behind a system setting |
+| MCP clients that run in a browser | Requests whose `Origin` names another site are refused, as protection against DNS rebinding; supporting them means allowing cross-origin requests to `/mcp` and the token endpoint | When people need a client that runs in a web page |
+| A list of everyone's authorizations for administrators | Authorizing and revoking are in the audit log, and turning the switch off stops them all | When administrators need to see who has connected which client, or revoke one for someone |
+| A workspace argument to `list_dashboards` | The first list covers every workspace the person can access, which is simplest for the model | When the list for people with many workspaces fills the client's context |
+
 ## Frontend dependencies
 
 | Item | Why deferred | When to re-evaluate |

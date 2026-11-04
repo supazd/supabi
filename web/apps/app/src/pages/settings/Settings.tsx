@@ -9,6 +9,7 @@ import { AIModels } from './AIModels'
 import { AIUsage } from './AIUsage'
 import { Audit } from './Audit'
 import { Groups } from './Groups'
+import { Mcp } from './Mcp'
 import { Members } from './Members'
 import { Users } from './Users'
 import { UserAttributes } from './UserAttributes'
@@ -71,6 +72,7 @@ export function Settings({ onManageWorkspace, onCurrentWorkspaceDeleted, busy = 
       <Route index element={<Navigate to="/settings/personal/account" replace />} />
       <Route path="personal/*" element={<SettingsArea base="/settings/personal" title={t('topbar.accountSettings')} sections={[
         { path: 'account', label: t('settings.account'), icon: 'user', element: <Account /> },
+        { path: 'mcp', label: t('settings.mcp'), icon: 'link', element: <Mcp /> },
       ]} />} />
       <Route path="system/*" element={<SettingsArea base="/settings/system" title={t('topbar.systemSettings')} allowed={session.isOrgAdmin} sections={[
         { path: 'users', label: t('settings.users'), icon: 'user', element: <Users /> },

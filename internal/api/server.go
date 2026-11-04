@@ -52,7 +52,8 @@ type Server struct {
 
 var _ gen.StrictServerInterface = (*Server)(nil)
 
-// Register mounts the API on mux under /api/v1.
+// Register mounts the API on mux under /api/v1, and the endpoints of OAuth
+// and MCP beside it.
 func (s *Server) Register(mux *http.ServeMux) {
 	// The last middleware runs first: authenticate identifies the caller
 	// that recordAudit then records.
@@ -71,6 +72,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 			writeError(w, &apiError{status: http.StatusBadRequest, code: "invalid_request", message: err.Error()})
 		},
 	})
+	s.registerOAuth(mux)
 }
 
 func (s *Server) now() time.Time {

@@ -1,6 +1,6 @@
 # AI assistant
 
-Status: the first step (the most basic Agent), the second step (the usage page, section 13) and the third step (tools, section 12) are implemented. The fourth step only records a direction and will be designed when we get to it.
+Status: the first step (the most basic Agent), the second step (the usage page, section 13) and the third step (tools, section 12) are implemented. The fourth step only records a direction and will be designed when we get to it. The MCP service (section 14) is implemented.
 
 ## 1. Positioning
 
@@ -204,7 +204,7 @@ Status: implemented.
 
 - Four read-only tools, all needing only the viewer role. Data is fetched only from dashboards the person can open, in the same way as operating on the dashboard: global filters, chart filters, dynamic dimensions and metrics, drill-down, chart links.
 - Each tool corresponds to an existing viewer endpoint, calls the same functions, and runs as the current user. Dashboard authorization, row-level and column-level permissions, the query cache and audit work as before, and there is no separate set ([Architecture overview](architecture.md) sections 1 and 3). A viewer can only submit values, not queries ([Charts and dashboards](chart-dashboard.md) 3.5), and this holds for the AI too.
-- Not doing: querying datasets directly and writing SQL (viewers have no such entry, see [Access control and workspaces](access-control.md) 4.1.1); lineage and references (only data developers can see them); export and generating personal dashboards (they are not read-only); an MCP service (only reserved, see 12.7).
+- Not doing: querying datasets directly and writing SQL (viewers have no such entry, see [Access control and workspaces](access-control.md) 4.1.1); lineage and references (only data developers can see them); export and generating personal dashboards (they are not read-only); an MCP service (only reserved, see 12.7; designed later in section 14).
 
 ### 12.2 The four tools
 
@@ -282,7 +282,7 @@ Later we want an MCP service, so that viewers can fetch data with a local Agent.
 
 MCP does not offer `calculate` (12.9): a local Agent has its own ability to compute.
 
-To decide when MCP is built: login methods other than the browser (personal token or OAuth), and which workspace a token belongs to; data leaves the system through the user's own model, which is in effect an export, so whether to restrict it by the chart's "Allow data exports" and whether administrators need a master switch. Model configuration, cost, compaction and conversations belong only to the in-app Agent, and MCP does not use them.
+What was left to decide (the sign-in method, which workspace an authorization belongs to, whether "Allow data exports" restricts it, a master switch) was settled on 2026-11-03; the design is in section 14. Model configuration, cost, compaction and conversations belong only to the in-app Agent, and MCP does not use them.
 
 ### 12.8 Order of implementation
 
@@ -392,3 +392,127 @@ The names of the groups:
 ### 13.6 Not in this step
 
 A per-call detail list, usage trend charts, exporting usage, filtering the audit log by "from the AI assistant", workspace admins seeing only their own workspace's usage, administrators viewing conversation content, and a separate retention period for usage. The reasons and when to re-evaluate are in [Deferred items](../backlog.md).
+
+## 14. MCP service
+
+Status: implemented.
+
+People connect an MCP client of their own (Claude, ChatGPT, Claude Code, Cursor and so on) to SupaBI and fetch data from the dashboards they can open, with sources, through the same tools as the AI assistant (12.7). Decided on 2026-11-03.
+
+### 14.1 Scope
+
+- One remote MCP address in the same program; nothing else to install.
+- The four read-only tools of 12.2, run as the person who authorized the client. `calculate` is not offered (12.7).
+- Sign-in is OAuth only: the client opens SupaBI in the browser, the person signs in and clicks "Allow". There is no token to copy by hand. Claude's connectors and ChatGPT accept only OAuth or no sign-in at all, and Claude Code, Cursor and VS Code support OAuth too, so personal tokens would serve only scripts, which is a matter for a later data API.
+- An authorization belongs to the person, not to a workspace (14.3).
+- Not in this step: 14.10.
+
+### 14.2 Address and protocol
+
+- Streamable HTTP at `/mcp`, stateless: each request stands alone, there are no MCP sessions and nothing is pushed from the server, so any instance can answer any request and no sticky routing is needed.
+- The full address is `{origin}/mcp`. The origin is taken from the request: the `Host` header, and HTTPS when the connection is TLS or `X-Forwarded-Proto` says so, the same as for the session cookie. There is no "site address" setting: the address the client used is one it can reach. A deployment reachable under two host names has two addresses, and an authorization made through one does not work on the other (14.4).
+- A request whose `Origin` header names another site is refused with 403, the DNS rebinding protection the MCP transport asks for. MCP clients that are not browsers send no `Origin`.
+- It uses the official Go SDK, `github.com/modelcontextprotocol/go-sdk`.
+- Clients that run on the person's computer (Claude Code, Cursor, VS Code) connect from there. The connectors of Claude on the web and desktop and of ChatGPT connect from the provider's cloud, so a SupaBI reachable only inside a company network works only with the former. The user documentation says so.
+
+### 14.3 Workspaces
+
+People in several workspaces use one authorization and never switch.
+
+- `list_dashboards` lists the dashboards of every workspace the person can access (deleted workspaces are left out), each with the workspace's ID and name, so that "the revenue dashboard in Finance" can be matched.
+- The other three tools take a dashboard ID. IDs are unique across the system, so the dashboard decides the workspace. Each call first checks that the person can access that workspace, then runs exactly as it would there: the role, dashboard grants, row-level and column-level permissions with that workspace's user attributes, the time zone and first day of the week, and the workspace recorded in audit events. A dashboard in a workspace the person cannot access gets "does not exist or no permission", the same as in the app.
+- `describe_dashboard` also returns the workspace's name, its time zone and today's date there: a local Agent does not get the in-app system prompt (section 5), and relative times such as "last month" are resolved in that time zone.
+- Access is read on each call, so after the person is added to or removed from a workspace, the same authorization sees the change at once.
+- The in-app AI assistant does not change: its conversations belong to a workspace (4.1) and its tools read only the current one.
+- A person with many workspaces and dashboards gets a long first list. This is not handled for now; see 14.10.
+
+### 14.4 Sign-in: OAuth
+
+SupaBI is both the MCP server and its own OAuth authorization server, on the same origin. It follows the authorization part of the MCP specification (revision 2026-07-28) and OAuth 2.1.
+
+**Discovery**:
+
+| Address | Content |
+|---|---|
+| `/.well-known/oauth-protected-resource/mcp`, and the same at `/.well-known/oauth-protected-resource` | Protected resource metadata (RFC 9728): the resource `{origin}/mcp`, the authorization server `{origin}`, the scope |
+| `/.well-known/oauth-authorization-server` | Authorization server metadata (RFC 8414): the issuer `{origin}`, the endpoints below, `code_challenge_methods_supported: ["S256"]`, `authorization_response_iss_parameter_supported: true`, the grant types and client authentication methods |
+
+A request to `/mcp` without a valid token gets 401 with `WWW-Authenticate: Bearer resource_metadata="…", scope="…"`, which is how a client finds the rest.
+
+**Client registration**: dynamic client registration (RFC 7591) at `POST /oauth/register`, open, with no initial token.
+
+- Redirect addresses must be HTTPS, or HTTP on a loopback address (`localhost`, `127.0.0.1`, `[::1]`), at most 10 of them. Addresses that are neither are left out of the registration, which RFC 7591 allows, and only a registration left with none is refused: Cursor, for one, registers a `cursor://` address beside its loopback one.
+- A public client (`token_endpoint_auth_method: none`) gets only a client ID. A client that asks for `client_secret_basic` or `client_secret_post` also gets a secret, which is stored as a hash. A client that does not say is registered as public, not with `client_secret_basic` as RFC 7591 would have it: MCP clients run on people's computers and hold no secret, and one that ignored a secret it was given could never sign in.
+- A client that nobody has authorized within 24 hours of registering is deleted by the hourly maintenance job, so the open endpoint cannot fill the table.
+- Client ID Metadata Documents, which the specification now prefers, are not supported in this step. With them the server fetches the client's description from the internet, which a deployment inside a company network often cannot do; and once the metadata advertises them, clients use them instead of registering and fail there. Dynamic registration is marked deprecated in the specification but stays for compatibility, and the clients in 14.1 all support it.
+
+**Authorization**, `GET /oauth/authorize`:
+
+- It requires `response_type=code`, a registered client, a redirect address that matches one of the client's exactly (for a loopback address the port is not compared, as RFC 8252 asks), PKCE with `S256`, and passes `state` back. `resource`, when given, must be `{origin}/mcp`; when it is missing, that is assumed.
+- When MCP is off, or the client or the redirect address is wrong, nothing is redirected to the client: the browser goes to `/oauth/consent?error=…` in the app, which says what is wrong in the person's language. Other errors go back to the redirect address as OAuth errors.
+- A valid request is kept for 10 minutes, and the browser goes to the consent page in the app, `/oauth/consent/{id}`. A person who is not signed in sees the sign-in page first, as on every page.
+- The consent page says "<client name> wants to read data from the dashboards you can open, as you" and shows the host of the redirect address; for a loopback address it adds that the authorization is handed to a program on this computer. Then "Allow" and "Deny". Whoever registered the client chose its name, so the page does not vouch for it, and shows the host so that the person can judge. The page cannot be shown in a frame (`X-Frame-Options: DENY`, `frame-ancestors 'none'`).
+- "Allow" creates the authorization of this person for this client, or renews it, and redirects with a one-time code valid for 1 minute and `iss`. "Deny" redirects with `access_denied`.
+
+**Tokens**, `POST /oauth/token`:
+
+- `authorization_code` checks the code, the redirect address, the PKCE verifier and the client secret if there is one, then issues an access token and a refresh token.
+- `refresh_token` rotates: each use issues a new pair and the old refresh token stops working. Within 30 seconds of its use it still gives another pair, for clients that refresh from several requests at once or retry when an answer is lost. Used again later, it may have been stolen, and the whole authorization is revoked. A code used a second time revokes the authorization too, so that the tokens it already gave stop working (OAuth 2.1).
+- An access token lasts 1 hour, hard-coded. A refresh token expires when it has not been used for the session lifetime ("System administration → General", 7 days by default, [Startup configuration](configuration.md) 10.7). The lifetime is read on each use, so a change applies to existing authorizations at once.
+- Tokens are random strings stored as hashes, like sessions. Each carries the resource it was issued for, and `/mcp` accepts only tokens issued for its own `{origin}/mcp`. SupaBI never passes a token on.
+- Every request with a token also checks that the account is active and that MCP is on (14.6).
+
+**Scope**: one, `dashboards:read`, covering the four tools. Write tools or a data API will add scopes of their own.
+
+### 14.5 Authorizations in personal settings
+
+- Personal settings get a page "MCP" (`/settings/personal/mcp`), for every signed-in person. At the top is the MCP address with a copy button, and a line on adding it to a client. The documentation site has no address yet, so the page does not link to it.
+- Below it, one line per authorized client: the name, the host of the redirect address, when it was authorized, when it was last used, and "Revoke". Revoking ends its tokens at once.
+- Whenever all of a person's sessions are ended (the account is disabled, or an administrator resets the password), the person's authorizations are revoked too.
+- Administrators have no list of everyone's authorizations in this step; authorizing and revoking are in the audit log (14.8).
+
+### 14.6 The switch
+
+- "System administration → General" gets a group "MCP service" with one switch, "Allow MCP clients", off by default. See [Startup configuration](configuration.md) 10.8.
+- It is off by default because the data goes to the model the person's client uses, which the administrator did not choose, unlike the in-app assistant (3.1). Some companies do not allow that, so turning it on is the administrator's decision.
+- When it is off, `/mcp` answers 403 saying MCP is turned off, and registration and authorization say the same. Existing authorizations are kept and work again once it is turned back on. The personal settings page says it is off and still lists the authorizations, so they can be revoked.
+- MCP is not restricted by a chart's "Allow data exports". That switch is about downloading all of the data, while MCP returns at most the rows the chart shows, capped at 200, the same as the in-app assistant (12.3), which that switch does not restrict either. What MCP adds is where the data goes, and that is what this switch is for.
+
+### 14.7 Tools and results
+
+- The tools come from the same registry (12.6). Only the descriptions shown to the model differ, where they speak of workspaces (14.3).
+- Tool results are the same JSON text as for the in-app assistant. Source links are absolute addresses, with the origin of the request (14.2). As in 12.3 they store the conditions for 30 days, and a link that exists only in a tool result stops working after that.
+- The `instructions` the server returns when a client connects say how the tools fit together and ask, as 12.3 does, that every number come from a tool result and be followed by its source link. SupaBI cannot control how a local Agent writes its answer; it can only ask.
+- A tool error is returned as a tool result marked as an error, so the client's model can change the call and try again, as in 12.4.
+- There is no usage or cost to record: the model is the person's own.
+
+### 14.8 Audit
+
+- Authorizing a client and revoking it are recorded in the sign-in category `auth`, as `mcp.authorize` and `mcp.revoke`. A revocation is recorded whether the person did it, it came with the account being disabled or its password reset, or a code or refresh token was reused. The details are the client ID, its name and the host of the redirect address. "Deny" on the consent page changes nothing and is not recorded. Registration and issuing and refreshing tokens are not recorded: registration happens before anyone signs in, and refreshes happen every hour.
+- Data fetches record query events as usual, in the workspace of the dashboard, with details noting that they came from MCP and the client's name. The source is the IP address and User-Agent of the MCP request.
+- The switch is saved with the other General settings and recorded in `system_settings.update`.
+
+### 14.9 Metadata database and endpoints
+
+| Table | Content |
+|---|---|
+| `oauth_clients` | Client ID, name, redirect addresses, authentication method, hash of the secret, when registered |
+| `oauth_requests` | Authorization requests waiting for consent: client, redirect address, state, PKCE challenge, resource, scope, expiry |
+| `mcp_authorizations` | Organization, person, client, scope, when authorized, when last used |
+| `oauth_tokens` | Hash, kind (code, access, refresh), authorization, resource, expiry, whether used; a code also records the redirect address and PKCE challenge |
+
+`oauth_clients` and `oauth_requests` have no organization, unlike every other table ([Access control and workspaces](access-control.md) section 9): a client registers, and a request arrives, before anyone has signed in. The organization comes in with the person, on the authorization. Expired requests and tokens, and clients nobody authorized within 24 hours, are deleted by the hourly maintenance job.
+
+The protocol endpoints follow OAuth and MCP rather than the REST API, so they are not in `api/openapi.yaml`: the two `/.well-known/` addresses, `/oauth/register`, `/oauth/authorize`, `/oauth/token` and `/mcp`.
+
+The pages use the REST API, open to every signed-in person with no workspace needed:
+
+| Endpoint | Description |
+|---|---|
+| `GET /oauth/requests/{id}` | For the consent page: the client's name, the host of the redirect address, and whether MCP is on |
+| `POST /oauth/requests/{id}/approve`, `POST /oauth/requests/{id}/deny` | Returns the address to redirect to |
+| `GET /mcp/authorizations`, `DELETE /mcp/authorizations/{id}` | The person's own authorizations, and the MCP address |
+
+### 14.10 Not in this step
+
+Personal access tokens for scripts, limiting an authorization to chosen workspaces, a switch per workspace or per group, Client ID Metadata Documents, MCP clients that run in a browser, a list of everyone's authorizations for administrators, and a workspace argument to `list_dashboards`. The reasons and when to re-evaluate are in [Deferred items](../backlog.md).

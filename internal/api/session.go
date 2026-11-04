@@ -71,6 +71,15 @@ var requirements = map[string]requirement{
 	"ListWorkspaces":  {},
 	"SwitchWorkspace": {},
 
+	// Anyone signed in answers an MCP client as themselves, and manages the
+	// clients they allowed: .agents/design/ai-assistant.md 14.4, 14.5. Which
+	// workspaces a client then reads is decided on each of its requests.
+	"GetOAuthRequest":        {},
+	"ApproveOAuthRequest":    {},
+	"DenyOAuthRequest":       {},
+	"ListMCPAuthorizations":  {},
+	"RevokeMCPAuthorization": {},
+
 	// Viewers reach data through charts: GetChartData runs only the chart's
 	// own saved query, and the options and dashboard operations take values
 	// from the caller and fields from what authors defined. None of them
@@ -289,12 +298,18 @@ func (s *Server) authenticate(next gen.StrictHandlerFunc, operationID string) ge
 
 // sameOrigin rejects state-changing requests that a page of another site made
 // the browser send. Together with the SameSite cookie attribute this is the
-// defence against cross-site request forgery. Requests without an Origin
-// header (curl, server-to-server) are not browser-driven and pass.
+// defence against cross-site request forgery.
 func sameOrigin(r *http.Request) bool {
 	if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
 		return true
 	}
+	return fromThisSite(r)
+}
+
+// fromThisSite says whether a request comes from a page of this server, or
+// from no page at all: requests without an Origin header (curl,
+// server-to-server, MCP clients) are not browser-driven and pass.
+func fromThisSite(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	if origin == "" {
 		return true

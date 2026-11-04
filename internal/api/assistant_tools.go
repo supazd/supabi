@@ -154,13 +154,24 @@ func (s *Server) listDashboardsTool(ctx context.Context, raw json.RawMessage) (a
 	if err := toolArguments(raw, &struct{}{}); err != nil {
 		return assistant.ToolResult{}, err
 	}
-	list, err := store.ListDashboards(ctx, s.Pool, s.scope(ctx))
+	out, err := s.dashboardEntries(ctx)
 	if err != nil {
 		return assistant.ToolResult{}, err
 	}
+	text, err := toolText(out)
+	return assistant.ToolResult{Content: text}, err
+}
+
+// dashboardEntries are the dashboards the caller can open in the workspace
+// of the request, with the charts on each.
+func (s *Server) dashboardEntries(ctx context.Context) ([]toolDashboardEntry, error) {
+	list, err := store.ListDashboards(ctx, s.Pool, s.scope(ctx))
+	if err != nil {
+		return nil, err
+	}
 	visible, err := s.visibleContent(ctx)
 	if err != nil {
-		return assistant.ToolResult{}, err
+		return nil, err
 	}
 	var (
 		shown    []store.Dashboard
@@ -173,7 +184,7 @@ func (s *Server) listDashboardsTool(ctx context.Context, raw json.RawMessage) (a
 		}
 		var spec content.DashboardSpec
 		if err := json.Unmarshal(d.Spec, &spec); err != nil {
-			return assistant.ToolResult{}, err
+			return nil, err
 		}
 		var items []content.Item
 		for _, item := range spec.Widgets() {
@@ -186,7 +197,7 @@ func (s *Server) listDashboardsTool(ctx context.Context, raw json.RawMessage) (a
 	}
 	charts, err := store.GetCharts(ctx, s.Pool, s.scope(ctx), slices.Compact(slices.Sorted(slices.Values(chartIDs))))
 	if err != nil {
-		return assistant.ToolResult{}, err
+		return nil, err
 	}
 	names := map[string]string{}
 	for _, c := range charts {
@@ -200,18 +211,27 @@ func (s *Server) listDashboardsTool(ctx context.Context, raw json.RawMessage) (a
 		}
 		out = append(out, entry)
 	}
-	text, err := toolText(out)
-	return assistant.ToolResult{Content: text}, err
+	return out, nil
 }
 
 // ---- describe_dashboard ----
 
 type toolDashboard struct {
-	ID          string       `json:"id"`
-	Name        string       `json:"name"`
-	Description string       `json:"description,omitempty"`
-	Filters     []toolFilter `json:"filters,omitempty"`
-	Charts      []toolChart  `json:"charts"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	// Workspace is told to MCP clients, which have no system prompt to say
+	// what today is there: .agents/design/ai-assistant.md 14.3.
+	Workspace *toolWorkspace `json:"workspace,omitempty"`
+	Filters   []toolFilter   `json:"filters,omitempty"`
+	Charts    []toolChart    `json:"charts"`
+}
+
+type toolWorkspace struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Timezone string `json:"timezone"`
+	Today    string `json:"today"`
 }
 
 type toolFilter struct {
@@ -334,6 +354,17 @@ func (s *Server) describeDashboardTool(ctx context.Context, raw json.RawMessage)
 		hidden[loaded.stored.ID] = scope.hidden
 	}
 	out := toolDashboard{ID: a.Dashboard, Name: dc.name, Description: dc.description, Charts: []toolChart{}}
+	if _, ok := mcpClientFrom(ctx); ok {
+		w, err := store.GetWorkspace(ctx, s.Pool, s.scope(ctx))
+		if err != nil {
+			return assistant.ToolResult{}, err
+		}
+		today := s.now()
+		if loc, err := time.LoadLocation(w.Timezone); err == nil {
+			today = today.In(loc)
+		}
+		out.Workspace = &toolWorkspace{ID: w.ID, Name: w.Name, Timezone: w.Timezone, Today: today.Format(time.DateOnly)}
+	}
 	for _, f := range dc.spec.Filters {
 		tf := toolFilter{ID: f.ID, Label: f.Label, Op: f.Op, Control: f.Control.Type, Multiple: f.Control.Multi, Default: f.Default, DependsOn: f.DependsOn}
 		for _, target := range f.Targets {
@@ -504,7 +535,7 @@ func (s *Server) filterOptionsTool(ctx context.Context, raw json.RawMessage) (as
 
 // auditToolQuery records what a tool read from data sources as a query
 // event of its own, as the endpoint it stands for would: the request that
-// the assistant answers records nothing itself.
+// the assistant answers, or the MCP request, records nothing itself.
 func (s *Server) auditToolQuery(ctx context.Context, dashboardID string, detail map[string]any, run func(ctx context.Context) error) error {
 	t := &trail{}
 	err := run(context.WithValue(ctx, trailKey{}, t))
@@ -523,6 +554,9 @@ func (s *Server) auditToolQuery(ctx context.Context, dashboardID string, detail 
 	e.Object = audit.Object{Type: "dashboard", ID: dashboardID}
 	e.Object.Name = s.objectName(ctx, e.Object)
 	detail["via"] = "assistant"
+	if client, ok := mcpClientFrom(ctx); ok {
+		detail["via"], detail["client"] = "mcp", client
+	}
 	if len(t.statements) > 0 {
 		detail["statements"] = t.statements
 	}
