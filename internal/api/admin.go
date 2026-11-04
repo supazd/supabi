@@ -98,9 +98,17 @@ func (s *Server) UpdateUser(ctx context.Context, req gen.UpdateUserRequestObject
 		}
 		change.PasswordHash = &hash
 	}
-	updated, err := store.UpdateUser(ctx, s.Pool, scope.OrgID, req.Id, change)
+	updated, revoked, err := store.UpdateUser(ctx, s.Pool, scope.OrgID, req.Id, change)
 	if err != nil {
 		return nil, err
+	}
+	// Their MCP clients stop with their sessions: .agents/design/ai-assistant.md 14.5.
+	reason := "password_reset"
+	if change.Status != nil && *change.Status != store.UserActive {
+		reason = "user_disabled"
+	}
+	for _, a := range revoked {
+		s.recordMCPAuthorization(ctx, "mcp.revoke", a, "", reason)
 	}
 	return gen.UpdateUser200JSONResponse(toUser(updated)), nil
 }

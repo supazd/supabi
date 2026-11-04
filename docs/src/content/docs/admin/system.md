@@ -36,7 +36,7 @@ The **Audit log** records who did what, when, and which data they read. Filter b
 
 | Category | What is recorded |
 |---|---|
-| **Sign-in** | Signing in and out, failed sign-ins with the reason, changing a password |
+| **Sign-in** | Signing in and out, failed sign-ins with the reason, changing a password, allowing and revoking [MCP clients](/admin/mcp/) |
 | **Accounts and groups** | Creating and changing accounts and groups |
 | **Workspaces and members** | Workspace settings, deletions and membership |
 | **Access and data permissions** | Dashboard grants, data permissions, user attributes |
@@ -64,7 +64,8 @@ Read-only actions, such as opening a list or an editor, are not recorded. Each e
 | | **Most rows per query** | 10,000 | Up to 100,000. Rows are held in memory, so raise it with care |
 | | **Default cache lifetime** | 10 minutes | A data source can set its own |
 | **Workspaces** | **Deleted workspaces kept for** | 30 days | |
-| **Sign-in** | **Session lifetime** | 168 hours | Signs out after this long without activity |
+| **Sign-in** | **Session lifetime** | 168 hours | Signs out after this long without activity. An [MCP client](/admin/mcp/) unused for this long has to be allowed again |
+| **MCP service** | **MCP clients** | Off | Lets people connect AI clients of their own; see [MCP](/admin/mcp/) |
 
 Shortening a retention period asks for confirmation first, because what is past the new limit is deleted within the hour.
 

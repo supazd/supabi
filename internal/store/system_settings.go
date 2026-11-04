@@ -29,6 +29,7 @@ type SystemSettingValues struct {
 	QueryMaxRows           *int
 	SessionLifetimeHours   *int
 	WorkspaceRetentionDays *int
+	MCPEnabled             *bool
 }
 
 // SystemSettings are the system settings in force.
@@ -56,6 +57,8 @@ type SystemSettings struct {
 	// WorkspaceRetention is how long a deleted workspace can be restored
 	// before the hourly maintenance purges it.
 	WorkspaceRetention time.Duration
+	// MCPEnabled lets people connect MCP clients: .agents/design/ai-assistant.md 14.6.
+	MCPEnabled bool
 }
 
 // DefaultSystemSettings are the settings no administrator has changed.
@@ -109,6 +112,9 @@ func (v SystemSettingValues) InForce() SystemSettings {
 	if v.WorkspaceRetentionDays != nil {
 		s.WorkspaceRetention = time.Duration(*v.WorkspaceRetentionDays) * 24 * time.Hour
 	}
+	if v.MCPEnabled != nil {
+		s.MCPEnabled = *v.MCPEnabled
+	}
 	return s
 }
 
@@ -116,9 +122,9 @@ func GetSystemSettings(ctx context.Context, pool *pgxpool.Pool, orgID string) (S
 	var v SystemSettingValues
 	err := pool.QueryRow(ctx, `SELECT export_retention_hours, export_timeout_minutes, export_max_rows, export_max_size_mb,
  audit_retention_days, query_cache_ttl_minutes, query_timeout_seconds, query_default_rows, query_max_rows,
- session_lifetime_hours, workspace_retention_days FROM system_settings WHERE org_id = $1`, orgID).Scan(
+ session_lifetime_hours, workspace_retention_days, mcp_enabled FROM system_settings WHERE org_id = $1`, orgID).Scan(
 		&v.ExportRetentionHours, &v.ExportTimeoutMinutes, &v.ExportMaxRows, &v.ExportMaxSizeMB, &v.AuditRetentionDays, &v.QueryCacheTTLMinutes,
-		&v.QueryTimeoutSeconds, &v.QueryDefaultRows, &v.QueryMaxRows, &v.SessionLifetimeHours, &v.WorkspaceRetentionDays)
+		&v.QueryTimeoutSeconds, &v.QueryDefaultRows, &v.QueryMaxRows, &v.SessionLifetimeHours, &v.WorkspaceRetentionDays, &v.MCPEnabled)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return SystemSettingValues{}, nil
 	}
@@ -139,17 +145,17 @@ func SetSystemSettings(ctx context.Context, pool *pgxpool.Pool, s Scope, v Syste
 	return translate(pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `INSERT INTO system_settings (org_id, export_retention_hours, export_timeout_minutes, export_max_rows,
  export_max_size_mb, audit_retention_days, query_cache_ttl_minutes, query_timeout_seconds, query_default_rows, query_max_rows,
- session_lifetime_hours, workspace_retention_days, updated_by)
- VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+ session_lifetime_hours, workspace_retention_days, mcp_enabled, updated_by)
+ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
  ON CONFLICT (org_id) DO UPDATE SET export_retention_hours = EXCLUDED.export_retention_hours,
  export_timeout_minutes = EXCLUDED.export_timeout_minutes, export_max_rows = EXCLUDED.export_max_rows,
  export_max_size_mb = EXCLUDED.export_max_size_mb, audit_retention_days = EXCLUDED.audit_retention_days,
  query_cache_ttl_minutes = EXCLUDED.query_cache_ttl_minutes, query_timeout_seconds = EXCLUDED.query_timeout_seconds,
  query_default_rows = EXCLUDED.query_default_rows, query_max_rows = EXCLUDED.query_max_rows,
  session_lifetime_hours = EXCLUDED.session_lifetime_hours, workspace_retention_days = EXCLUDED.workspace_retention_days,
- updated_by = EXCLUDED.updated_by, updated_at = now()`,
+ mcp_enabled = EXCLUDED.mcp_enabled, updated_by = EXCLUDED.updated_by, updated_at = now()`,
 			s.OrgID, v.ExportRetentionHours, v.ExportTimeoutMinutes, v.ExportMaxRows, v.ExportMaxSizeMB, v.AuditRetentionDays, v.QueryCacheTTLMinutes,
-			v.QueryTimeoutSeconds, v.QueryDefaultRows, v.QueryMaxRows, v.SessionLifetimeHours, v.WorkspaceRetentionDays, s.actor()); err != nil {
+			v.QueryTimeoutSeconds, v.QueryDefaultRows, v.QueryMaxRows, v.SessionLifetimeHours, v.WorkspaceRetentionDays, v.MCPEnabled, s.actor()); err != nil {
 			return err
 		}
 		_, err := tx.Exec(ctx, `UPDATE sessions SET expires_at = LEAST(expires_at, last_seen_at + make_interval(secs => $2)) WHERE org_id = $1`,

@@ -1927,6 +1927,77 @@ paths:
         "404": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
 
+  /oauth/requests/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getOAuthRequest
+      summary: What an MCP client asks for, for the consent page
+      description: |
+        Any signed-in person may answer a request, as themselves. 404 when
+        it has expired or was answered. See .agents/design/ai-assistant.md 14.4.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OAuthRequestInfo" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /oauth/requests/{id}/approve:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: approveOAuthRequest
+      summary: Allow the client to read the caller's dashboards as them
+      description: |
+        Creates the caller's authorization of the client, or renews it, and
+        says where to send the browser with the code. 403 `mcp_disabled` when
+        MCP is turned off.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OAuthRedirect" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /oauth/requests/{id}/deny:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: denyOAuthRequest
+      summary: Refuse the client, and say where to send the browser to tell it
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OAuthRedirect" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /mcp/authorizations:
+    get:
+      operationId: listMCPAuthorizations
+      summary: The MCP clients the caller has allowed, and the address to connect them to
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MCPAuthorizations" }
+
+  /mcp/authorizations/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    delete:
+      operationId: revokeMCPAuthorization
+      summary: Revoke one of the caller's authorizations; its tokens stop working at once
+      responses:
+        "204": { description: Revoked }
+        "404": { $ref: "#/components/responses/Error" }
+
 components:
   parameters:
     RevisionBefore:
@@ -2065,10 +2136,11 @@ components:
         queryMaxRows: { description: The most rows a query returns whatever it says, type: integer, minimum: 1, maximum: 100000 }
         sessionLifetimeHours: { description: How long a session lasts without activity, type: integer, minimum: 1, maximum: 8760 }
         workspaceRetentionDays: { description: How long a deleted workspace can be restored before it is purged, type: integer, minimum: 1, maximum: 3650 }
+        mcpEnabled: { description: Whether people may connect MCP clients to read their dashboards, type: boolean }
     SystemSettingDefaults:
       description: What each system setting is when left out.
       type: object
-      required: [exportRetentionHours, exportTimeoutMinutes, exportMaxRows, exportMaxSizeMb, auditRetentionDays, queryCacheTtlMinutes, queryTimeoutSeconds, queryDefaultRows, queryMaxRows, sessionLifetimeHours, workspaceRetentionDays]
+      required: [exportRetentionHours, exportTimeoutMinutes, exportMaxRows, exportMaxSizeMb, auditRetentionDays, queryCacheTtlMinutes, queryTimeoutSeconds, queryDefaultRows, queryMaxRows, sessionLifetimeHours, workspaceRetentionDays, mcpEnabled]
       properties:
         exportRetentionHours: { type: integer }
         exportTimeoutMinutes: { type: integer }
@@ -2081,6 +2153,7 @@ components:
         queryMaxRows: { type: integer }
         sessionLifetimeHours: { type: integer }
         workspaceRetentionDays: { type: integer }
+        mcpEnabled: { type: boolean }
     SystemSettings:
       type: object
       required: [values, defaults]
@@ -3720,6 +3793,38 @@ components:
       required: [configured]
       properties:
         configured: { type: boolean }
+
+    OAuthRequestInfo:
+      type: object
+      required: [clientName, redirectHost, loopback, mcpEnabled]
+      properties:
+        clientName: { type: string, description: The name the client registered with. Nobody vouches for it. }
+        redirectHost: { type: string, description: "Host the answer goes back to, for the person to judge the client by." }
+        loopback: { type: boolean, description: The answer goes to a program on the person's own computer. }
+        mcpEnabled: { type: boolean, description: False when an administrator has turned MCP off; the request cannot be allowed. }
+    OAuthRedirect:
+      type: object
+      required: [redirectTo]
+      properties:
+        redirectTo: { type: string, description: "The client's address, with the code or the refusal." }
+    MCPAuthorization:
+      type: object
+      required: [id, clientName, redirectHost, authorizedAt, lastUsedAt]
+      properties:
+        id: { type: string }
+        clientName: { type: string }
+        redirectHost: { type: string }
+        authorizedAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time, description: To within a few minutes. }
+    MCPAuthorizations:
+      type: object
+      required: [enabled, address, items]
+      properties:
+        enabled: { type: boolean, description: False when an administrator has turned MCP off. }
+        address: { type: string, description: "The MCP address to give a client, as this server was reached." }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/MCPAuthorization" }
 
     Conversation:
       type: object

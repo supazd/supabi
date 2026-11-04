@@ -99,6 +99,11 @@ var auditRules = map[string]auditRule{
 	"Login":          {action: "auth.login", handler: true},
 	"Logout":         {action: "auth.logout"},
 	"ChangePassword": change("auth.password_change", "user", self),
+	// Allowing a client and revoking it name the client, which only the
+	// handlers know. Reading a request or refusing it changes nothing.
+	"GetOAuthRequest": {}, "DenyOAuthRequest": {}, "ListMCPAuthorizations": {},
+	"ApproveOAuthRequest":    {action: "mcp.authorize", handler: true},
+	"RevokeMCPAuthorization": {action: "mcp.revoke", handler: true},
 
 	"CreateUser":       withBody("user.create", "user", created("Id")),
 	"UpdateUser":       withBody("user.update", "user", byID),

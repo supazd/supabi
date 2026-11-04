@@ -139,6 +139,13 @@ details > summary { cursor: pointer; color: var(--lb-color-text-secondary); }
 .signin-brand .muted { margin: 0; max-width: 340px; }
 .signin form.signin-card { width: 100%; gap: 16px; padding: 28px; border-radius: 16px; box-shadow: var(--lb-shadow-lg); }
 .signin-card .lb-button { height: 38px; margin-top: 4px; }
+.consent-card { width: 100%; gap: 12px; padding: 28px; border-radius: 16px; box-shadow: var(--lb-shadow-lg); }
+.consent-card p { margin: 0; }
+.consent-title { font-size: 18px; letter-spacing: -0.3px; overflow-wrap: anywhere; }
+.consent-actions { justify-content: flex-end; margin-top: 4px; }
+.consent-actions .lb-button { margin-top: 0; }
+.mcp-address { flex-wrap: nowrap; }
+.mcp-address > .lb-input { flex: 1; min-width: 0; font-family: var(--lb-font-mono, monospace); }
 .signin-tagline { margin: 0; color: var(--lb-color-text-secondary); font-size: 12px; text-align: center; }
 .signin-controls { position: absolute; z-index: 1; top: 12px; right: 16px; }
 

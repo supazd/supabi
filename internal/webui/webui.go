@@ -62,6 +62,12 @@ func newHandler(fsys fs.FS) http.Handler {
 		// Written directly: the file-serving helpers redirect any path ending
 		// in /index.html and reject paths containing "..".
 		w.Header().Set("Cache-Control", "no-cache")
+		if strings.HasPrefix(name, "oauth/") {
+			// The consent page of MCP clients must not be framed by a page
+			// that tricks people into allowing: .agents/design/ai-assistant.md 14.4.
+			w.Header().Set("X-Frame-Options", "DENY")
+			w.Header().Set("Content-Security-Policy", "frame-ancestors 'none'")
+		}
 		if z, ok := gz["index.html"]; ok {
 			w.Header().Add("Vary", "Accept-Encoding")
 			if acceptsGzip(r) {

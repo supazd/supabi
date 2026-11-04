@@ -2,6 +2,7 @@ import { Alert, CodeEditor, Tooltip } from '@supabi/ui'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { QueryResult } from '../api/client'
+import { useClipboard } from '../lib/useClipboard'
 import { Icon } from './Icon'
 import './queryDiagnostics.css'
 
@@ -155,29 +156,20 @@ function StatementDetail({ id, labelledBy, title, statement, fetchedAt }: { id: 
 /** A section title with a copy button that reports, beside itself, whether the copy worked. */
 function Heading({ label, count, copy, text }: { label: string; count?: number; copy: string; text: string }) {
   const { t } = useTranslation()
-  const [status, setStatus] = useState<'copied' | 'copyFailed' | null>(null)
+  const { status, copy: write, reset } = useClipboard()
   useEffect(() => {
     if (status !== 'copied') return
-    const timer = setTimeout(() => setStatus(null), 2000)
+    const timer = setTimeout(reset, 2000)
     return () => clearTimeout(timer)
-  }, [status])
-  const write = async () => {
-    try {
-      if (!navigator.clipboard) throw new Error('Clipboard unavailable')
-      await navigator.clipboard.writeText(text)
-      setStatus('copied')
-    } catch {
-      setStatus('copyFailed')
-    }
-  }
+  }, [status, reset])
   return (
     <div className="query-diagnostics-heading">
       <strong>{label}{count !== undefined && <span className="query-diagnostics-count">{count}</span>}</strong>
-      <span className={`query-diagnostics-copied${status === 'copyFailed' ? ' warning' : ''}`} role="status">
-        {status && t(`diagnostics.${status}`, { target: label })}
+      <span className={`query-diagnostics-copied${status === 'failed' ? ' warning' : ''}`} role="status">
+        {status && t(status === 'copied' ? 'diagnostics.copied' : 'diagnostics.copyFailed', { target: label })}
       </span>
       <Tooltip title={copy}>
-        <button type="button" className="wb-icon-button" aria-label={copy} onClick={() => void write()}><Icon name={status === 'copied' ? 'check' : 'copy'} size={14} /></button>
+        <button type="button" className="wb-icon-button" aria-label={copy} onClick={() => void write(text)}><Icon name={status === 'copied' ? 'check' : 'copy'} size={14} /></button>
       </Tooltip>
     </div>
   )

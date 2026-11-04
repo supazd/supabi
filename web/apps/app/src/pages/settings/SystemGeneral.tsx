@@ -1,4 +1,4 @@
-import { Button, Input, useToast } from '@supabi/ui'
+import { Button, Checkbox, Input, useToast } from '@supabi/ui'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, unwrap, type Schemas } from '../../api/client'
@@ -11,7 +11,8 @@ import { ConfirmDialog, SettingsPage, useAction } from './shared'
 
 type SystemSettings = Schemas['SystemSettings']
 type Values = Schemas['SystemSettingValues']
-type Setting = keyof Schemas['SystemSettingDefaults']
+/** The settings typed as numbers; the MCP switch is drawn apart. */
+type Setting = Exclude<keyof Schemas['SystemSettingDefaults'], 'mcpEnabled'>
 
 /** The settings in their groups, with what each may be: .agents/design/configuration.md 10.1, 10.7. */
 const groups: { name: 'exports' | 'audit' | 'query' | 'workspaces' | 'signIn'; settings: { key: Setting; min: number; max: number }[] }[] = [
@@ -63,10 +64,13 @@ function GeneralForm({ initial }: { initial: SystemSettings }) {
   const session = useSession()
   const [saved, setSaved] = useState(() => draftOf(initial.values))
   const [draft, setDraft] = useState(saved)
+  // Once set, the switch is kept as set rather than following the default: configuration.md 10.8.
+  const [savedMcp, setSavedMcp] = useState(initial.values.mcpEnabled)
+  const [mcp, setMcp] = useState(initial.values.mcpEnabled ?? initial.defaults.mcpEnabled)
   const [confirming, setConfirming] = useState(false)
   const action = useAction()
   const { defaults } = initial
-  const dirty = settings.some(({ key }) => draft[key].trim() !== saved[key])
+  const dirty = settings.some(({ key }) => draft[key].trim() !== saved[key]) || mcp !== (savedMcp ?? defaults.mcpEnabled)
   const defaultAboveMax = inForce(draft, defaults, 'queryDefaultRows') > inForce(draft, defaults, 'queryMaxRows')
   const invalid = defaultAboveMax || settings.some(({ key, min, max }) => draft[key].trim() !== '' && parse(draft[key], min, max) === null)
   const shortened = (['auditRetentionDays', 'workspaceRetentionDays'] as const).filter((key) => shortens(inForce(saved, defaults, key), inForce(draft, defaults, key)))
@@ -75,10 +79,13 @@ function GeneralForm({ initial }: { initial: SystemSettings }) {
     for (const { key } of settings) {
       if (draft[key].trim() !== '') body[key] = Number(draft[key])
     }
+    if (savedMcp !== undefined || mcp !== defaults.mcpEnabled) body.mcpEnabled = mcp
     const result = await unwrap(api.PUT('/system/settings', { body }))
     const next = draftOf(result.values)
     setSaved(next)
     setDraft(next)
+    setSavedMcp(result.values.mcpEnabled)
+    setMcp(result.values.mcpEnabled ?? defaults.mcpEnabled)
     // The session says how many rows queries return.
     session.reload()
     toast(t('settings.saved'))
@@ -128,6 +135,16 @@ function GeneralForm({ initial }: { initial: SystemSettings }) {
           </dl>
         </div>
       ))}
+      <div className="settings-group">
+        <h3>{t('systemSettings.groups.mcp')}</h3>
+        <dl className="settings-rows">
+          <dt>{t('systemSettings.mcpEnabled.label')}</dt>
+          <dd>
+            <Checkbox checked={mcp} onChange={setMcp} aria-label={t('systemSettings.mcpEnabled.label')}>{t('systemSettings.mcpEnabled.allow')}</Checkbox>
+            <span className="note">{t('systemSettings.mcpEnabled.hint')}</span>
+          </dd>
+        </dl>
+      </div>
       {action.error && <ErrorAlert error={action.error} />}
       <div>
         <Button variant="primary" type="submit" loading={action.busy} disabled={!dirty || invalid}>

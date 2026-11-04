@@ -166,7 +166,7 @@ func TestSessionsAndRoles(t *testing.T) {
 
 	// Disabling a user ends their sessions and blocks new ones from resolving.
 	disabled := UserDisabled
-	if _, err := UpdateUser(ctx, pool, DefaultOrgID, viewer.UserID, UserChange{Status: &disabled}); err != nil {
+	if _, _, err := UpdateUser(ctx, pool, DefaultOrgID, viewer.UserID, UserChange{Status: &disabled}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := GetPrincipal(ctx, pool, third); !errors.Is(err, ErrNotFound) {

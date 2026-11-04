@@ -49,6 +49,8 @@ var actions = map[string]Category{
 	"auth.login":           Auth,
 	"auth.logout":          Auth,
 	"auth.password_change": Auth,
+	"mcp.authorize":        Auth,
+	"mcp.revoke":           Auth,
 
 	"user.create":  Account,
 	"user.update":  Account,

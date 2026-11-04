@@ -16,23 +16,23 @@ func TestSystemSettings(t *testing.T) {
 	if got, err := SystemSettingsInForce(ctx, pool, DefaultOrgID); err != nil || got != DefaultSystemSettings {
 		t.Fatalf("without a row: %+v, %v", got, err)
 	}
-	hours, days, rows, seconds, kept := 48, 0, int64(1000), 90, 7
+	hours, days, rows, seconds, kept, on := 48, 0, int64(1000), 90, 7, true
 	if err := SetSystemSettings(ctx, pool, Scope{OrgID: DefaultOrgID}, SystemSettingValues{ExportRetentionHours: &hours, AuditRetentionDays: &days, ExportMaxRows: &rows,
-		QueryTimeoutSeconds: &seconds, QueryDefaultRows: &kept, QueryMaxRows: &seconds, SessionLifetimeHours: &hours, WorkspaceRetentionDays: &kept}); err != nil {
+		QueryTimeoutSeconds: &seconds, QueryDefaultRows: &kept, QueryMaxRows: &seconds, SessionLifetimeHours: &hours, WorkspaceRetentionDays: &kept, MCPEnabled: &on}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := SystemSettingsInForce(ctx, pool, DefaultOrgID)
 	want := DefaultSystemSettings
 	want.ExportRetention, want.AuditRetention, want.ExportMaxRows = 48*time.Hour, 0, 1000
 	want.QueryTimeout, want.QueryDefaultRows, want.QueryMaxRows = 90*time.Second, 7, 90
-	want.SessionLifetime, want.WorkspaceRetention = 48*time.Hour, 7*24*time.Hour
+	want.SessionLifetime, want.WorkspaceRetention, want.MCPEnabled = 48*time.Hour, 7*24*time.Hour, true
 	if err != nil || got != want {
 		t.Errorf("set: %+v, %v; want %+v", got, err, want)
 	}
 	if err := SetSystemSettings(ctx, pool, Scope{OrgID: DefaultOrgID}, SystemSettingValues{ExportRetentionHours: &hours}); err != nil {
 		t.Fatal(err)
 	}
-	if v, err := GetSystemSettings(ctx, pool, DefaultOrgID); err != nil || v.AuditRetentionDays != nil || v.ExportMaxRows != nil || *v.ExportRetentionHours != 48 {
+	if v, err := GetSystemSettings(ctx, pool, DefaultOrgID); err != nil || v.AuditRetentionDays != nil || v.ExportMaxRows != nil || v.MCPEnabled != nil || *v.ExportRetentionHours != 48 {
 		t.Errorf("after resetting two: %+v, %v", v, err)
 	}
 	zero := 0

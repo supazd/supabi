@@ -134,8 +134,8 @@ func (w *Worker) run(ctx context.Context, j store.Job, settings store.SystemSett
 // maintain removes what has outlived its use in an org: sessions that have
 // ended, audit events and records of calls to models older than the audit
 // retention unless it is zero, stale counts of failed sign-ins, expired
-// conditions of share links, old maintenance jobs, and workspaces deleted
-// long enough ago.
+// conditions of share links, old maintenance jobs, what MCP clients can no
+// longer use, and workspaces deleted long enough ago.
 func (w *Worker) maintain(ctx context.Context, orgID string, settings store.SystemSettings) error {
 	sessions, err := store.DeleteExpiredSessions(ctx, w.Pool, orgID)
 	if err != nil {
@@ -161,9 +161,12 @@ func (w *Worker) maintain(ctx context.Context, orgID string, settings store.Syst
 	if err := store.PruneMaintenanceJobs(ctx, w.Pool, orgID); err != nil {
 		return err
 	}
+	// What MCP clients left behind is kept a while longer if it cannot go
+	// now; it does not hold up purging workspaces past their retention.
+	tokens, oauthErr := store.PruneOAuth(ctx, w.Pool, orgID, settings.SessionLifetime)
 	purged, err := w.purgeWorkspaces(ctx, orgID, settings.WorkspaceRetention)
-	w.Logger.InfoContext(ctx, "maintenance done", "org", orgID, "expiredSessions", sessions, "auditEvents", events, "aiUsage", calls, "expiredDashboardViews", views, "purgedWorkspaces", purged)
-	return err
+	w.Logger.InfoContext(ctx, "maintenance done", "org", orgID, "expiredSessions", sessions, "auditEvents", events, "aiUsage", calls, "expiredDashboardViews", views, "expiredOAuthTokens", tokens, "purgedWorkspaces", purged)
+	return errors.Join(oauthErr, err)
 }
 
 // purgeWorkspaces purges the workspaces deleted retention ago. One that fails

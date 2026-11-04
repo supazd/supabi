@@ -296,9 +296,13 @@ type UserChange struct {
 }
 
 // UpdateUser applies a change. Disabling a user or resetting their password
-// also ends their sessions.
-func UpdateUser(ctx context.Context, pool *pgxpool.Pool, orgID, userID string, c UserChange) (User, error) {
-	var out User
+// also ends their sessions, and revokes their MCP authorizations, which it
+// returns.
+func UpdateUser(ctx context.Context, pool *pgxpool.Pool, orgID, userID string, c UserChange) (User, []MCPAuthorization, error) {
+	var (
+		out     User
+		revoked []MCPAuthorization
+	)
 	err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		var err error
 		out, err = scanUser(tx.QueryRow(ctx, `
@@ -314,11 +318,14 @@ func UpdateUser(ctx context.Context, pool *pgxpool.Pool, orgID, userID string, c
 			return err
 		}
 		if c.PasswordHash != nil || (c.Status != nil && *c.Status != UserActive) {
-			_, err = tx.Exec(ctx, `DELETE FROM sessions WHERE user_id = $1`, userID)
+			if _, err = tx.Exec(ctx, `DELETE FROM sessions WHERE user_id = $1`, userID); err != nil {
+				return err
+			}
+			revoked, err = revokeAllMCPAuthorizations(ctx, tx, userID)
 		}
 		return err
 	})
-	return out, translate(err)
+	return out, revoked, translate(err)
 }
 
 // ---- groups ----

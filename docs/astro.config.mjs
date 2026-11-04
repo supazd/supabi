@@ -53,6 +53,7 @@ export default defineConfig({
             { slug: 'admin/data-permissions' },
             { slug: 'admin/system' },
             { slug: 'admin/ai-assistant' },
+            { slug: 'admin/mcp' },
           ],
         },
         {

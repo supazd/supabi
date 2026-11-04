@@ -58,9 +58,9 @@ The three kinds of settings each have their own title, sidebar and routes. They 
 
 | Entry | Location | Pages and routes | Visible to |
 |---|---|---|---|
-| System administration | Avatar menu | `/settings/system/users` User management; `groups` Groups; `workspaces` All workspaces; `ai` AI models; `ai-usage` AI usage; `audit` Audit log; `general` General (export limits, audit retention and the default lifetime of the query cache; see [Startup configuration](configuration.md) section 10) | System administrators; does not depend on the current workspace |
+| System administration | Avatar menu | `/settings/system/users` User management; `groups` Groups; `workspaces` All workspaces; `ai` AI models; `ai-usage` AI usage; `audit` Audit log; `general` General (export limits, audit retention, the default lifetime of the query cache and the MCP switch; see [Startup configuration](configuration.md) section 10) | System administrators; does not depend on the current workspace |
 | Workspace settings | Top navigation bar (Developer and above) | `/settings/workspace/general` General; `members` Members and access; `attributes` User attributes | Workspace admins can manage everything; Developers can only view user attributes |
-| Personal settings | Avatar menu | `/settings/personal/account` My account, Change password | All signed-in users, including users who have not joined a workspace |
+| Personal settings | Avatar menu | `/settings/personal/account` My account, Change password; `mcp` MCP, the clients the person has authorized ([AI assistant](ai-assistant.md) 14.5) | All signed-in users, including users who have not joined a workspace |
 
 The navigation bar title of Workspace settings always shows "workspace name · Workspace settings". "Members and access" uses two tabs, "Users" and "Authorised groups". The workspace list in System administration offers "Manage", which opens the same set of settings for that workspace. To manage another workspace, the user first goes through the existing draft confirmation and session switch flow, then enters the General page of the target workspace.
 
@@ -131,7 +131,7 @@ Rules:
 - A higher role has all the abilities of the lower one. Each API registers only "which role is needed at least".
 - A person can be a member directly, or through several groups, and takes the highest of those roles.
 - A **system administrator** is the organization admin flag on an account: it manages global accounts, groups and workspaces, and is an Admin in every workspace of the organization.
-- There are no custom roles and no permission points to tick. SQL export in Data exploration requires the Developer or Admin role. Chart data export on a dashboard does not depend on the role. It is decided by the chart's "Allow data exports" switch and the dashboard grants, and the switch applies to all roles; see [Exports](exports.md) section 2. An export job can be viewed, canceled and downloaded only by its initiator in the current workspace; background execution and download check permissions again. The AI assistant is available to all roles, and each person sees only their own conversations. The model it calls is configured by system administrators; see [AI assistant](ai-assistant.md) section 8. Features that do not exist yet (subscriptions, embedding) are not given a placeholder in advance, and which role they belong to is decided when they are built.
+- There are no custom roles and no permission points to tick. SQL export in Data exploration requires the Developer or Admin role. Chart data export on a dashboard does not depend on the role. It is decided by the chart's "Allow data exports" switch and the dashboard grants, and the switch applies to all roles; see [Exports](exports.md) section 2. An export job can be viewed, canceled and downloaded only by its initiator in the current workspace; background execution and download check permissions again. The AI assistant is available to all roles, and each person sees only their own conversations. The model it calls is configured by system administrators; see [AI assistant](ai-assistant.md) section 8. The MCP service needs only a Viewer in the workspace of each dashboard it reads; see [AI assistant](ai-assistant.md) section 14. Features that do not exist yet (subscriptions, embedding) are not given a placeholder in advance, and which role they belong to is decided when they are built.
 - A Developer can write SQL directly against data sources, and can read all the data that the connection account of every data source in the workspace can see. Making someone a Developer means trusting them to see that data.
 
 This converged on 2026-10-17 from "a set of permission points plus four built-in roles, with custom roles on top". The reasons: half of the permission points correspond to features that do not exist yet; and when roles can be configured freely, someone who holds "manage members" can give a role higher than their own to others, or to a group they belong to, and so escalate their privileges.
@@ -268,6 +268,7 @@ Authentication answers "who are you". It is decoupled from the authorization mod
 - Local accounts (user name and password)
 - Single sign-on: OIDC, SAML, LDAP
 - Service account secret keys, embedding tokens
+- OAuth authorizations of MCP clients, with SupaBI as its own authorization server ([AI assistant](ai-assistant.md) 14.4)
 
 The output of the authentication module is a unified identity: user ID, groups and user attributes. With SSO access, groups and attributes can be synchronized from the identity provider.
 
@@ -279,7 +280,7 @@ Audit answers "who did what to what, when, and which data they looked at". Event
 
 | Category | Events |
 |---|---|
-| Sign-in `auth` | Initializing the admin, signing in, signing out, changing one's own password. A failed sign-in is also recorded, with the reason: account does not exist, wrong password, account disabled, too many attempts |
+| Sign-in `auth` | Initializing the admin, signing in, signing out, changing one's own password. A failed sign-in is also recorded, with the reason: account does not exist, wrong password, account disabled, too many attempts. Authorizing an MCP client and revoking it ([AI assistant](ai-assistant.md) 14.8) |
 | Accounts and groups `account` | Creating and changing accounts (disable, restore, make system administrator, admin resets password); creating, changing and deleting groups |
 | Workspaces and members `workspace` | Creating a workspace, changing workspace settings, deleting, restoring, permanently deleting (automatic permanent deletion at expiry is also recorded, with no actor); adding a member, changing a role, removing a member; setting and removing the role of a group in a workspace |
 | Access and data permissions `access` | Dashboard grants, dataset data permissions, setting and deleting user attributes |
@@ -316,7 +317,7 @@ The outcome of each event is success, failure or denied:
 
 - **One data fetch request records one event**, containing every statement it sent to the database: the main query, totals and subtotals. Each statement records the SQL, the bound parameters, the dataset, the data source, the duration, the row count, whether it was truncated, whether it hit the cache, and the error on failure. SQL longer than 64 KB is truncated and marked as such.
 - **A cache hit is recorded too**: the data was still handed to this person. The duration is the duration of the original query in the database.
-- **All data fetch entry points are covered**: chart and dashboard data fetches, filter candidates, dataset previews (including SQL run in Data exploration), the query API, and the simulated preview of data permissions. The object of the event is the resource the request targets: a chart, dashboard, dataset or data source.
+- **All data fetch entry points are covered**: chart and dashboard data fetches, filter candidates, dataset previews (including SQL run in Data exploration), the query API, the simulated preview of data permissions, and the MCP service. The object of the event is the resource the request targets: a chart, dashboard, dataset or data source.
 - **The queries of an export** run in the background and are recorded on the export finish event, with no separate query event. The export create event records the full SQL, or the chart and the filter values. The finish event records the row count, the file size and the failure reason.
 
 ### 7.4 How it is recorded
@@ -337,7 +338,7 @@ The outcome of each event is success, failure or denied:
 ### 7.6 Retention and cleanup
 
 - The default retention is 180 days. A system administrator changes it under "System administration → General", and `0` means keep forever. It is stored in the metadata database and all instances read the same value. Shortening it asks for confirmation first ([Startup configuration](configuration.md) section 10). The worker performs the cleanup. The usage records of the AI assistant use the same retention period; see [AI assistant](ai-assistant.md) 13.5.
-- The scheduler delivers one maintenance job per organization every hour, deduplicated across instances, and the worker executes it: it deletes expired sessions, deletes audit events in batches by the retention period, deletes failed sign-in counts older than one day, and deletes the records of maintenance jobs that ended more than seven days ago.
+- The scheduler delivers one maintenance job per organization every hour, deduplicated across instances, and the worker executes it: it deletes expired sessions, deletes audit events in batches by the retention period, deletes failed sign-in counts older than one day, deletes the records of maintenance jobs that ended more than seven days ago, and deletes expired OAuth requests and tokens and the MCP clients nobody authorized within 24 hours of registering ([AI assistant](ai-assistant.md) 14.9).
 - Tables are indexed by organization and time. When the data volume gets large enough that deleting by row becomes slow, switch to monthly partitions and delete whole partitions.
 
 ## 8. Scope of capabilities
@@ -405,6 +406,7 @@ The **injection point of data permissions is in the query layer**: the "permissi
 | Row-level and column-level permissions | Implemented, see section 5; dynamic user attributes are implemented; masking and system variables are not implemented |
 | Audit | Implemented, see section 7: storage in the database, the query UI in System administration, the application log; the view for workspace admins and shipping out by push are not implemented |
 | SSO | Not implemented |
+| OAuth authorizations of MCP clients | Implemented, see [AI assistant](ai-assistant.md) section 14 |
 
 Details settled during the implementation:
 

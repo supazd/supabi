@@ -59,6 +59,13 @@ func TestHandlerServesAppShellAndAssets(t *testing.T) {
 	if rec := request(h, http.MethodPost, "/"); rec.Code != http.StatusMethodNotAllowed {
 		t.Errorf("POST /: status %d, want 405", rec.Code)
 	}
+	// The consent page of MCP clients is never framed; the rest of the app may be.
+	if rec := request(h, http.MethodGet, "/oauth/consent/oar_1"); rec.Header().Get("X-Frame-Options") != "DENY" || rec.Header().Get("Content-Security-Policy") != "frame-ancestors 'none'" {
+		t.Errorf("consent page: %v", rec.Header())
+	}
+	if rec := request(h, http.MethodGet, "/dashboards/42"); rec.Header().Get("X-Frame-Options") != "" {
+		t.Errorf("dashboard: X-Frame-Options %q", rec.Header().Get("X-Frame-Options"))
+	}
 }
 
 func TestHandlerGzipsTextAssets(t *testing.T) {

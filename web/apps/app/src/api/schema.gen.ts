@@ -1683,6 +1683,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/oauth/requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * What an MCP client asks for, for the consent page
+         * @description Any signed-in person may answer a request, as themselves. 404 when
+         *     it has expired or was answered. See .agents/design/ai-assistant.md 14.4.
+         */
+        get: operations["getOAuthRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/requests/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Allow the client to read the caller's dashboards as them
+         * @description Creates the caller's authorization of the client, or renews it, and
+         *     says where to send the browser with the code. 403 `mcp_disabled` when
+         *     MCP is turned off.
+         */
+        post: operations["approveOAuthRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/requests/{id}/deny": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refuse the client, and say where to send the browser to tell it */
+        post: operations["denyOAuthRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/mcp/authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The MCP clients the caller has allowed, and the address to connect them to */
+        get: operations["listMCPAuthorizations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/mcp/authorizations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke one of the caller's authorizations; its tokens stop working at once */
+        delete: operations["revokeMCPAuthorization"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1813,6 +1915,8 @@ export interface components {
             sessionLifetimeHours?: number;
             /** @description How long a deleted workspace can be restored before it is purged */
             workspaceRetentionDays?: number;
+            /** @description Whether people may connect MCP clients to read their dashboards */
+            mcpEnabled?: boolean;
         };
         /** @description What each system setting is when left out. */
         SystemSettingDefaults: {
@@ -1828,6 +1932,7 @@ export interface components {
             queryMaxRows: number;
             sessionLifetimeHours: number;
             workspaceRetentionDays: number;
+            mcpEnabled: boolean;
         };
         SystemSettings: {
             values: components["schemas"]["SystemSettingValues"];
@@ -2986,6 +3091,39 @@ export interface components {
         };
         AssistantStatus: {
             configured: boolean;
+        };
+        OAuthRequestInfo: {
+            /** @description The name the client registered with. Nobody vouches for it. */
+            clientName: string;
+            /** @description Host the answer goes back to, for the person to judge the client by. */
+            redirectHost: string;
+            /** @description The answer goes to a program on the person's own computer. */
+            loopback: boolean;
+            /** @description False when an administrator has turned MCP off; the request cannot be allowed. */
+            mcpEnabled: boolean;
+        };
+        OAuthRedirect: {
+            /** @description The client's address, with the code or the refusal. */
+            redirectTo: string;
+        };
+        MCPAuthorization: {
+            id: string;
+            clientName: string;
+            redirectHost: string;
+            /** Format: date-time */
+            authorizedAt: string;
+            /**
+             * Format: date-time
+             * @description To within a few minutes.
+             */
+            lastUsedAt: string;
+        };
+        MCPAuthorizations: {
+            /** @description False when an administrator has turned MCP off. */
+            enabled: boolean;
+            /** @description The MCP address to give a client, as this server was reached. */
+            address: string;
+            items: components["schemas"]["MCPAuthorization"][];
         };
         Conversation: {
             id: string;
@@ -6141,6 +6279,117 @@ export interface operations {
             };
             404: components["responses"]["Error"];
             409: components["responses"]["Error"];
+        };
+    };
+    getOAuthRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthRequestInfo"];
+                };
+            };
+            404: components["responses"]["Error"];
+        };
+    };
+    approveOAuthRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthRedirect"];
+                };
+            };
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+        };
+    };
+    denyOAuthRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthRedirect"];
+                };
+            };
+            404: components["responses"]["Error"];
+        };
+    };
+    listMCPAuthorizations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MCPAuthorizations"];
+                };
+            };
+        };
+    };
+    revokeMCPAuthorization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["Error"];
         };
     };
 }

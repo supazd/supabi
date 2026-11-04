@@ -15,6 +15,7 @@ import { saveLocale } from './i18n'
 import { showTitle } from './lib/documentTitle'
 import { Home } from './pages/Home'
 import { NotFound } from './pages/NotFound'
+import { OAuthConsent } from './pages/OAuthConsent'
 import { SignIn } from './pages/SignIn'
 
 // Each area is fetched when first shown: viewers never download the editors,
@@ -200,11 +201,13 @@ export function App() {
 
 function Gate({ controls, ...preferences }: Omit<ShellProps, 'info'> & { controls: ReactNode }) {
   const session = useSession()
+  // An MCP client's consent page stands alone, after signing in if need be.
+  const consent = window.location.pathname.startsWith('/oauth/consent')
   return (
     <Async state={session.state} reload={session.reload}>
       {(info) =>
         info.authenticated ? (
-          <Shell info={info} {...preferences} />
+          consent ? <><div className="signin-controls row">{controls}</div><OAuthConsent info={info} /></> : <Shell info={info} {...preferences} />
         ) : (
           <>
             <div className="signin-controls row">{controls}</div>

@@ -13,6 +13,7 @@ import { describeCondition, describeValue, isEmpty, type FilterOp } from '../lib
 import { chartItems, isTabs } from '../lib/layout'
 import { widgetName } from '../lib/links'
 import { isParamFilter, paramValueSummary } from '../lib/paramFilters'
+import { useClipboard } from '../lib/useClipboard'
 import { dynamicOptionLabel } from './DynamicControls'
 import { ErrorAlert } from './ErrorAlert'
 import { filterCaption } from './FilterControl'
@@ -113,7 +114,7 @@ export function ShareDashboardDialog({ dashboardId, workspaceId, state, spec, ch
   const carrying = carry && ticked.length > 0
   const described = describeParts(state, spec, charts, t, linkText, zone)
   const [days, setDays] = useState<(typeof validities)[number]>(30)
-  const [copied, setCopied] = useState<'copied' | 'failed'>()
+  const { status: copied, copy: write, reset: forgetCopy } = useClipboard()
   // Kept only once asked for: a link without conditions is just the dashboard's address. The same conditions keep the same link.
   const view = useAsync(
     () => (carrying ? unwrap(api.POST('/dashboards/{id}/views', { params: { path: { id: dashboardId } }, body: { state: carried, validDays: days } })) : Promise.resolve(undefined)),
@@ -121,14 +122,7 @@ export function ShareDashboardDialog({ dashboardId, workspaceId, state, spec, ch
   )
   const link = !carrying ? dashboardLink(dashboardId, workspaceId) : view.status === 'ok' && view.data ? dashboardLink(dashboardId, workspaceId, view.data.id) : undefined
   const copy = async () => {
-    if (!link) return
-    try {
-      if (!navigator.clipboard) throw new Error('Clipboard unavailable')
-      await navigator.clipboard.writeText(link)
-      setCopied('copied')
-    } catch {
-      setCopied('failed')
-    }
+    if (link) await write(link)
   }
 
   return (
@@ -138,13 +132,13 @@ export function ShareDashboardDialog({ dashboardId, workspaceId, state, spec, ch
         <p className="note small">{t('dashboard.share.access')}</p>
         {conditions && (
           <div className="share-conditions">
-            <Checkbox checked={carry} onChange={(next) => { setCarry(next); setCopied(undefined) }}>{t('dashboard.share.carry')}</Checkbox>
+            <Checkbox checked={carry} onChange={(next) => { setCarry(next); forgetCopy() }}>{t('dashboard.share.carry')}</Checkbox>
             {carry && <>
               <ul className="share-parts" aria-label={t('dashboard.share.parts.label')}>
                 {present.map((part) => {
                   const lines = described[part]
                   return <li key={part}>
-                    <Checkbox checked={ticked.includes(part)} onChange={(next) => { setUntick((current) => next ? current.filter((entry) => entry !== part) : [...current, part]); setCopied(undefined) }}>{t(`dashboard.share.parts.${part}`)}</Checkbox>
+                    <Checkbox checked={ticked.includes(part)} onChange={(next) => { setUntick((current) => next ? current.filter((entry) => entry !== part) : [...current, part]); forgetCopy() }}>{t(`dashboard.share.parts.${part}`)}</Checkbox>
                     <Tooltip title={<div className="tooltip-lines">{lines.map((line, index) => <div key={index}>{line}</div>)}</div>}>
                       <span className={`note small share-part-detail${ticked.includes(part) ? '' : ' off'}`}>{lines.join(t('dashboard.share.parts.separator'))}</span>
                     </Tooltip>
@@ -154,7 +148,7 @@ export function ShareDashboardDialog({ dashboardId, workspaceId, state, spec, ch
               {!ticked.length && <p className="note small">{t('dashboard.share.none')}</p>}
               {ticked.length > 0 && <div className="row">
                 <span className="note small">{t('dashboard.share.validity')}</span>
-                <Select<number> size="sm" aria-label={t('dashboard.share.validity')} value={days} options={validities.map((value) => ({ value, label: t('dashboard.share.days', { count: value }) }))} onChange={(value) => { setDays(value as (typeof validities)[number]); setCopied(undefined) }} />
+                <Select<number> size="sm" aria-label={t('dashboard.share.validity')} value={days} options={validities.map((value) => ({ value, label: t('dashboard.share.days', { count: value }) }))} onChange={(value) => { setDays(value as (typeof validities)[number]); forgetCopy() }} />
                 {view.status === 'ok' && view.data && <span className="note small">{t('dashboard.share.until', { time: new Date(view.data.expiresAt).toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }) })}</span>}
               </div>}
               {ticked.some((part) => valued.includes(part)) && <p className="note small">{t('dashboard.share.valuesShown')}</p>}

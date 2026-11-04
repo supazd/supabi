@@ -170,7 +170,7 @@ The lower limits are the same as those of the old startup flags, only rounded to
 ### 10.3 Page
 
 - A last item "General" (`/settings/system/general`) is added to the navigation bar of "System administration". Only a system administrator can see and change it.
-- The layout is the same as the workspace's "General" ([Access control and workspaces](access-control.md) 2.2.1): a single column, each setting with its name on the left, the input and unit on the right, and the description below. It is divided into five groups, "Exports", "Audit", "Queries", "Workspaces" and "Sign-in" (the last two groups, and the timeout and row settings in "Queries", are in section 10.7). An empty input means use the default, and the placeholder text is the default. Saving is possible only when something has changed; with unsaved changes, leaving the page asks for confirmation first.
+- The layout is the same as the workspace's "General" ([Access control and workspaces](access-control.md) 2.2.1): a single column, each setting with its name on the left, the input and unit on the right, and the description below. It is divided into six groups, "Exports", "Audit", "Queries", "Workspaces", "Sign-in" and "MCP service" (the "Workspaces" and "Sign-in" groups, and the timeout and row settings in "Queries", are in section 10.7; "MCP service" is in section 10.8). An empty input means use the default, and the placeholder text is the default. Saving is possible only when something has changed; with unsaved changes, leaving the page asks for confirmation first.
 - A value out of range cannot be saved, and the reason is written under the input.
 - When the audit retention is shortened, confirm before saving: "Within an hour of saving, audit events and AI usage records older than N days will be deleted, and they cannot be restored after deletion." Changing from kept forever to a limited period also counts as shortening. The other settings are saved directly.
 
@@ -248,6 +248,18 @@ The connection timeout (10 seconds) stays hard-coded: it is used only for "Test 
 - The "after 30 days" hard-coded in the confirmation dialog for deleting a workspace changes to the current value: only a system administrator can reach this list page, so it reads `GET /system/settings` directly.
 
 **Page**: the "Query cache" group is renamed "Queries" and holds Query timeout, Default rows, Most rows per query and Default cache lifetime (the label changes from "Default lifetime" to "Default cache lifetime"); two new groups, "Workspaces" and "Sign-in", are added.
+
+### 10.8 MCP service
+
+Whether people may connect MCP clients ([AI assistant](ai-assistant.md) section 14) has one value for the whole organization and may change at run time, so it is a system setting, with storage, API and audit as in sections 10.2 and 10.4. A new migration adds the column to `system_settings`, and a null value means use the default.
+
+| Setting | Column | Default | In the UI |
+|---|---|---|---|
+| Allow MCP clients | `mcp_enabled` | Off | A switch, in a new group "MCP service" |
+
+- It is read on every request to the MCP and OAuth endpoints. Turning it off refuses the next request at once; authorizations are kept and work again once it is turned back on ([AI assistant](ai-assistant.md) 14.6).
+- It is off by default: the data goes to the model the person's client uses, which the administrator did not choose. The description under the switch says so.
+- Both directions are saved directly, with no confirmation dialog: nothing is deleted either way.
 
 ## 11. Secret key check
 

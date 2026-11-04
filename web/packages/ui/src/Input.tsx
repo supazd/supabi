@@ -21,6 +21,8 @@ export interface InputProps {
   clearable?: boolean
   /** The most characters it takes; more cannot be typed. */
   maxLength?: number
+  /** Shows a value to select and copy, which cannot be changed. */
+  readOnly?: boolean
   id?: string
   'aria-label'?: string
 }
@@ -29,7 +31,7 @@ export interface InputProps {
 const sizes = { sm: 'tw:h-6 tw:px-2 tw:md:text-sm', md: 'tw:h-8', lg: 'tw:h-10 tw:md:text-base' } as const
 
 /** Single-line text. */
-export function Input({ value, onChange, type = 'text', min, max, step, placeholder, disabled, invalid, size = 'md', clearable, maxLength, id, 'aria-label': ariaLabel }: InputProps) {
+export function Input({ value, onChange, type = 'text', min, max, step, placeholder, disabled, invalid, size = 'md', clearable, maxLength, readOnly, id, 'aria-label': ariaLabel }: InputProps) {
   const t = useStrings()
   const field = (
     <BaseInput
@@ -42,6 +44,7 @@ export function Input({ value, onChange, type = 'text', min, max, step, placehol
       value={value}
       placeholder={placeholder}
       disabled={disabled}
+      readOnly={readOnly}
       aria-label={ariaLabel}
       aria-invalid={invalid || undefined}
       // The password variant has no reveal toggle on purpose: stored passwords are never sent back.

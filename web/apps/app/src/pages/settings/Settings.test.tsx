@@ -32,7 +32,7 @@ const another = { ...workspace, id: 'finance', name: 'Finance' }
 const response = (data: unknown) => ({ data, response: { ok: true } })
 const systemDefaults = {
   exportRetentionHours: 24, exportTimeoutMinutes: 15, exportMaxRows: 2_000_000, exportMaxSizeMb: 512, auditRetentionDays: 180, queryCacheTtlMinutes: 10,
-  queryTimeoutSeconds: 60, queryDefaultRows: 1000, queryMaxRows: 10_000, sessionLifetimeHours: 168, workspaceRetentionDays: 30,
+  queryTimeoutSeconds: 60, queryDefaultRows: 1000, queryMaxRows: 10_000, sessionLifetimeHours: 168, workspaceRetentionDays: 30, mcpEnabled: false,
 }
 
 /** Picks an action from the menu at the end of someone's or something's row. */
@@ -73,7 +73,7 @@ afterEach(cleanup)
 
 describe('separate settings scopes', () => {
   it.each([
-    ['/settings/personal/account', 'Personal settings', ['My account']],
+    ['/settings/personal/account', 'Personal settings', ['My account', 'MCP']],
     ['/settings/system/users', 'System administration', ['User management', 'Groups', 'Workspaces', 'AI models', 'AI usage', 'Audit log', 'General']],
     ['/settings/workspace/general', 'Sales · Workspace settings', ['General', 'Members and access', 'User attributes']],
   ] as const)('shows only the navigation for %s', async (path, title, links) => {
@@ -331,5 +331,47 @@ describe('system settings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(server.put).toHaveBeenLastCalledWith('/system/settings', { body: { auditRetentionDays: 0 } }))
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('turns MCP clients on, and keeps the switch as set once it is', async () => {
+    open('/settings/system/general')
+    const mcp = await screen.findByRole('checkbox', { name: 'MCP clients' })
+    expect(mcp.getAttribute('aria-checked')).toBe('false')
+    const save = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement
+    fireEvent.click(mcp)
+    expect(save.disabled).toBe(false)
+    fireEvent.click(save)
+    await waitFor(() => expect(server.put).toHaveBeenCalledExactlyOnceWith('/system/settings', { body: { mcpEnabled: true } }))
+    // Turned off again, it says so rather than following the default.
+    await waitFor(() => expect(save.disabled).toBe(true))
+    fireEvent.click(mcp)
+    fireEvent.click(save)
+    await waitFor(() => expect(server.put).toHaveBeenLastCalledWith('/system/settings', { body: { mcpEnabled: false } }))
+  })
+})
+
+describe('MCP clients', () => {
+  const authorizations = (enabled: boolean) => ({
+    enabled, address: 'https://bi.example.com/mcp',
+    items: [{ id: 'oa_1', clientName: 'Claude Code', redirectHost: 'localhost', authorizedAt: '2026-11-01T08:00:00Z', lastUsedAt: '2026-11-02T08:00:00Z' }],
+  })
+
+  it('shows the address to connect, and revokes a client the person allowed', async () => {
+    server.get.mockImplementation(async (path: string) => response(path === '/mcp/authorizations' ? authorizations(true) : {}))
+    open('/settings/personal/mcp')
+    expect(((await screen.findByRole('textbox', { name: 'MCP address' })) as HTMLInputElement).value).toBe('https://bi.example.com/mcp')
+    expect(screen.queryByText(/turned MCP off/)).toBeNull()
+    expect(screen.getByText('Claude Code')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Revoke Claude Code' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke' }))
+    await waitFor(() => expect(server.remove).toHaveBeenCalledExactlyOnceWith('/mcp/authorizations/{id}', { params: { path: { id: 'oa_1' } } }))
+  })
+
+  it('says when an administrator has turned MCP off', async () => {
+    server.get.mockImplementation(async (path: string) => response(path === '/mcp/authorizations' ? authorizations(false) : {}))
+    open('/settings/personal/mcp')
+    expect(await screen.findByText(/An administrator has turned MCP off/)).toBeTruthy()
+    expect(screen.getByText('Claude Code')).toBeTruthy()
   })
 })
