@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from 'i18next'
@@ -13,6 +13,12 @@ const server = vi.hoisted(() => ({
   get: vi.fn(), post: vi.fn(), patch: vi.fn(), remove: vi.fn(),
 }))
 vi.mock('../auth/session', () => ({ useSession: () => ({ isOrgAdmin: server.isOrgAdmin, state: { status: 'ok', data: { workspace: { id: 'ws1' } } } }) }))
+// A chart is drawn by the chart package, which needs a browser; here it shows what it was handed.
+vi.mock('../components/ChartView', () => ({
+  ChartView: ({ viz, result, height, colorScheme }: { viz: unknown; result: { rows: unknown[][] }; height: number; colorScheme: string }) => (
+    <div data-testid="chart" data-scheme={colorScheme} data-height={height}>{JSON.stringify({ viz, rows: result.rows })}</div>
+  ),
+}))
 vi.mock('../api/client', async (original) => ({
   ...(await original<typeof import('../api/client')>()),
   api: { GET: server.get, POST: server.post, PATCH: server.patch, DELETE: server.remove },
@@ -42,7 +48,7 @@ function answerWith(events: AssistantEvent[], { open = false } = {}) {
 }
 
 function open(path = '/assistant') {
-  const router = createMemoryRouter([{ path: '/assistant/:id?', element: <Assistant /> }, { path: '/settings/*', element: <p>settings</p> }], { initialEntries: [path] })
+  const router = createMemoryRouter([{ path: '/assistant/:id?', element: <Assistant colorScheme="dark" /> }, { path: '/settings/*', element: <p>settings</p> }], { initialEntries: [path] })
   render(<RouterProvider router={router} />)
   return router
 }
@@ -98,6 +104,43 @@ describe('Assistant', () => {
     expect(worked.querySelectorAll('sup button')).toHaveLength(3)
     fireEvent.click(screen.getByRole('button', { name: 'Looked things up 2 times' }))
     expect(screen.getByText('Worked out: (华东 − 华南) ÷ 华南 × 100 = 25')).toBeTruthy()
+  })
+
+  it('draws a chart where the answer drew it, with its data and how it worked a series out', async () => {
+    const source = { n: 1, dashboardId: 'db1', dashboardName: '销售看板', itemId: 'wa', chartName: '营收', dashboardRevision: 1, chartRevision: 1, datasetRevision: 1, conditions: [], state: {}, rows: 260, truncated: true }
+    const chart = {
+      n: 2, title: '华东每月同比', viz: { type: 'bar', x: 'month', y: ['growth'] }, sources: [1],
+      columns: [{ name: 'month', type: 'date' as const, role: 'dimension' as const, grain: 'month' as const }, { name: 'growth', type: 'decimal' as const, role: 'measure' as const, label: '同比增长率' }],
+      rows: [['2026-01-01', null], ['2026-02-01', '0.205']],
+      calculations: [{ series: 'growth', name: '同比增长率', expression: '(now - last) / last', inputs: [{ name: 'now', label: '今年', source: 1 }, { name: 'last', label: '去年', source: 1 }] }],
+    }
+    server.conversations = [{ id: 'c1', title: '同比', createdAt: at, updatedAt: at }]
+    server.messages.c1 = [message('m1', 1, 'user', '华东每月同比'), { ...message('m2', 2, 'assistant', ''), parts: [
+      { type: 'tool', callId: 'q', tool: 'query_chart', done: true, subject: '销售看板 › 营收', source },
+      { type: 'tool', callId: 'x', tool: 'draw_chart', done: true, failed: true },
+      { type: 'tool', callId: 'd', tool: 'draw_chart', done: true, subject: chart.title, chart },
+      { type: 'text', text: '2 月同比最高，为 20.5% [2]。' },
+    ] }]
+    open('/assistant/c1')
+    const figure = (await screen.findByTestId('chart')).closest('figure')!
+    expect(screen.getByTestId('chart').textContent).toBe(JSON.stringify({ viz: chart.viz, rows: chart.rows }))
+    expect(screen.getByTestId('chart').dataset).toMatchObject({ scheme: 'dark', height: '280' })
+    expect(figure.textContent).toBe(
+      '华东每月同比' + JSON.stringify({ viz: chart.viz, rows: chart.rows }) +
+      'Data from1' + 'Worked out row by row: 同比增长率 = (今年1 − 去年1) ÷ 去年12' +
+      'Of [1], only the first 200 rows the assistant read are drawn, not all of them' +
+      '1 row could not be worked out: a figure is missing or a divisor is zero',
+    )
+    // The chart sits before the text, as it was drawn; the steps keep the attempt that failed and not the chart.
+    expect(figure.compareDocumentPosition(screen.getByText(/2 月同比最高/)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Looked things up 2 times' }))
+    expect(screen.getByText('Drew a chart (did not work)')).toBeTruthy()
+    // Its series worked out is a source of its own, which its citation goes to.
+    Element.prototype.scrollIntoView = vi.fn()
+    fireEvent.click(within(figure).getByRole('button', { name: '2' }))
+    const sources = screen.getByRole('list', { name: 'Sources' })
+    expect(sources.querySelectorAll('li')[1]!.textContent).toBe('2Worked out row by row: 同比增长率 = (今年1 − 去年1) ÷ 去年1In the chart 华东每月同比')
+    expect(screen.getByRole('button', { name: '2 sources · 销售看板' }).getAttribute('aria-expanded')).toBe('true')
   })
 
   it('shows the tools an answer called, folded once done, and the sources its figures cite', async () => {

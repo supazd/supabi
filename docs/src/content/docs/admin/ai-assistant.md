@@ -21,6 +21,14 @@ A difference, share or growth rate that is not on a chart is worked out with a c
 
 When a conversation grows close to the model's context length, the earlier part is summarized automatically. You still see all of it.
 
+## Charts
+
+When a chart says more than words, such as a trend over the months, a ranking or the shares of a whole, the assistant draws one in its answer. It decides for itself whether to draw and what kind: a line, area, bar, horizontal bar, combo, pie or funnel chart.
+
+A chart draws only data the answer looked up, the same rows its numbers come from, and names them below it under **Data from**. One chart can hold two lookups, such as East China and South China looked up apart, and a series can be worked out row by row, such as the growth on last year for each month. Such a series is listed as a source, with its expression.
+
+Hover over a chart to see its values. Clicking it does nothing: to drill down or filter, open its source on the dashboard. When a lookup has more than 200 rows, the chart has only the first 200 that the assistant read, and says so.
+
 ## Set up the models
 
 Only a system administrator can do this, under **System administration → AI models**. A change takes effect at once, with no restart.

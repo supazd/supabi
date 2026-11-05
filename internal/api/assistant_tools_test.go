@@ -74,6 +74,8 @@ func TestAssistantTools(t *testing.T) {
 	input := f.drilledChart()
 	// The dataset's parameter keeps its default, which the source lists.
 	input["spec"].(map[string]any)["filters"] = []any{map[string]any{"id": "p_since", "param": "since", "label": "起始日", "control": map[string]any{"type": "input"}}}
+	// The chart's own format, which the dataset's field does not have.
+	input["spec"].(map[string]any)["viz"].(map[string]any)["formats"] = map[string]any{"revenue": map[string]any{"unit": "wan", "decimals": 1}}
 	chart := f.developer.expect("POST", "/charts", input, 201, "")["id"].(string)
 	spec := dashboardSpec(chart)
 	spec["filters"] = []any{
@@ -91,6 +93,7 @@ func TestAssistantTools(t *testing.T) {
 		{{"filter_options", `{"dashboard":"` + board + `","filter":"g_region","search":"东"}`},
 			{"query_chart", `{"dashboard":"` + board + `","widget":"wa","filters":{"g_region":["华东"],"g_amount":[null,null]},"drill":["华东"]}`},
 			{"query_chart", `{"dashboard":"` + hidden + `","widget":"wa"}`}},
+		{{"draw_chart", `{"type":"line","title":"华东每月销售额","x":"region","series":[{"id":"sales","name":"销售额","source":1,"column":"revenue"}]}`}},
 	}}
 	server := httptest.NewServer(models)
 	t.Cleanup(server.Close)
@@ -111,7 +114,7 @@ func TestAssistantTools(t *testing.T) {
 			tools = append(tools, fmt.Sprint(part["tool"], " ", part["done"]))
 		}
 	}
-	if got := strings.Join(tools, ", "); got != "list_dashboards false, list_dashboards true, describe_dashboard false, describe_dashboard true, filter_options false, filter_options true, query_chart false, query_chart true, query_chart false, query_chart true" {
+	if got := strings.Join(tools, ", "); got != "list_dashboards false, list_dashboards true, describe_dashboard false, describe_dashboard true, filter_options false, filter_options true, query_chart false, query_chart true, query_chart false, query_chart true, draw_chart false, draw_chart true" {
 		t.Fatalf("tool events: %s", got)
 	}
 
@@ -129,12 +132,18 @@ func TestAssistantTools(t *testing.T) {
 		t.Errorf("filter_options: %s", options)
 	}
 	read := results["call_1_1"]
-	if !strings.HasPrefix(read, "Source [1]\n") || !strings.Contains(read, `"rows":[["2026-01-01","100.50"],["2026-02-01","200.00"]]`) || !strings.Contains(read, `"label":"大区","value":["华东"]`) {
+	// The columns are written as the chart shows them, with its own format.
+	if !strings.HasPrefix(read, "Source [1]\n") || !strings.Contains(read, `"rows":[["2026-01-01","100.50"],["2026-02-01","200.00"]]`) || !strings.Contains(read, `"label":"大区","value":["华东"]`) || !strings.Contains(read, `"format":{"decimals":1,"unit":"wan"}`) {
 		t.Errorf("query_chart: %s", read)
 	}
 	// A dashboard the viewer cannot open is not there for the assistant either.
 	if refused := results["call_1_2"]; !strings.HasPrefix(refused, "not_found") {
 		t.Errorf("a dashboard not shared: %s", refused)
+	}
+
+	// A chart is drawn from the rows the lookup gave, as the API wrote them.
+	if drawn := results["call_2_0"]; drawn != "Shown: 华东每月销售额." {
+		t.Errorf("draw_chart: %s", drawn)
 	}
 
 	// The answer keeps the calls with its text; the source of the figures
@@ -152,14 +161,25 @@ func TestAssistantTools(t *testing.T) {
 				Conditions                     []map[string]any
 				State                          map[string]any
 			}
+			Chart *struct {
+				Title   string
+				Viz     map[string]any
+				Columns []map[string]any
+				Rows    [][]any
+				Sources []int
+			}
 		}
 	}
 	if err := json.Unmarshal(raw, &kept); err != nil || len(kept) != 2 {
 		t.Fatalf("messages: %s", raw)
 	}
 	parts := kept[1].Parts
-	if len(parts) != 6 || parts[5].Text != "华东 1 月是 100.50 [1]。" || !parts[4].Failed || parts[3].Subject != "销售看板 › 下钻" || parts[1].Subject != "销售看板" {
+	if len(parts) != 7 || parts[6].Text != "华东 1 月是 100.50 [1]。" || !parts[4].Failed || parts[3].Subject != "销售看板 › 下钻" || parts[1].Subject != "销售看板" {
 		t.Fatalf("parts: %s", raw)
+	}
+	chartPart, _ := json.Marshal(parts[5].Chart)
+	if want := `{"Title":"华东每月销售额","Viz":{"type":"line","x":"region","y":["sales"]},"Columns":[{"grain":"month","label":"月","name":"region","role":"dimension","type":"date"},{"format":{"decimals":1,"unit":"wan"},"label":"销售额","name":"sales","role":"measure","type":"decimal"}],"Rows":[["2026-01-01","100.50"],["2026-02-01","200.00"]],"Sources":[1]}`; string(chartPart) != want {
+		t.Errorf("chart:\n%s\nwant\n%s", chartPart, want)
 	}
 	source := parts[3].Source
 	if source == nil || source.N != 1 || source.DashboardID != board || source.ChartRevision != 1 || source.DatasetRevision != 1 {

@@ -91,7 +91,7 @@ func TestChartValidate(t *testing.T) {
 
 		{`{"type":"hbar","x":"region","y":["revenue"],"stacked":true}`, ""},
 		{`{"type":"combo","x":"month","y":["revenue","orders"],"lines":["orders"],"rightAxis":["orders"]}`, ""},
-		{`{"type":"combo","x":"month","y":["revenue"]}`, "viz_measure_count"},
+		{`{"type":"combo","x":"month","y":["revenue"]}`, "viz_measure_min"},
 		{`{"type":"combo","x":"month","y":["revenue","orders"],"lines":["region"]}`, "viz_unknown_column"},
 		{`{"type":"combo","x":"month","y":["revenue","orders"],"rightAxis":["orders","orders"]}`, "viz_duplicate_column"},
 		{`{"type":"combo","x":"month","y":["revenue","orders"],"series":"region"}`, "viz_not_applicable"},

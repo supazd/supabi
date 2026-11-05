@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { citedOf, eventParser, groupParts, messageText, withText, withTool, type AnswerSource, type AssistantEvent, type AssistantMessagePart } from './stream'
+import { citedOf, eventParser, groupParts, messageText, withText, withTool, type AnswerSource, type AssistantEvent, type AssistantMessagePart, type PartGroup } from './stream'
 
 describe('eventParser', () => {
   it('passes on each event, however what arrives is cut', () => {
@@ -53,7 +53,21 @@ describe('the parts of an answer as it is written', () => {
       { type: 'tool', callId: 'c', source: source(1) },
       { type: 'tool', callId: 'd', calculation: { n: 3, expression: 'a - b', inputs: [], result: '1' } },
     ]
-    expect(groupParts(parts).map((group) => (group.kind === 'text' ? group.text : group.parts.map((part) => part.callId).join('')))).toEqual(['ab', '好', 'cd'])
+    const named = (group: PartGroup) => (group.kind === 'text' ? group.text : group.kind === 'chart' ? `<${group.chart.title}>` : group.parts.map((part) => part.callId).join(''))
+    expect(groupParts(parts).map(named)).toEqual(['ab', '好', 'cd'])
     expect(citedOf(parts).map((cited) => `${cited.n}${cited.calculation ? '=' : ''}`)).toEqual(['1', '2', '3='])
+
+    // A chart drawn stands where it was drawn, between the steps; one being drawn or refused is a step.
+    const chart = (n?: number) => ({ n, title: n ? '同比' : '营收', viz: {}, columns: [], rows: [], sources: [1], calculations: [] })
+    const drawn: AssistantMessagePart[] = [
+      { type: 'tool', callId: 'a', done: true, source: source(1) },
+      { type: 'tool', callId: 'b', done: true, chart: chart() },
+      { type: 'tool', callId: 'c', done: true, failed: true },
+      { type: 'tool', callId: 'd', done: true, chart: chart(2) },
+      { type: 'tool', callId: 'e', done: false },
+    ]
+    expect(groupParts(drawn).map(named)).toEqual(['a', '<营收>', 'c', '<同比>', 'e'])
+    // A chart that worked series out is cited among the sources; one that did not is not.
+    expect(citedOf(drawn).map((cited) => `${cited.n}${cited.chart ? cited.chart.title : ''}`)).toEqual(['1', '2同比'])
   })
 })

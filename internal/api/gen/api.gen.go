@@ -1256,6 +1256,25 @@ type AIUsageReport struct {
 	Total AIUsage `json:"total"`
 }
 
+// AnswerChart A chart the assistant drew from what its answer looked up, as it was
+// drawn: the rows are never queried again. See .agents/design/ai-assistant.md 12.10.
+type AnswerChart struct {
+	// Calculations The series it worked out row by row, and how
+	Calculations []ChartCalculation `json:"calculations"`
+	Columns      []ResultColumn     `json:"columns"`
+
+	// N Its number among the sources of its answer, when it worked series out and the answer cites them as [n]
+	N    *int            `json:"n,omitempty"`
+	Rows [][]interface{} `json:"rows"`
+
+	// Sources The numbers of the sources it drew from
+	Sources []int  `json:"sources"`
+	Title   string `json:"title"`
+
+	// Viz How it is drawn, as a chart spec's viz has it
+	Viz map[string]interface{} `json:"viz"`
+}
+
 // AnswerSource Where the figures an answer cites as [n] came from: a chart on a
 // dashboard, read under the conditions given. See .agents/design/ai-assistant.md 12.3.
 type AnswerSource struct {
@@ -1348,6 +1367,10 @@ type AssistantMessagePart struct {
 
 	// CallId With tool, the call, which the part keeps from when it starts until it is done
 	CallId *string `json:"callId,omitempty"`
+
+	// Chart A chart the assistant drew from what its answer looked up, as it was
+	// drawn: the rows are never queried again. See .agents/design/ai-assistant.md 12.10.
+	Chart *AnswerChart `json:"chart,omitempty"`
 
 	// Done With tool, false while it runs
 	Done *bool `json:"done,omitempty"`
@@ -1500,6 +1523,31 @@ type Chart struct {
 
 	// VizType Example: bar
 	VizType string `json:"vizType"`
+}
+
+// ChartCalculation defines model for ChartCalculation.
+type ChartCalculation struct {
+	// Expression With + - * / and parentheses, naming its inputs
+	Expression string                  `json:"expression"`
+	Inputs     []ChartCalculationInput `json:"inputs"`
+
+	// Name The series, by its name in the legend
+	Name string `json:"name"`
+
+	// Series The series' id, which names its column
+	Series string `json:"series"`
+}
+
+// ChartCalculationInput defines model for ChartCalculationInput.
+type ChartCalculationInput struct {
+	// Label The series, by its name in the legend
+	Label string `json:"label"`
+
+	// Name As the expression names it
+	Name string `json:"name"`
+
+	// Source The number of the source it came from; absent for a series itself worked out
+	Source *int `json:"source,omitempty"`
 }
 
 // ChartDataRequest defines model for ChartDataRequest.

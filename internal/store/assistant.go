@@ -316,6 +316,46 @@ type MessagePart struct {
 	Source *AnswerSource `json:"source,omitempty"`
 	// Calculation is what the calculator worked out, and from what.
 	Calculation *Calculation `json:"calculation,omitempty"`
+	// Chart is a chart the assistant drew, with what it drew.
+	Chart *AnswerChart `json:"chart,omitempty"`
+}
+
+// AnswerChart is a chart the assistant drew from what its answer looked up,
+// kept as it was drawn: the rows are never queried again. See
+// .agents/design/ai-assistant.md 12.10.
+type AnswerChart struct {
+	// N numbers it among the sources of its answer when it worked series
+	// out, which the answer cites; 0 when it did not.
+	N     int    `json:"n,omitempty"`
+	Title string `json:"title"`
+	// Viz, Columns and Rows are what is drawn, as a chart's viz and a query
+	// result's columns and rows have them.
+	Viz     json.RawMessage `json:"viz"`
+	Columns json.RawMessage `json:"columns"`
+	Rows    json.RawMessage `json:"rows"`
+	// Sources are the numbers of the lookups it drew from.
+	Sources []int `json:"sources"`
+	// Calculations are the series it worked out, and how.
+	Calculations []ChartCalculation `json:"calculations,omitempty"`
+}
+
+// ChartCalculation is a series of a chart worked out row by row from series
+// before it.
+type ChartCalculation struct {
+	// Series is the series' id, which names its column; Name is its name in the legend.
+	Series string `json:"series"`
+	Name   string `json:"name"`
+	// Expression names its inputs by their ids.
+	Expression string       `json:"expression"`
+	Inputs     []ChartInput `json:"inputs"`
+}
+
+// ChartInput is a series a calculation used: by its id in the expression,
+// its name, and the lookup it came from, 0 for one itself worked out.
+type ChartInput struct {
+	Name   string `json:"name"`
+	Label  string `json:"label"`
+	Source int    `json:"source,omitempty"`
 }
 
 // Calculation is a figure the assistant worked out from figures it looked

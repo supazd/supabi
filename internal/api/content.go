@@ -714,10 +714,17 @@ func (s *Server) GetDashboardItemData(ctx context.Context, req gen.GetDashboardI
 	return gen.GetDashboardItemData200JSONResponse(result), err
 }
 
-func (s *Server) dashboardItemData(ctx context.Context, dc *dashboardContext, itemID string, body gen.DashboardDataRequest) (result gen.QueryResult, err error) {
+func (s *Server) dashboardItemData(ctx context.Context, dc *dashboardContext, itemID string, body gen.DashboardDataRequest) (gen.QueryResult, error) {
+	result, _, err := s.dashboardItemResult(ctx, dc, itemID, body)
+	return result, err
+}
+
+// dashboardItemResult is a widget's data with the chart that drew it, its
+// dynamic choices and drill-down resolved.
+func (s *Server) dashboardItemResult(ctx context.Context, dc *dashboardContext, itemID string, body gen.DashboardDataRequest) (result gen.QueryResult, chart content.ChartSpec, err error) {
 	q, chart, target, err := s.dashboardItemQuery(ctx, dc, itemID, body)
 	if err != nil {
-		return gen.QueryResult{}, err
+		return gen.QueryResult{}, chart, err
 	}
 	defer func() { err = s.datasetFieldError(ctx, target.stored.ID, err) }()
 	item, _ := dc.spec.ItemByID(itemID)
@@ -726,18 +733,18 @@ func (s *Server) dashboardItemData(ctx context.Context, dc *dashboardContext, it
 	if !useChartFilters {
 		overridden, err = dc.spec.OverriddenFilters(item, &chart, target.spec)
 		if err != nil {
-			return gen.QueryResult{}, err
+			return gen.QueryResult{}, chart, err
 		}
 	}
 	if ctx, err = withFreshness(ctx, body.Refresh, body.MaxAge); err != nil {
-		return gen.QueryResult{}, err
+		return gen.QueryResult{}, chart, err
 	}
 	result, err = s.execute(ctx, target.stored, target.spec, &q)
 	if err != nil {
-		return gen.QueryResult{}, err
+		return gen.QueryResult{}, chart, err
 	}
 	result.Meta.OverriddenFilters = &overridden
-	return result, nil
+	return result, chart, nil
 }
 
 // dashboardItemQuery is the query a widget runs for the values the caller

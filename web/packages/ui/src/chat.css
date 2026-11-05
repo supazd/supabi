@@ -58,6 +58,12 @@
 .lb-chat-steps-list svg { flex: none; width: 14px; height: 14px; margin-top: 2px; color: var(--lb-color-success); }
 .lb-chat-steps-list li[data-state='failed'] svg { color: var(--lb-color-danger); }
 
+/* A chart in an answer: as wide as the answer, its height fixed by what draws it. */
+.lb-chat-figure { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 0; padding: 10px 12px; border: 1px solid var(--lb-color-border); border-radius: 10px; background: var(--lb-color-surface); }
+.lb-chat-figure-title { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.lb-chat-figure-body { min-width: 0; }
+.lb-chat-figure-details { display: grid; gap: 2px; color: var(--lb-color-text-secondary); font-size: 13px; overflow-wrap: anywhere; }
+
 /* The sources of an answer's figures, numbered as it cites them. */
 .lb-chat-sources-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .lb-chat-source { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 1px solid var(--lb-color-border); border-radius: 10px; background: var(--lb-color-surface); font-size: 13px; outline: none; transition: box-shadow 0.3s; }

@@ -1,18 +1,20 @@
-import { Alert, Button, ChatCite, ChatInput, ChatMarkdown, ChatMessage, ChatPending, ChatSources, ChatSteps, ChatThread, Dialog, Input, Menu, useChatThread, type ChatSource, type ChatStep, type MenuItem } from '@supabi/ui'
+import type { Viz } from '@supabi/charts'
+import { Alert, Button, ChatCite, ChatFigure, ChatInput, ChatMarkdown, ChatMessage, ChatPending, ChatSources, ChatSteps, ChatThread, Dialog, Input, Menu, useChatThread, type ChatSource, type ChatStep, type ColorScheme, type MenuItem } from '@supabi/ui'
 import type { TFunction } from 'i18next'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Link, NavLink, useNavigate, useParams } from 'react-router'
-import { api, unwrap, type ApiError } from '../api/client'
+import { api, unwrap, type ApiError, type QueryResult } from '../api/client'
 import { toApiError, useAsync } from '../api/useAsync'
 import { useSession } from '../auth/session'
 import { Async } from '../components/Async'
+import { ChartView } from '../components/ChartView'
 import { ErrorAlert } from '../components/ErrorAlert'
 import { Icon } from '../components/Icon'
 import { dashboardLink } from '../components/ShareDashboardDialog'
 import { usePageTitle } from '../lib/documentTitle'
-import { citedOf, groupParts, messageText, streamEvents, withText, withTool, type AnswerSource, type AssistantEvent, type AssistantMessage, type AssistantMessagePart, type Calculation, type Cited, type Conversation } from './stream'
+import { citedOf, groupParts, messageText, streamEvents, withText, withTool, type AnswerChart, type AnswerSource, type AssistantEvent, type AssistantMessage, type AssistantMessagePart, type Calculation, type Cited, type Conversation } from './stream'
 import './assistant.css'
 
 /** An answer being written in this page: what has arrived of it so far. */
@@ -33,7 +35,7 @@ function upsert(items: AssistantMessage[], message: AssistantMessage | undefined
 const drawEvery = 50
 
 /** The AI assistant: a person's conversations in the current workspace, and the one open. See .agents/design/ai-assistant.md. */
-export function Assistant() {
+export function Assistant({ colorScheme }: { colorScheme: ColorScheme }) {
   const { t } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
@@ -224,6 +226,7 @@ export function Assistant() {
           live={live}
           writing={Boolean(live) || sending}
           onRetry={retry}
+          colorScheme={colorScheme}
         />
         <div className="assistant-footer">
           {status.status === 'ok' && !configured && <NotConfigured />}
@@ -364,10 +367,11 @@ interface MessagesProps {
   live: Live | null
   writing: boolean
   onRetry: (message: AssistantMessage) => void
+  colorScheme: ColorScheme
 }
 
 /** The messages of a conversation. An answer that starts takes the reader to the end. */
-function Messages({ items, loading, loadError, live, writing, onRetry }: MessagesProps) {
+function Messages({ items, loading, loadError, live, writing, onRetry, colorScheme }: MessagesProps) {
   const { t } = useTranslation()
   let body
   if (loadError) body = <ErrorAlert error={loadError} />
@@ -386,7 +390,7 @@ function Messages({ items, loading, loadError, live, writing, onRetry }: Message
           {messageText(m)}
         </ChatMessage>
       ) : (
-        <Answer key={m.id} message={m} live={live?.answerId === m.id ? live : undefined} last={i === items.length - 1} writing={writing} onRetry={() => onRetry(m)} />
+        <Answer key={m.id} message={m} live={live?.answerId === m.id ? live : undefined} last={i === items.length - 1} writing={writing} onRetry={() => onRetry(m)} colorScheme={colorScheme} />
       ),
     )
   return (
@@ -396,7 +400,7 @@ function Messages({ items, loading, loadError, live, writing, onRetry }: Message
   )
 }
 
-function Answer({ message, live, last, writing, onRetry }: { message: AssistantMessage; live?: Live; last: boolean; writing: boolean; onRetry: () => void }) {
+function Answer({ message, live, last, writing, onRetry, colorScheme }: { message: AssistantMessage; live?: Live; last: boolean; writing: boolean; onRetry: () => void; colorScheme: ColorScheme }) {
   const { t, i18n } = useTranslation()
   const parts = live ? live.parts : message.parts
   const generating = Boolean(live) || message.status === 'generating'
@@ -423,6 +427,8 @@ function Answer({ message, live, last, writing, onRetry }: { message: AssistantM
       {groups.map((group, i) =>
         group.kind === 'text' ? (
           <ChatMarkdown key={i} text={group.text} streaming={generating && i === groups.length - 1} sources={cited.length} onCite={cite} />
+        ) : group.kind === 'chart' ? (
+          <Figure key={i} chart={group.chart} cited={cited} colorScheme={colorScheme} onCite={cite} />
         ) : (
           <ChatSteps key={i} steps={group.parts.map((part) => toolStep(part, t))} summary={t('assistant.steps', { count: group.parts.filter((part) => part.done).length })} />
         ),
@@ -447,7 +453,7 @@ function Answer({ message, live, last, writing, onRetry }: { message: AssistantM
 /** A tool an answer called, as a step it took: what it did, and to what. */
 function toolStep(part: AssistantMessagePart, t: TFunction): ChatStep {
   const tool = part.tool ?? ''
-  const known = ['list_dashboards', 'describe_dashboard', 'filter_options', 'query_chart', 'calculate'].includes(tool)
+  const known = ['list_dashboards', 'describe_dashboard', 'filter_options', 'query_chart', 'calculate', 'draw_chart'].includes(tool)
   const state = !part.done ? 'running' : part.failed ? 'failed' : 'done'
   const what = known ? t(`assistant.tools.${tool}.${state === 'running' ? 'running' : 'done'}`) : t('assistant.tools.other', { name: tool })
   const label = part.subject && state !== 'running' ? t('assistant.tools.on', { what, subject: part.subject }) : what
@@ -468,21 +474,79 @@ function resultText(value: string, locale: string): string {
   return Number.isFinite(n) && Math.abs(n) < 1e15 ? n.toLocaleString(locale, { maximumFractionDigits: 10 }) : value
 }
 
-/** A calculation's expression with its inputs by what they are, each citing its source, and what it came to. */
-function Formula({ calculation, onCite }: { calculation: Calculation; onCite: (n: number) => void }) {
+/**
+ * An expression with its inputs by what they are, each citing its source, and
+ * what it came to: a calculation's figure, or the name of a chart's series
+ * worked out row by row, which is written before it.
+ */
+function Formula({ expression, inputs: given, result, name, onCite }: { expression: string; inputs: { name: string; label: string; source?: number }[]; result?: string; name?: string; onCite: (n: number) => void }) {
   const { i18n } = useTranslation()
-  const inputs = new Map(calculation.inputs.map((input) => [input.name, input]))
+  const inputs = new Map(given.map((input) => [input.name, input]))
   const signs: Record<string, string> = { '*': ' × ', '×': ' × ', '/': ' ÷ ', '÷': ' ÷ ', '-': ' − ', '−': ' − ', '+': ' + ' }
   return (
     <>
-      {(calculation.expression.match(/[\p{L}_][\p{L}\p{N}_]*|[\d.]+|\S/gu) ?? []).map((token, i) => {
+      {name !== undefined && `${name} = `}
+      {(expression.match(/[\p{L}_][\p{L}\p{N}_]*|[\d.]+|\S/gu) ?? []).map((token, i) => {
         const input = inputs.get(token)
-        if (input) return <span key={i}>{input.label || input.name}<ChatCite n={input.source} onCite={onCite} /></span>
+        if (input) return <span key={i}>{input.label || input.name}{input.source !== undefined && <ChatCite n={input.source} onCite={onCite} />}</span>
         return <span key={i}>{signs[token] ?? token}</span>
       })}
-      {' = '}
-      <strong>{resultText(calculation.result, i18n.language)}</strong>
+      {result !== undefined && (
+        <>
+          {' = '}
+          <strong>{resultText(result, i18n.language)}</strong>
+        </>
+      )}
     </>
+  )
+}
+
+/** How a chart's series were worked out, each written out in full. */
+function ChartFormulas({ chart, onCite }: { chart: AnswerChart; onCite: (n: number) => void }) {
+  const { t } = useTranslation()
+  return chart.calculations.map((calculation, i) => (
+    <span key={i}>
+      {i > 0 && t('assistant.source.separator')}
+      <Formula expression={calculation.expression} inputs={calculation.inputs} name={calculation.name} onCite={onCite} />
+    </span>
+  ))
+}
+
+/**
+ * A chart the answer drew, where it drew it: drawn as charts on dashboards are,
+ * from the rows the answer looked up, with the sources it came from below it.
+ * Clicking it does nothing: to look further, a source opens the dashboard.
+ */
+function Figure({ chart, cited, colorScheme, onCite }: { chart: AnswerChart; cited: Cited[]; colorScheme: ColorScheme; onCite: (n: number) => void }) {
+  const { t } = useTranslation()
+  const result = useMemo((): QueryResult => ({ columns: chart.columns, rows: chart.rows, meta: { truncated: false, durationMs: 0, cached: false } }), [chart])
+  // A lookup the model read only some rows of draws only those.
+  const cut = chart.sources.filter((n) => cited.some((c) => c.n === n && c.source?.truncated))
+  // A series worked out is empty where an input is, or where it divides by zero.
+  const worked = chart.calculations.map((calculation) => chart.columns.findIndex((column) => column.name === calculation.series)).filter((at) => at >= 0)
+  const unworked = chart.rows.filter((row) => worked.some((at) => row[at] === null)).length
+  const details: React.ReactNode[] = [
+    <>
+      {t('assistant.chart.data')}
+      {chart.sources.map((n) => (
+        <ChatCite key={n} n={n} onCite={onCite} />
+      ))}
+    </>,
+  ]
+  if (chart.n !== undefined)
+    details.push(
+      <>
+        {t('assistant.source.workedOut')}
+        <ChartFormulas chart={chart} onCite={onCite} />
+        <ChatCite n={chart.n} onCite={onCite} />
+      </>,
+    )
+  if (cut.length) details.push(t('assistant.chart.someRows', { sources: cut.map((n) => `[${n}]`).join(t('assistant.source.and')) }))
+  if (unworked) details.push(t('assistant.chart.notWorkedOut', { count: unworked }))
+  return (
+    <ChatFigure title={chart.title} details={details}>
+      <ChartView viz={chart.viz as unknown as Viz} result={result} colorScheme={colorScheme} height={280} label={chart.title} />
+    </ChatFigure>
   )
 }
 
@@ -515,12 +579,24 @@ function Sources({ cited, id, open: unfolded, onOpenChange, onCite }: { cited: C
     title: (
       <>
         {t('assistant.source.calculated')}
-        <Formula calculation={calculation} onCite={onCite} />
+        <Formula expression={calculation.expression} inputs={calculation.inputs} result={calculation.result} onCite={onCite} />
       </>
     ),
     details: [calculation.inputs.map((input) => t('assistant.source.condition', { name: input.label || input.name, value: input.value })).join(t('assistant.source.separator'))],
   })
-  const items: ChatSource[] = cited.map(({ source, calculation }) => {
+  const charted = (n: number, chart: AnswerChart): ChatSource => ({
+    n,
+    id: id(n),
+    title: (
+      <>
+        {t('assistant.source.workedOut')}
+        <ChartFormulas chart={chart} onCite={onCite} />
+      </>
+    ),
+    details: [t('assistant.source.inChart', { title: chart.title })],
+  })
+  const items: ChatSource[] = cited.map(({ n, source, calculation, chart }) => {
+    if (chart) return charted(n, chart)
     if (!source) return calculated(calculation)
     const conditions = source.conditions.map((c) => {
       const name = c.kind === 'drill' ? t('assistant.source.drill') : c.label

@@ -218,6 +218,31 @@ export function ChatSteps({ steps, summary }: ChatStepsProps) {
   )
 }
 
+export interface ChatFigureProps {
+  title: ReactNode
+  /** The chart, drawn by whoever uses the frame: this package does not draw charts. */
+  children: ReactNode
+  /** Lines under it, such as where its data came from. */
+  details?: ReactNode[]
+}
+
+/** A chart in an answer, with its title above it and what to know about it below. */
+export function ChatFigure({ title, children, details }: ChatFigureProps) {
+  return (
+    <figure className="lb-chat-figure">
+      <div className="lb-chat-figure-title">{title}</div>
+      <div className="lb-chat-figure-body">{children}</div>
+      {details && details.length > 0 && (
+        <figcaption className="lb-chat-figure-details">
+          {details.map((line, i) => (
+            <div key={i}>{line}</div>
+          ))}
+        </figcaption>
+      )}
+    </figure>
+  )
+}
+
 export interface ChatSource {
   n: number
   /** The element's id, which a citation of the source scrolls to. */

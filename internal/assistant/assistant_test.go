@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -545,7 +546,8 @@ func testTools(called *[]string) []Tool {
 			if strings.Contains(arguments, "w9") {
 				return ToolResult{Content: "unknown widget w9", Failed: true}
 			}
-			return ToolResult{Content: `{"rows":[["华东",100],["华南",80]]}`, Subject: "销售看板 › 营收", Source: &store.AnswerSource{DashboardID: "d1", ItemID: "w1"}, Cells: []any{"华东", 100, "华南", 80}}
+			return ToolResult{Content: `{"rows":[["华东",100],["华南",80]]}`, Subject: "销售看板 › 营收", Source: &store.AnswerSource{DashboardID: "d1", ItemID: "w1"}, Cells: []any{"华东", 100, "华南", 80},
+				Table: &Table{Columns: []Column{{Name: "region", Type: "string", Role: "dimension"}, {Name: "revenue", Type: "integer", Role: "measure"}}, Rows: [][]any{{"华东", 100}, {"华南", 80}}}}
 		}},
 	}
 }
@@ -601,7 +603,7 @@ func TestAnswerWithTools(t *testing.T) {
 	}
 
 	chat := e.fake.callsTo("chat-model")
-	if len(chat) != 3 || len(chat[0].Tools) != 3 || len(chat[2].Tools) != 3 {
+	if len(chat) != 3 || len(chat[0].Tools) != 4 || len(chat[2].Tools) != 4 {
 		t.Fatalf("chat calls = %d", len(chat))
 	}
 	// The model is given back what it called and what each call returned.
@@ -726,8 +728,69 @@ func TestAnswerWithCalculation(t *testing.T) {
 	if right.Calculation == nil || right.Calculation.N != 2 || right.Calculation.Result != "20" || right.Subject != "华东 − 华南 = 20" || !strings.HasPrefix(right.Content, "Source [2]\n") {
 		t.Errorf("calculation = %+v", right)
 	}
-	// The calculator is offered with the tools that look data up.
-	if chat := e.fake.callsTo("chat-model"); len(chat[0].Tools) != 3 {
+	// The calculator and charts are offered with the tools that look data up.
+	if chat := e.fake.callsTo("chat-model"); len(chat[0].Tools) != 4 {
 		t.Errorf("%d tools offered", len(chat[0].Tools))
 	}
+}
+
+// A chart is drawn from a lookup of the answer; one that works a series out
+// is numbered among the sources, and its figures can be calculated with.
+func TestAnswerWithChart(t *testing.T) {
+	e := newEnv(t, 64000)
+	var called []string
+	e.tools = testTools(&called)
+	e.fake.answer = func(c call, w http.ResponseWriter, _ *http.Request) {
+		last := c.Messages[len(c.Messages)-1]
+		switch {
+		case c.Model == "title-model":
+			reply(w, "各区域营收", "")
+		case last.Role == "user":
+			callTools(w, [2]string{"query_chart", `{"dashboard":"d1","widget":"w1"}`})
+		case strings.HasPrefix(last.Content, "Source [1]"):
+			callTools(w, [2]string{"draw_chart", `{"type":"bar","title":"各区域营收","x":"region","series":[{"id":"r","name":"营收","source":1,"column":"revenue"},{"id":"d","name":"三分之一","expression":"r / 3"}]}`})
+		case strings.HasPrefix(last.Content, "Source [2]"):
+			// Figures that do not end, as the model is shown them.
+			callTools(w, [2]string{"calculate", `{"expression":"a / 7","inputs":{"a":{"label":"华东三分之一","value":"33.33333333","source":2}}}`})
+		case strings.HasPrefix(last.Content, "Source [3]"):
+			callTools(w, [2]string{"calculate", `{"expression":"a * 7","inputs":{"a":{"label":"上一步","value":"4.761904761","source":3}}}`})
+		default:
+			reply(w, "华东的三分之一是 33.33 [2]。", "")
+		}
+	}
+	conv := e.conversation()
+	answer, _ := e.ask(e.ctx, conv.ID, "画出各区域营收")
+	if answer.Status != store.MessageDone || len(answer.Parts) != 5 {
+		t.Fatalf("answer = %+v", answer)
+	}
+	chart := answer.Parts[1]
+	if chart.Failed || chart.Chart == nil || chart.Chart.N != 2 || chart.Subject != "各区域营收" || !strings.HasPrefix(chart.Content, "Source [2]\nShown: 各区域营收.") {
+		t.Fatalf("chart = %+v", chart)
+	}
+	if want := `[["华东",100,"33.33333333"],["华南",80,"26.66666667"]]`; compact(chart.Chart.Rows) != want {
+		t.Errorf("rows = %s, want %s", chart.Chart.Rows, want)
+	}
+	if calc := answer.Parts[2]; calc.Failed || calc.Calculation == nil || calc.Calculation.N != 3 || calc.Calculation.Result != "4.761904761" {
+		t.Errorf("calculation from the chart = %+v", calc)
+	}
+	if calc := answer.Parts[3]; calc.Failed || calc.Calculation == nil || calc.Calculation.N != 4 || calc.Calculation.Result != "33.333333327" {
+		t.Errorf("calculation from a calculation = %+v", calc)
+	}
+	// The chart is kept with the answer.
+	kept, err := store.ListMessages(e.ctx, e.pool.Pool, e.scope, conv.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := kept[len(kept)-1].Parts[1].Chart; got == nil || got.N != 2 || compact(got.Rows) != compact(chart.Chart.Rows) || len(got.Calculations) != 1 {
+		t.Errorf("kept = %+v", got)
+	}
+}
+
+// compact is JSON as written without spaces, which the database adds.
+func compact(raw []byte) string {
+	var out bytes.Buffer
+	if err := json.Compact(&out, raw); err != nil {
+		return string(raw)
+	}
+	return out.String()
 }

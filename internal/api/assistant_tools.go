@@ -17,6 +17,7 @@ import (
 	"github.com/supazd/supabi/internal/authz"
 	"github.com/supazd/supabi/internal/content"
 	"github.com/supazd/supabi/internal/dataset"
+	"github.com/supazd/supabi/internal/datasource"
 	"github.com/supazd/supabi/internal/query"
 	"github.com/supazd/supabi/internal/store"
 )
@@ -627,10 +628,13 @@ func (s *Server) queryChartTool(ctx context.Context, raw json.RawMessage) (assis
 		path := gen.DrillPath(a.Drill)
 		body.Drill = &path
 	}
-	var result gen.QueryResult
+	var (
+		result gen.QueryResult
+		chart  content.ChartSpec
+	)
 	err = s.auditToolQuery(ctx, a.Dashboard, map[string]any{"itemId": a.Widget}, func(ctx context.Context) error {
 		var err error
-		result, err = s.dashboardItemData(ctx, dc, a.Widget, body)
+		result, chart, err = s.dashboardItemResult(ctx, dc, a.Widget, body)
 		return err
 	})
 	if err != nil {
@@ -640,7 +644,7 @@ func (s *Server) queryChartTool(ctx context.Context, raw json.RawMessage) (assis
 	if err != nil {
 		return assistant.ToolResult{}, err
 	}
-	data := toolData{Conditions: source.Conditions, Columns: result.Columns, Rows: result.Rows, TotalRows: len(result.Rows), Truncated: result.Meta.Truncated, DataAt: result.Meta.CachedAt}
+	data := toolData{Conditions: source.Conditions, Columns: shownColumns(result.Columns, chart.Viz.Formats), Rows: result.Rows, TotalRows: len(result.Rows), Truncated: result.Meta.Truncated, DataAt: result.Meta.CachedAt}
 	if len(data.Rows) > toolRows {
 		data.Rows, data.Truncated = data.Rows[:toolRows], true
 	}
@@ -648,7 +652,44 @@ func (s *Server) queryChartTool(ctx context.Context, raw json.RawMessage) (assis
 		data.Totals = *result.Totals
 	}
 	text, err := toolText(data)
-	return assistant.ToolResult{Content: text, Subject: source.DashboardName + " › " + source.ChartName, Source: source, Cells: data.cells()}, err
+	if err != nil {
+		return assistant.ToolResult{}, err
+	}
+	table, err := data.table()
+	return assistant.ToolResult{Content: text, Subject: source.DashboardName + " › " + source.ChartName, Source: source, Cells: data.cells(), Table: table}, err
+}
+
+// shownColumns are a result's columns written as its chart shows them: the
+// chart's own formats in place of the dataset's, where they suit the column,
+// as the browser puts them in place (applyFormats in packages/charts).
+func shownColumns(columns []gen.ResultColumn, formats map[string]dataset.Format) []gen.ResultColumn {
+	if len(formats) == 0 {
+		return columns
+	}
+	out := slices.Clone(columns)
+	for i, c := range out {
+		format, ok := formats[c.Name]
+		t := datasource.Type(c.Type)
+		if !ok || !dataset.Formattable(t) || format.Problem(t) != "" {
+			continue
+		}
+		var shown gen.DisplayFormat
+		if raw, err := json.Marshal(format); err == nil && json.Unmarshal(raw, &shown) == nil {
+			out[i].Format = &shown
+		}
+	}
+	return out
+}
+
+// table is the data the model was given, for charts drawn from it.
+func (d toolData) table() (*assistant.Table, error) {
+	t := &assistant.Table{Rows: d.Rows, Truncated: d.Truncated}
+	// The columns as the API writes them, which the chart is drawn with.
+	raw, err := json.Marshal(d.Columns)
+	if err == nil {
+		err = json.Unmarshal(raw, &t.Columns)
+	}
+	return t, err
 }
 
 // cells are the values the model was given, rows and totals, which its

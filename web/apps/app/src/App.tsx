@@ -109,7 +109,7 @@ function Frame() {
               <Route path="/workbench/*" element={<Guard role="developer"><Workbench colorScheme={colorScheme} /></Guard>} />
               <Route path="/dashboards" element={<Guard role="viewer"><MyDashboards colorScheme={colorScheme} /></Guard>} />
               <Route path="/dashboards/:id" element={<Guard role="viewer"><MyDashboards colorScheme={colorScheme} /></Guard>} />
-              <Route path="/assistant/:id?" element={<Guard role="viewer"><Assistant /></Guard>} />
+              <Route path="/assistant/:id?" element={<Guard role="viewer"><Assistant colorScheme={colorScheme} /></Guard>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </PageFrame>

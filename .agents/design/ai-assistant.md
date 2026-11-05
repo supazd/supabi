@@ -1,6 +1,6 @@
 # AI assistant
 
-Status: the first step (the most basic Agent), the second step (the usage page, section 13) and the third step (tools, section 12) are implemented. The fourth step only records a direction and will be designed when we get to it. The MCP service (section 14) is implemented.
+Status: the first step (the most basic Agent), the second step (the usage page, section 13) and the third step (tools, section 12) are implemented; charts in answers (12.10) are designed and not yet implemented. The fourth step only records a direction and will be designed when we get to it. The MCP service (section 14) is implemented.
 
 ## 1. Positioning
 
@@ -15,7 +15,7 @@ Status: the first step (the most basic Agent), the second step (the usage page, 
 |---|---|
 | 1. The most basic Agent | Models are configured in System administration; chat works; the context is compacted; usage and cost are recorded. Sections 3 to 10 of this document |
 | 2. Usage page | A separate page in System administration. It shows usage and cost by person, model, workspace, purpose and day; it does not show conversation content. What data the AI read is already in the audit log. Section 13 |
-| 3. Tools | Tools are assigned by role; four read-only tools look up charts on the dashboards the user can open, and answers carry their sources; a number that is not on any chart is worked out with the calculator, and the calculation is also a source. Section 12 |
+| 3. Tools | Tools are assigned by role; four read-only tools look up charts on the dashboards the user can open, and answers carry their sources; a number that is not on any chart is worked out with the calculator, and the calculation is also a source; the model draws charts from what it looked up. Section 12 |
 | 4. Memory and past conversations | Remember the user's preferences and habits, and refer to earlier conversations |
 
 Get the Agent itself working first, then add tools. During development we do not add restrictions just because "there are no tools yet".
@@ -228,7 +228,7 @@ The values `query_chart` takes are the same as the dashboard data request ([Char
 
 ### 12.3 Results and sources
 
-- **Data handed to the model**: column names use display names, values use raw values, and each column carries its display format (percentage, decimal places, unit), so the model writes numbers in that format. At most 200 rows (provisional); extra rows are cut off and the model is told the total number of rows; totals are given as usual.
+- **Data handed to the model**: column names use display names, values use raw values, and each column carries its display format (percentage, decimal places, unit) as the chart shows it, the chart's own formats in place of the dataset's, so the model writes numbers in that format and a chart in the answer (12.10) is written as on the dashboard. At most 200 rows (provisional); extra rows are cut off and the model is told the total number of rows; totals are given as usual.
 - **Sources**: one `query_chart` is one source, numbered [1], [2] within an answer. A source records:
   - the ID and name of the dashboard and chart widget, and the version numbers of the dashboard, chart and dataset;
   - the conditions actually in effect: global filters, chart filters, dynamic selections, drill-down path, chart links, including defaults used when nothing was passed; a relative time is written as the resolved start and end dates, and a date parameter's value relative to today (such as `today-1d`) is written as the actual day on which the data was fetched;
@@ -271,7 +271,7 @@ The values `query_chart` takes are the same as the dashboard data request ([Char
 - They run with the identity and workspace of this request, like the endpoints. The tool list is computed by role, and a tool that is not registered is not given (section 10); these four are all for viewers.
 - Every data fetch (`query_chart`, `filter_options`) records a query event as usual, with the dashboard as the object and details noting that it came from the AI assistant.
 - The tools themselves cost no model money; usage and cost are recorded on the model calls, as in section 7.
-- `calculate` (12.9) is not registered here: it touches no data and involves no permissions, so the Agent loop provides it itself.
+- `calculate` (12.9) and `draw_chart` (12.10) are not registered here: they touch no data and involve no permissions, so the Agent loop provides them itself.
 
 ### 12.7 Reserved for the MCP service
 
@@ -280,7 +280,7 @@ Later we want an MCP service, so that viewers can fetch data with a local Agent.
 - The tools do not depend on the AI assistant (12.6); MCP exposes the same set of tools directly.
 - Sources are in the tool result, with links (12.3): an MCP client sees only the tool results.
 
-MCP does not offer `calculate` (12.9): a local Agent has its own ability to compute.
+MCP does not offer `calculate` (12.9) or `draw_chart` (12.10): a local Agent has its own ability to compute and to draw charts.
 
 What was left to decide (the sign-in method, which workspace an authorization belongs to, whether "Allow data exports" restricts it, a master switch) was settled on 2026-11-03; the design is in section 14. Model configuration, cost, compaction and conversations belong only to the in-app Agent, and MCP does not use them.
 
@@ -335,6 +335,101 @@ At first the model was not allowed to calculate, because of three worries. Here 
 - Do only the arithmetic the user asked for; no forecasting, no estimating.
 
 **Where it lives**: `calculate` is in `internal/assistant` and is provided by the Agent loop itself; it can see the tool results the answer already has, which it uses to check the inputs. In storage it is, like the other tools, a "tool" part of the answer, and sources gain one more kind, "calculation". A calculation does not call the model, records no usage, does not touch data sources, and records no query event.
+
+### 12.10 Charts
+
+Status: designed, not yet implemented.
+
+When an answer reads out twelve months or twenty regions, the text is hard to take in, and what the person wanted was the trend or the ranking. The model decides for itself whether a chart says more than the text, and what kind of chart, and draws it in the conversation with the `draw_chart` tool. The figures on a chart come only from what this answer looked up, like the figures in the text (12.3).
+
+**The model passes no figures.** It names which lookup and which columns to draw, and the server takes the rows from that lookup's result. Copying a hundred rows into the arguments could miscopy, drop or invent figures, which would then have no source; and writing them out would take thousands of output tokens before the chart appeared.
+
+**The tool**: a chart is a type, a title, the column for the categories, and the series to draw. One lookup, drawn as it is:
+
+```jsonc
+{
+  "type": "line",
+  "title": "East China sales by month",
+  "x": "month",
+  "series": [
+    { "id": "sales", "name": "Sales", "source": 1, "column": "revenue" }
+  ]
+}
+```
+
+Two lookups in one chart, East China in [1] and South China in [2]:
+
+```jsonc
+{
+  "type": "line",
+  "title": "East and South China sales by month",
+  "x": "month",
+  "series": [
+    { "id": "east", "name": "East China", "source": 1, "column": "revenue" },
+    { "id": "south", "name": "South China", "source": 2, "column": "revenue" }
+  ]
+}
+```
+
+A series worked out row by row:
+
+```jsonc
+{
+  "type": "bar",
+  "title": "East China sales, change on last year",
+  "x": "month",
+  "series": [
+    { "id": "now", "name": "This year", "source": 1, "column": "revenue", "draw": false },
+    { "id": "last", "name": "Last year", "source": 1, "column": "revenue_last_year", "draw": false },
+    { "id": "growth", "name": "Change on last year", "expression": "(now - last) / last", "format": { "style": "percent", "decimals": 1 } }
+  ]
+}
+```
+
+| Property | Description |
+|---|---|
+| `type` | `bar`, `hbar`, `line`, `area`, `combo`, `pie`, `funnel`. The other chart types need data this input does not describe (two measures per point, two dimensions per cell, layers), or add little to the text in a conversation (KPI card, gauge, table, pivot table); see [Deferred items](../backlog.md) |
+| `title` | Shown above the chart |
+| `x` | The dimension column the categories come from, such as the months or the regions, named as the tool result names it (`name`). A series whose lookup names it differently gives its own `x` |
+| `split` | Optional, a dimension column: one line or one group of bars per value of it, as `series` in the chart spec ([Charts and dashboards](chart-dashboard.md) 2.1). Every lookup used must have it |
+| `series` | What is drawn, in order. Each has an `id` used in expressions and a `name` shown in the legend, and either `source` and `column`, a measure column of a lookup in this answer, or `expression`, worked out row by row from the series listed before it. `draw: false` uses a series only in expressions. `format` is the display format of a series worked out ([Dataset model](dataset.md) 5.5); a series taken from a column keeps the column's format |
+| `stacked`, `lines`, `rightAxis` | As in the chart spec (2.1), with series ids |
+
+**How the server builds a chart**:
+
+- **Only lookups in this answer**: `source` is the number of a `query_chart` source of this answer, consistent with 12.9; a lookup from an earlier answer is made again.
+- **The rows the model read**: at most 200 per lookup (12.3), and nothing is queried again. The chart agrees with the text, and stays the same when the conversation is opened again. When a lookup was cut short, the chart says so.
+- **Aligning lookups**: rows of different lookups are matched on the value of `x`, and of `split` when given: the same date, or the same text. The order follows the first lookup, with values that only another lookup has after them; a time axis is in time order. Where a lookup has no row for a value, its point is left empty.
+- **Categories must be of one kind**: a date cannot be matched with text, nor dates by month with dates by week (`grain`, [Query IR](query-ir.md) section 4).
+- **One value axis, one way of writing**: series on the same axis must have the same format style and unit; yuan and items, or an amount and a percentage, cannot share an axis. The model can put one on the right axis of a combo chart.
+- **Series worked out**: the expression is written as for `calculate` (12.9): `+ - * /`, parentheses, constants and the ids of series listed before it, in decimal fixed point. It is worked out on each row after aligning, so it can also combine lookups, such as East China as a share of South China month by month. A row where an input is empty or the divisor is zero is left empty, and the chart says which rows.
+- **Checks**: what is drawn is a result with columns for `x`, `split` and the drawn series, with their types and formats, and a `viz` over it: the same `QueryResult` and `viz` as a chart on a dashboard. It is checked by the same rules as saving a chart ([Charts and dashboards](chart-dashboard.md) 2.2): the columns each type requires, and only one drawn series with `split` (2.1). Any problem is handed back to the model to fix, as with the other tools (12.4).
+
+**What the model gets back**:
+
+- Without a series worked out: that the chart is shown, and any note (rows cut, points empty). There is no new source number: the figures on it are already [1] and [2].
+- With series worked out: their values row by row, with `x` and `split`, at most 200 rows, and the source number of this chart. The text cites them like any other figure ("the change was largest in June, 23.1% [3]"), and `calculate` can take them as inputs.
+
+**Source**: a chart with series worked out takes one source number, in the same sequence as the data and calculation sources. It records each such series with its expression and the lookups it used. In the UI it is written as "③ Worked out row by row: Change on last year = (This year [1] − Last year [1]) ÷ Last year [1]", with no "Open"; the [1] in it can be clicked. A chart without one takes no number.
+
+**In the conversation**:
+
+- A chart sits where the model drew it among the answer's parts. The model usually draws before it writes, so a chart is usually above the text. It is not folded into the steps.
+- Above it is the title. Below it are the lookups it came from, "Data from [1] [2]", which jump to the sources when clicked; the expression of any series worked out; and the notes (only the first 200 rows shown, rows not worked out).
+- It is drawn by the same component as charts on dashboards (`Visualization` in `packages/charts`), with the columns' formats and the app's color scheme, at the width of the message and a fixed height (280 px, provisional). Values show on hover. Clicking does nothing, with no drill-down or chart links: to look further, open a source.
+- While it is being drawn, the steps show "Drawing a chart", as other tools show what they are doing. A chart the server refused stays in the steps like a failed lookup, and is not drawn.
+- The frame (title, data line, notes) goes in `Chat.tsx` of `packages/ui`. The component package does not use the chart package, so the app draws the chart with `packages/charts` and passes it into the frame ([Architecture overview](architecture.md) 11.2).
+
+**How an answer uses charts**, written into the system prompt and the tool description:
+
+- Draw when a chart says more than the text: a trend over time, a ranking or comparison of several items, the shares of a whole. Not for one or two figures.
+- Time goes on a line or area chart; categories on a bar chart, or a horizontal bar chart when the names are long; stages on a funnel. A pie chart only for a measure that adds up to a whole, such as sales or a count, never for averages, ratios or distinct counts.
+- Usually one chart per answer. The text still gives the key figures with their sources: a chart does not replace them.
+- When a lookup was cut short or lists only the top N, a chart of it is not the whole.
+
+**Storage and API**: a chart is a "tool" part like the others (12.5). The part also keeps what was drawn: the result and the `viz`, the source numbers used, the notes, and the calculation if any. It is saved when the chart is built and never queried again. The API gives the UI the chart with the part, using the same `QueryResult` and `viz` schemas as dashboards.
+
+**Where it lives**: `draw_chart` is in `internal/assistant` and is provided by the Agent loop itself, like `calculate` (12.6). It needs the results of this answer's lookups, so a tool result also carries the columns and rows it gave the model, not only their cells. Drawing does not call the model, records no usage and no query event, and counts toward the 20 tool calls of an answer (12.4).
 
 ## 13. Second step: the usage page
 
