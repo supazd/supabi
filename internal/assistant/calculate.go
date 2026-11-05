@@ -244,13 +244,37 @@ var errDivisionByZero = errors.New("division by zero")
 
 // evaluate works an expression out in exact fractions.
 func evaluate(expression string, values map[string]*big.Rat) (*big.Rat, error) {
+	return parse(expression, values, false)
+}
+
+// checkWritten checks how an expression is written, whatever its inputs come
+// to: a divisor of zero, which only some rows may have, does not stop the
+// check before a mistake further on.
+func checkWritten(expression string, values map[string]*big.Rat) error {
+	_, err := parse(expression, values, true)
+	return err
+}
+
+// asShown is a figure as the model is shown it, and so as it copies it: a
+// result that does not end is written to some significant digits.
+func asShown(r *big.Rat) *big.Rat {
+	shown, ok := new(big.Rat).SetString(decimalText(r))
+	if !ok {
+		return r
+	}
+	return shown
+}
+
+// parse works an expression out; lenient takes a divisor of zero for a
+// zero result, to read on past it.
+func parse(expression string, values map[string]*big.Rat, lenient bool) (*big.Rat, error) {
 	if expression == "" {
 		return nil, errors.New("the expression is empty")
 	}
 	if len(expression) > 2000 {
 		return nil, errors.New("the expression is too long")
 	}
-	p := &parser{tokens: tokenize(expression), values: values}
+	p := &parser{tokens: tokenize(expression), values: values, lenient: lenient}
 	result, err := p.sum()
 	if err != nil {
 		return nil, err
@@ -266,6 +290,8 @@ type parser struct {
 	at     int
 	depth  int
 	values map[string]*big.Rat
+	// lenient reads on past a divisor of zero, for checking how an expression is written.
+	lenient bool
 }
 
 func (p *parser) peek() (token, bool) {
@@ -324,6 +350,10 @@ func (p *parser) product() (*big.Rat, error) {
 			continue
 		}
 		if right.Sign() == 0 {
+			if p.lenient {
+				left = new(big.Rat)
+				continue
+			}
 			return nil, errDivisionByZero
 		}
 		left = new(big.Rat).Quo(left, right)

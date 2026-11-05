@@ -3873,6 +3873,70 @@ components:
           type: boolean
         source: { $ref: "#/components/schemas/AnswerSource" }
         calculation: { $ref: "#/components/schemas/Calculation" }
+        chart: { $ref: "#/components/schemas/AnswerChart" }
+
+    AnswerChart:
+      description: |
+        A chart the assistant drew from what its answer looked up, as it was
+        drawn: the rows are never queried again. See .agents/design/ai-assistant.md 12.10.
+      type: object
+      required: [title, viz, columns, rows, sources, calculations]
+      properties:
+        n:
+          description: Its number among the sources of its answer, when it worked series out and the answer cites them as [n]
+          type: integer
+        title: { type: string }
+        viz:
+          description: How it is drawn, as a chart spec's viz has it
+          type: object
+          additionalProperties: true
+        columns:
+          type: array
+          items: { $ref: "#/components/schemas/ResultColumn" }
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+        sources:
+          description: The numbers of the sources it drew from
+          type: array
+          items: { type: integer }
+        calculations:
+          description: The series it worked out row by row, and how
+          type: array
+          items: { $ref: "#/components/schemas/ChartCalculation" }
+
+    ChartCalculation:
+      type: object
+      required: [series, name, expression, inputs]
+      properties:
+        series:
+          description: The series' id, which names its column
+          type: string
+        name:
+          description: The series, by its name in the legend
+          type: string
+        expression:
+          description: With + - * / and parentheses, naming its inputs
+          type: string
+        inputs:
+          type: array
+          items: { $ref: "#/components/schemas/ChartCalculationInput" }
+
+    ChartCalculationInput:
+      type: object
+      required: [name, label]
+      properties:
+        name:
+          description: As the expression names it
+          type: string
+        label:
+          description: The series, by its name in the legend
+          type: string
+        source:
+          description: The number of the source it came from; absent for a series itself worked out
+          type: integer
 
     Calculation:
       description: |

@@ -224,6 +224,10 @@ func axisKinds(t string) (x, y, y2 string) {
 	return "", "", ""
 }
 
+// Check holds a viz over columns that come from elsewhere, such as a chart in
+// an answer of the assistant, to the rules a saved chart's viz is held to.
+func (v Viz) Check(columns []query.OutputColumn) error { return v.validate(columns) }
+
 func (v Viz) validate(columns []query.OutputColumn) error {
 	roles := map[string]string{}
 	for _, c := range columns {
@@ -248,6 +252,9 @@ func (v Viz) validate(columns []query.OutputColumn) error {
 		}
 		if least == 1 && most == 1 && len(v.Y) != 1 {
 			return bad("viz_needs_one_measure", []string{"type", v.Type}, "a %s chart shows exactly one measure", v.Type)
+		}
+		if most == 0 && len(v.Y) < least {
+			return bad("viz_measure_min", []string{"type", v.Type, "min", strconv.Itoa(least)}, "a %s chart needs at least %d measures", v.Type, least)
 		}
 		if len(v.Y) < least || (most > 0 && len(v.Y) > most) {
 			return bad("viz_measure_count", []string{"type", v.Type, "min", strconv.Itoa(least), "max", strconv.Itoa(most)}, "a %s chart takes from %d to %d measures", v.Type, least, most)

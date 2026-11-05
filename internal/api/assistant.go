@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -541,6 +542,44 @@ func partResponse(p store.MessagePart, done bool) gen.AssistantMessagePart {
 		for i, in := range calc.Inputs {
 			out.Calculation.Inputs[i] = gen.CalculationInput{Name: in.Name, Label: in.Label, Value: in.Value, Source: in.Source}
 		}
+	}
+	if c := p.Chart; c != nil {
+		out.Chart = chartResponse(c)
+	}
+	return out
+}
+
+// chartResponse is a chart an answer drew. What it drew was written by the
+// assistant as the API writes it, so it is read back the same way.
+func chartResponse(c *store.AnswerChart) *gen.AnswerChart {
+	out := &gen.AnswerChart{Title: c.Title, Sources: c.Sources, Calculations: make([]gen.ChartCalculation, len(c.Calculations))}
+	if c.N > 0 {
+		out.N = &c.N
+	}
+	if out.Sources == nil {
+		out.Sources = []int{}
+	}
+	_ = json.Unmarshal(c.Viz, &out.Viz)
+	_ = json.Unmarshal(c.Columns, &out.Columns)
+	dec := json.NewDecoder(bytes.NewReader(c.Rows))
+	// Figures stay as they were written: a large integer is not rounded.
+	dec.UseNumber()
+	_ = dec.Decode(&out.Rows)
+	if out.Columns == nil {
+		out.Columns = []gen.ResultColumn{}
+	}
+	if out.Rows == nil {
+		out.Rows = [][]any{}
+	}
+	for i, calc := range c.Calculations {
+		inputs := make([]gen.ChartCalculationInput, len(calc.Inputs))
+		for j, in := range calc.Inputs {
+			inputs[j] = gen.ChartCalculationInput{Name: in.Name, Label: in.Label}
+			if in.Source > 0 {
+				inputs[j].Source = &in.Source
+			}
+		}
+		out.Calculations[i] = gen.ChartCalculation{Series: calc.Series, Name: calc.Name, Expression: calc.Expression, Inputs: inputs}
 	}
 	return out
 }

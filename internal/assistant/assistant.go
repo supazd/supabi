@@ -83,6 +83,10 @@ type ToolResult struct {
 	Cells []any
 	// Calculation is what the calculator worked out.
 	Calculation *store.Calculation
+	// Table is the data of a source, which charts are drawn from.
+	Table *Table
+	// Chart is a chart drawn.
+	Chart *store.AnswerChart
 }
 
 // Event types: what a turn reports while it runs.
@@ -270,9 +274,9 @@ func (s *Service) write(ctx context.Context, sc store.Scope, answer store.Messag
 		compress(false)
 	}
 
-	// The calculator is the assistant's own; the others look data up.
+	// The calculator and charts are the assistant's own; the others look data up.
 	byName := map[string]Tool{}
-	offered := []llm.Tool{calculatorTool}
+	offered := []llm.Tool{calculatorTool, chartTool}
 	for _, t := range tools {
 		byName[t.Name] = t
 		offered = append(offered, llm.Tool{Name: t.Name, Description: t.Description, Parameters: t.Parameters})
@@ -283,6 +287,8 @@ func (s *Service) write(ctx context.Context, sc store.Scope, answer store.Messag
 		rounds, calls, sources int
 		// known is what each source of this answer holds, for calculations.
 		known = figures{}
+		// tables are the data of the lookups of this answer, for charts.
+		tables = map[int]*Table{}
 		// filled is how much of the model's room the answer has taken.
 		filled int64
 	)
@@ -344,14 +350,21 @@ func (s *Service) write(ctx context.Context, sc store.Scope, answer store.Messag
 			emit(Event{Type: EventTool, Part: &part, Running: true})
 			var (
 				out    ToolResult
-				worked *big.Rat
+				worked []*big.Rat
 			)
 			// One reply may call many tools at once: past the most, they are not run.
 			switch {
 			case calls >= maxToolCalls:
 				out = ToolResult{Content: "Not run: this answer has called tools as often as it may. Answer with what you have found.", Failed: true}
 			case call.Name == calculatorName:
-				out, worked = calculate(call.Arguments, known)
+				var result *big.Rat
+				// The figure is kept as the model is shown it, which is what it copies.
+				if out, result = calculate(call.Arguments, known); result != nil {
+					worked = []*big.Rat{asShown(result)}
+				}
+				calls++
+			case call.Name == chartName:
+				out, worked = drawChart(call.Arguments, tables)
 				calls++
 			default:
 				out = run(ctx, byName, call)
@@ -361,18 +374,25 @@ func (s *Service) write(ctx context.Context, sc store.Scope, answer store.Messag
 			if err := ctx.Err(); err != nil {
 				return fail(err)
 			}
-			// Sources and calculations are numbered together, as the answer cites them.
-			if out.Source != nil || out.Calculation != nil {
+			// Sources, calculations and charts that work figures out are
+			// numbered together, as the answer cites them.
+			if out.Source != nil || out.Calculation != nil || (out.Chart != nil && len(out.Chart.Calculations) > 0) {
 				sources++
-				if out.Source != nil {
+				switch {
+				case out.Source != nil:
 					out.Source.N, known[sources] = sources, cellsOf(out.Cells)
-				} else {
-					out.Calculation.N, known[sources] = sources, []*big.Rat{worked}
+					if out.Table != nil {
+						tables[sources] = out.Table
+					}
+				case out.Calculation != nil:
+					out.Calculation.N, known[sources] = sources, worked
+				default:
+					out.Chart.N, known[sources] = sources, worked
 				}
 				out.Content = fmt.Sprintf("Source [%d]\n%s", sources, out.Content)
 			}
 			done := part
-			done.Content, done.Failed, done.Subject, done.Source, done.Calculation = out.Content, out.Failed, out.Subject, out.Source, out.Calculation
+			done.Content, done.Failed, done.Subject, done.Source, done.Calculation, done.Chart = out.Content, out.Failed, out.Subject, out.Source, out.Calculation, out.Chart
 			sofar.add(done)
 			emit(Event{Type: EventTool, Part: &done})
 			turn = append(turn, llm.Message{Role: "tool", ToolCallID: call.ID, Content: out.Content})

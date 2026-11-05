@@ -2,7 +2,7 @@
 // library. Everything else imports from here. See .agents/design/architecture.md §11.
 export { Alert, type AlertProps } from './Alert'
 export { Button, type ButtonProps } from './Button'
-export { ChatCite, ChatInput, ChatMarkdown, ChatMessage, ChatPending, ChatSources, ChatSteps, ChatThread, useChatThread, type ChatInputProps, type ChatMarkdownProps, type ChatMessageProps, type ChatSource, type ChatSourcesProps, type ChatStep, type ChatStepsProps, type ChatThreadControls, type ChatThreadProps } from './Chat'
+export { ChatCite, ChatFigure, ChatInput, ChatMarkdown, ChatMessage, ChatPending, ChatSources, ChatSteps, ChatThread, useChatThread, type ChatFigureProps, type ChatInputProps, type ChatMarkdownProps, type ChatMessageProps, type ChatSource, type ChatSourcesProps, type ChatStep, type ChatStepsProps, type ChatThreadControls, type ChatThreadProps } from './Chat'
 export { Checkbox, type CheckboxProps } from './Checkbox'
 export { CodeEditor, formatSql, type CodeEditorHandle, type CodeEditorProps, type CodeFunction, type CodeProblem, type CodeReference, type CodeTable } from './CodeEditor'
 export { DateInput, DateRangeInput, DayCalendar, MonthRangeCalendar, RangeCalendar, WeekRangeCalendar, type DateInputProps, type DateRangeInputProps } from './DateInput'

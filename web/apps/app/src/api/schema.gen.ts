@@ -3158,6 +3158,43 @@ export interface components {
             failed?: boolean;
             source?: components["schemas"]["AnswerSource"];
             calculation?: components["schemas"]["Calculation"];
+            chart?: components["schemas"]["AnswerChart"];
+        };
+        /**
+         * @description A chart the assistant drew from what its answer looked up, as it was
+         *     drawn: the rows are never queried again. See .agents/design/ai-assistant.md 12.10.
+         */
+        AnswerChart: {
+            /** @description Its number among the sources of its answer, when it worked series out and the answer cites them as [n] */
+            n?: number;
+            title: string;
+            /** @description How it is drawn, as a chart spec's viz has it */
+            viz: {
+                [key: string]: unknown;
+            };
+            columns: components["schemas"]["ResultColumn"][];
+            rows: unknown[][];
+            /** @description The numbers of the sources it drew from */
+            sources: number[];
+            /** @description The series it worked out row by row, and how */
+            calculations: components["schemas"]["ChartCalculation"][];
+        };
+        ChartCalculation: {
+            /** @description The series' id, which names its column */
+            series: string;
+            /** @description The series, by its name in the legend */
+            name: string;
+            /** @description With + - * / and parentheses, naming its inputs */
+            expression: string;
+            inputs: components["schemas"]["ChartCalculationInput"][];
+        };
+        ChartCalculationInput: {
+            /** @description As the expression names it */
+            name: string;
+            /** @description The series, by its name in the legend */
+            label: string;
+            /** @description The number of the source it came from; absent for a series itself worked out */
+            source?: number;
         };
         /**
          * @description A figure the assistant worked out from figures it looked up, cited as

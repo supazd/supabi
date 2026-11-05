@@ -5,6 +5,7 @@ export type AssistantMessage = Schemas['AssistantMessage']
 export type AssistantMessagePart = Schemas['AssistantMessagePart']
 export type AnswerSource = Schemas['AnswerSource']
 export type Calculation = Schemas['Calculation']
+export type AnswerChart = Schemas['AnswerChart']
 export type Conversation = Schemas['Conversation']
 
 /**
@@ -87,12 +88,17 @@ export function withTool(parts: AssistantMessagePart[], part: AssistantMessagePa
   return at < 0 ? [...parts, part] : parts.map((entry, i) => (i === at ? part : entry))
 }
 
+/** A run of an answer's parts: its text, tools called one after another, or a chart drawn. */
+export type PartGroup = { kind: 'text'; text: string } | { kind: 'tools'; parts: AssistantMessagePart[] } | { kind: 'chart'; chart: AnswerChart }
+
 /** An answer's parts in the order they came, the tools called one after another together. */
-export function groupParts(parts: AssistantMessagePart[]): ({ kind: 'text'; text: string } | { kind: 'tools'; parts: AssistantMessagePart[] })[] {
-  const out: ({ kind: 'text'; text: string } | { kind: 'tools'; parts: AssistantMessagePart[] })[] = []
+export function groupParts(parts: AssistantMessagePart[]): PartGroup[] {
+  const out: PartGroup[] = []
   for (const part of parts) {
     const last = out[out.length - 1]
-    if (part.type === 'tool') {
+    // A chart drawn is shown where it was drawn, not folded into the steps.
+    if (part.chart && part.done && !part.failed) out.push({ kind: 'chart', chart: part.chart })
+    else if (part.type === 'tool') {
       if (last?.kind === 'tools') last.parts.push(part)
       else out.push({ kind: 'tools', parts: [part] })
     } else if (part.text) out.push({ kind: 'text', text: part.text })
@@ -100,8 +106,11 @@ export function groupParts(parts: AssistantMessagePart[]): ({ kind: 'text'; text
   return out
 }
 
-/** What an answer cites: a chart its figures came from, or a figure it worked out from them. */
-export type Cited = { n: number; source: AnswerSource; calculation?: undefined } | { n: number; calculation: Calculation; source?: undefined }
+/** What an answer cites: a chart its figures came from, a figure it worked out from them, or a chart of its own that worked series out. */
+export type Cited =
+  | { n: number; source: AnswerSource; calculation?: undefined; chart?: undefined }
+  | { n: number; calculation: Calculation; source?: undefined; chart?: undefined }
+  | { n: number; chart: AnswerChart; source?: undefined; calculation?: undefined }
 
 /** What an answer cites, in the order it numbers them. */
 export const citedOf = (parts: AssistantMessagePart[]): Cited[] =>
@@ -110,6 +119,7 @@ export const citedOf = (parts: AssistantMessagePart[]): Cited[] =>
       if (part.type !== 'tool') return []
       if (part.source) return [{ n: part.source.n, source: part.source }]
       if (part.calculation) return [{ n: part.calculation.n, calculation: part.calculation }]
+      if (part.chart?.n) return [{ n: part.chart.n, chart: part.chart }]
       return []
     })
     .sort((a, b) => a.n - b.n)
