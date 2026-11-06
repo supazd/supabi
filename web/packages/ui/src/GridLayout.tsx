@@ -241,10 +241,14 @@ export function GridLayout<T extends GridItem>({ items, columns, rowHeight, gap,
 
   if (mounted && !editable && width < stackBelow) {
     const ordered = [...items].sort((a, b) => a.y - b.y || a.x - b.x)
+    // Each item is at least as tall as on the grid, and taller when what it
+    // holds needs more room, as wrapped figures or text on a phone do. Being a
+    // grid of one cell, it hands that height on to what fills it.
+    // See .agents/design/chart-dashboard.md §3.16.
     return (
       <div ref={containerRef} style={{ display: 'grid', gap: gap + containerGap * pitch }}>
         {ordered.map((item) => (
-          <div ref={(node) => { if (node) itemNodes.current.set(item.id, node); else itemNodes.current.delete(item.id) }} key={item.id} style={{ height: gridItemHeight(layout.find((entry) => entry.i === item.id)!.h, rowHeight, gap) }}>
+          <div ref={(node) => { if (node) itemNodes.current.set(item.id, node); else itemNodes.current.delete(item.id) }} key={item.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', minHeight: gridItemHeight(layout.find((entry) => entry.i === item.id)!.h, rowHeight, gap) }}>
             {renderItem(item)}
           </div>
         ))}

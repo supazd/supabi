@@ -1718,6 +1718,7 @@ export const zhCN = {
     removeComponent: '移除组件',
     removeComponentConfirm: '确定从当前仪表盘移除「{{name}}」吗？该组件的全局筛选关联也会一并移除。源图表会保留，此操作可撤销。',
     choose: '从左侧选择一个仪表盘。',
+    backToList: '返回仪表盘列表',
     title: '仪表盘',
     new: '新建仪表盘',
     empty: '还没有仪表盘。',

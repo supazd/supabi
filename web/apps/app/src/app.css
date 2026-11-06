@@ -194,6 +194,8 @@ details > summary { cursor: pointer; color: var(--lb-color-text-secondary); }
 .widget.borderless, .board-note.text.borderless, .query-container.borderless { border-color: transparent; box-shadow: none; }
 .widget { display: flex; flex-direction: column; height: 100%; min-width: 0; min-height: 0; padding: var(--frame-pad-y) var(--frame-pad-x); overflow-x: hidden; overflow-y: auto; }
 .widget-body { flex: 1 0 96px; min-width: 0; min-height: 96px; overflow: hidden; }
+/* A KPI's figures ask for their room, which a box that grows with its content gives them; a box that does not still cuts them off. See .agents/design/chart-dashboard.md 3.16. */
+.widget.kpi .widget-body { flex: 1 1 auto; }
 /* Asked for again, a chart stays as it was under a thin bar, which shows only if the answer takes a moment. */
 .widget { position: relative; }
 .widget-progress { position: absolute; z-index: 3; top: 0; left: 0; right: 0; height: 2px; overflow: hidden; border-radius: 2px; opacity: 0; animation: widget-progress-show 0s 300ms forwards; }
@@ -229,6 +231,8 @@ details > summary { cursor: pointer; color: var(--lb-color-text-secondary); }
  */
 .widget-tabs { position: relative; height: 100%; }
 .widget-tab-panel { position: absolute; inset: 0; }
+/* The tab shown is in the flow, so that where widgets grow with their content it sets the container's height. */
+.widget-tab-panel.shown { position: relative; height: 100%; }
 .widget-tab-panel:not(.shown) { visibility: hidden; }
 .widget-tab-strip { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; margin: -4px 0; overflow-x: auto; scrollbar-width: none; }
 .widget-tab-strip::-webkit-scrollbar { display: none; }
@@ -994,7 +998,7 @@ body.wb-resizing:has(.wb-resizer.vertical:active) { cursor: row-resize; }
 
 .workbench-host > .board-browser { flex: 1; min-width: 0; display: grid; grid-template-columns: auto auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); padding: 0 var(--island-gap) var(--island-gap); font-size: 13px; }
 .board-browser > .wb-side, .board-browser > .wb-resizer.horizontal, .board-content { grid-row: 1; }
-.board-browser > .wb-side { grid-column: 1; }
+.board-browser > .wb-side { grid-column: 1; width: var(--board-side-width, 260px); }
 .board-browser > .wb-resizer.horizontal { grid-column: 2; }
 .board-content { grid-column: 3; min-width: 0; overflow: auto; padding: 20px 24px; display: grid; gap: 16px; align-content: start; font-size: var(--lb-font-size); }
 /* A dashboard as it is read. In full screen it covers the page; menus and dialogs still open above it. */
@@ -1007,6 +1011,23 @@ body.wb-resizing:has(.wb-resizer.vertical:active) { cursor: row-resize; }
 .board-page-tabs { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 4px; min-width: 0; padding-top: 4px; border-bottom: 1px solid var(--lb-color-border); background: var(--lb-color-surface); }
 /* Stuck, the tabs are at the very top of what scrolls, over its padding: nothing scrolled past shows above them. */
 .board-content .board-page-tabs, .board-view.fullscreen .board-page-tabs { top: -20px; }
+/* Above a dashboard on a narrow screen, where the list is out of sight: back to it, and the name it showed. */
+.board-back { display: none; }
+/* On a narrow screen the list and the dashboard are two screens. See .agents/design/chart-dashboard.md 3.16. */
+@media (max-width: 760px) {
+  .workbench-host > .board-browser { grid-template-columns: minmax(0, 1fr); }
+  .board-browser > .wb-resizer.horizontal { display: none; }
+  .board-browser > .wb-side { width: auto; }
+  .board-browser.has-board > .wb-side, .board-browser:not(.has-board) > .board-content { display: none; }
+  .board-content { grid-column: 1; padding: 16px; }
+  .board-content .board-page-tabs { top: -16px; }
+  .board-back { display: flex; align-items: center; gap: 6px; min-width: 0; margin: -6px 0 -6px -6px; }
+  .board-back > .wb-icon-button { width: 32px; height: 32px; }
+  .board-back-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 620; }
+}
+@media (max-width: 760px) and (pointer: coarse) {
+  .board-back > .wb-icon-button { width: 40px; height: 40px; }
+}
 .dashboard-canvas-scroll .board-page-tabs { top: -16px; }
 .board-page-tabs .widget-tab-strip { margin: 0; }
 .board-page-tab { max-width: 220px; margin-bottom: -1px; padding: 7px 12px 6px; font-size: 14px; }

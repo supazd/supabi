@@ -40,6 +40,11 @@ export interface VisualizationProps {
   locale?: string
   /** How many days of a year's first week are in that year, which numbers weeks written by number; 4 when left out. */
   firstWeekDays?: number
+  /**
+   * How tall it is drawn, in pixels; 320 when left out. A KPI left without
+   * one fills the box it is in instead, and in a box that grows with what it
+   * holds it asks for room enough for its figures.
+   */
   height?: number
   /** Accessible name; a chart is an image to assistive technology. */
   'aria-label': string
@@ -115,7 +120,8 @@ function Canvas({ option, height, label, onClick, byAxis = false }: { option: ec
 }
 
 /** Draws a query result the way a viz describes. */
-export function Visualization({ viz, result: received, colorScheme = 'light', surface, locale, firstWeekDays, height = 320, 'aria-label': ariaLabel, texts: givenTexts, renderError, onSelect, selection, onColumnResize, onCellSelect, selectableColumns, cellSelections, headerEditing, pageKey }: VisualizationProps) {
+export function Visualization({ viz, result: received, colorScheme = 'light', surface, locale, firstWeekDays, height: given, 'aria-label': ariaLabel, texts: givenTexts, renderError, onSelect, selection, onColumnResize, onCellSelect, selectableColumns, cellSelections, headerEditing, pageKey }: VisualizationProps) {
+  const height = given ?? 320
   const selectable = Boolean(onSelect)
   const selected = selection ? { value: selection.value } : undefined
   const selectedKey = selected ? JSON.stringify(selected.value) : undefined
@@ -201,7 +207,7 @@ export function Visualization({ viz, result: received, colorScheme = 'light', su
   const texts = { ...defaultTexts, ...givenTexts }
   if (viz.type === 'kpi') {
     return (
-      <div role="group" aria-label={ariaLabel} style={{ height }}>
+      <div role="group" aria-label={ariaLabel} style={{ height: given ?? '100%' }}>
         <Tiles viz={viz} result={result} scheme={colorScheme} surface={surface} locale={locale} firstWeekDays={firstWeekDays} texts={texts} />
       </div>
     )

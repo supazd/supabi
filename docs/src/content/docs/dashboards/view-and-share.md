@@ -28,6 +28,18 @@ The left of the toolbar shows the time of the data, taken from the oldest chart.
 
 Enlarge and View data use the result already fetched and do not query again. Filters changed in the enlarged view stay in effect after it closes.
 
+## On a phone
+
+On a screen narrower than 760px, such as a phone held upright, the list and the dashboard take turns filling the screen:
+
+- **My dashboards** shows the list. Tap a dashboard to open it.
+- Above the dashboard are a back button and the dashboard's name. The back button, or the browser's back, returns to the list, and anything typed in the filter box is still there.
+- The toolbar wraps onto two lines. **Full screen** gives the dashboard the whole screen.
+
+On wider screens the list stays beside the dashboard.
+
+A dashboard narrower than 640px shows its charts in one column, in reading order. A card in that column is at least as tall as the author made it, and grows to show all of its content: every figure of a KPI card, the whole of a text, and all of a chart's filters. Tables and pivot tables keep their height and scroll inside it. On wider screens the dashboard is laid out as the author arranged it.
+
 ## Timed refresh
 
 The author sets an interval in **Page settings**: 1, 5, 15 or 30 minutes, or 1 hour. A viewer can change it temporarily on the toolbar.
