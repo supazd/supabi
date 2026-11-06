@@ -170,7 +170,7 @@ The lower limits are the same as those of the old startup flags, only rounded to
 ### 10.3 Page
 
 - A last item "General" (`/settings/system/general`) is added to the navigation bar of "System administration". Only a system administrator can see and change it.
-- The layout is the same as the workspace's "General" ([Access control and workspaces](access-control.md) 2.2.1): a single column, each setting with its name on the left, the input and unit on the right, and the description below. It is divided into six groups, "Exports", "Audit", "Queries", "Workspaces", "Sign-in" and "MCP service" (the "Workspaces" and "Sign-in" groups, and the timeout and row settings in "Queries", are in section 10.7; "MCP service" is in section 10.8). An empty input means use the default, and the placeholder text is the default. Saving is possible only when something has changed; with unsaved changes, leaving the page asks for confirmation first.
+- The layout is the same as the workspace's "General" ([Access control and workspaces](access-control.md) 2.2.1): a single column, each setting with its name on the left, the input and unit on the right, and the description below. It is divided into seven groups, "Exports", "Audit", "Queries", "Workspaces", "Sign-in", "AI assistant" and "MCP service" (the "Workspaces" and "Sign-in" groups, and the timeout and row settings in "Queries", are in section 10.7; "MCP service" is in section 10.8; "AI assistant" is in section 10.9). An empty input means use the default, and the placeholder text is the default. Saving is possible only when something has changed; with unsaved changes, leaving the page asks for confirmation first.
 - A value out of range cannot be saved, and the reason is written under the input.
 - When the audit retention is shortened, confirm before saving: "Within an hour of saving, audit events and AI usage records older than N days will be deleted, and they cannot be restored after deletion." Changing from kept forever to a limited period also counts as shortening. The other settings are saved directly.
 
@@ -260,6 +260,25 @@ Whether people may connect MCP clients ([AI assistant](ai-assistant.md) section 
 - It is read on every request to the MCP and OAuth endpoints. Turning it off refuses the next request at once; authorizations are kept and work again once it is turned back on ([AI assistant](ai-assistant.md) 14.6).
 - It is off by default: the data goes to the model the person's client uses, which the administrator did not choose. The description under the switch says so.
 - Both directions are saved directly, with no confirmation dialog: nothing is deleted either way.
+
+### 10.9 AI assistant
+
+Two values of the AI assistant were hard-coded: the share of the model's context at which a conversation is compacted ([AI assistant](ai-assistant.md) section 6), and the most tool calls one answer may make (12.4). An administrator may want to lower them to spend less, or raise them for questions that take many lookups, and the whole organization has one value of each, so they are system settings, with storage, API and audit as in sections 10.2 and 10.4. A new migration adds the columns to `system_settings`, and a null value means use the default. Decided on 2026-11-05.
+
+| Setting | Column | Default | Unit and range in the UI |
+|---|---|---|---|
+| Compress context at | `assistant_compress_percent` | 80% | percent of the usable context, 50 to 95 |
+| Most tool calls per answer | `assistant_max_tool_calls` | 60 | calls, 0 to 1000, `0` means no limit |
+
+- Both are read once, at the start of each answer. An answer in progress keeps to the values read then; the next answer uses the new ones.
+- **Compress context at** decides two things, as the hard-coded 80% did: when the earlier part of a conversation is compacted before an answer (section 6), and when an answer is no longer given tools (12.4).
+  - Below 50%, what compaction keeps as it is (up to a quarter of the usable context) plus the summary comes close to the threshold: nearly every answer would compact first, and an answer would lose its tools after its first lookups.
+  - Above 95%, the estimate from the character count leaves too little margin, and providers start refusing calls as too long.
+  - How much the compaction model reads in one segment stays at 80% of its own usable context. That is a margin for the estimate, not a choice of when to compact.
+- **Most tool calls per answer**: lookups, calculations and charts all count, as before. With `0`, an answer stops calling tools when the model stops, when the context reaches the share above, or when the person stops it. Every round resends the whole context, so the description under the input says that more calls cost more. The upper limit only stops wrongly written values.
+- They govern the AI assistant only. An MCP client runs its own loop ([AI assistant](ai-assistant.md) section 14), and SupaBI does not count its calls.
+- Both are saved directly, with no confirmation dialog: nothing is deleted.
+- **Page**: a new group "AI assistant", just before "MCP service".
 
 ## 11. Secret key check
 

@@ -19,7 +19,7 @@ Every number in an answer comes from a tool result and is marked with its source
 
 A difference, share or growth rate that is not on a chart is worked out with a calculator, not in the model's head, and its expression and numbers are listed as a source too.
 
-When a conversation grows close to the model's context length, the earlier part is summarized automatically. You still see all of it.
+When a conversation grows close to the model's context length, the earlier part is summarized automatically. You still see all of it. An answer also stops looking things up past that point, or once it has called its tools a set number of times, and answers with what it found. A system administrator sets both under [General settings](/admin/system/#general-settings), group **AI assistant**.
 
 ## Charts
 

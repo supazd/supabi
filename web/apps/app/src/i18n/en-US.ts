@@ -2188,7 +2188,7 @@ export const enUS: Messages = {
   },
   systemSettings: {
     hint: 'The whole organization has one of each. Every instance reads them where it uses them, so a change applies at once, without a restart.',
-    groups: { exports: 'Exports', audit: 'Audit', query: 'Queries', workspaces: 'Workspaces', signIn: 'Sign-in', mcp: 'MCP service' },
+    groups: { exports: 'Exports', audit: 'Audit', query: 'Queries', workspaces: 'Workspaces', signIn: 'Sign-in', assistant: 'AI assistant', mcp: 'MCP service' },
     exportRetentionHours: { label: 'Export files kept for', unit: 'hours', hint: 'How long a finished export can be downloaded; the file is then deleted. Empty takes the default, {{value}} hours.' },
     exportTimeoutMinutes: { label: 'Export timeout', unit: 'minutes', hint: 'The longest an export may run; it fails when it runs longer. Empty takes the default, {{value}} minutes.' },
     exportMaxRows: { label: 'Most rows per export', unit: 'rows', hint: 'An export with more rows fails, leaving no partial file. Empty takes the default, {{value}} rows.' },
@@ -2201,6 +2201,8 @@ export const enUS: Messages = {
     workspaceRetentionDays: { label: 'Deleted workspaces kept for', unit: 'days', hint: 'How long a deleted workspace can be restored before it is deleted for good. Empty takes the default, {{value}} days.' },
     mcpEnabled: { label: 'MCP clients', allow: 'Allow', hint: 'Lets people connect AI clients of their own, such as Claude or Cursor, to read the dashboards they can open. The data goes to the model each person’s client uses, which you did not choose. Off by default.' },
     sessionLifetimeHours: { label: 'Session lifetime', unit: 'hours', hint: 'How long people stay signed in without activity. Made shorter, it ends the sessions idle for longer at once. Empty takes the default, {{value}} hours.' },
+    assistantCompressPercent: { label: 'Compress context at', unit: '%', hint: 'When a conversation fills this share of the model’s context, its earlier part is summarized before the next answer. Within one answer, past it, the assistant stops looking things up and answers with what it found. Empty takes the default, {{value}}%.' },
+    assistantMaxToolCalls: { label: 'Most tool calls per answer', unit: 'calls', hint: 'How many times one answer may look up data, calculate or draw a chart; past it, the assistant answers with what it found. 0 sets no limit. Each call sends the whole conversation to the model again, so more calls cost more. Empty takes the default, {{value}}.' },
     defaultAboveMax: 'Cannot be more than the most rows per query.',
     range: 'A whole number from {{min}} to {{max}}.',
     days_one: '{{count}} day',

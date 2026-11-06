@@ -2137,10 +2137,12 @@ components:
         sessionLifetimeHours: { description: How long a session lasts without activity, type: integer, minimum: 1, maximum: 8760 }
         workspaceRetentionDays: { description: How long a deleted workspace can be restored before it is purged, type: integer, minimum: 1, maximum: 3650 }
         mcpEnabled: { description: Whether people may connect MCP clients to read their dashboards, type: boolean }
+        assistantCompressPercent: { description: Share of a model's usable context past which the AI assistant summarizes the earlier conversation and an answer stops calling tools, in percent, type: integer, minimum: 50, maximum: 95 }
+        assistantMaxToolCalls: { description: The most tools one answer of the AI assistant may call; 0 sets no limit, type: integer, minimum: 0, maximum: 1000 }
     SystemSettingDefaults:
       description: What each system setting is when left out.
       type: object
-      required: [exportRetentionHours, exportTimeoutMinutes, exportMaxRows, exportMaxSizeMb, auditRetentionDays, queryCacheTtlMinutes, queryTimeoutSeconds, queryDefaultRows, queryMaxRows, sessionLifetimeHours, workspaceRetentionDays, mcpEnabled]
+      required: [exportRetentionHours, exportTimeoutMinutes, exportMaxRows, exportMaxSizeMb, auditRetentionDays, queryCacheTtlMinutes, queryTimeoutSeconds, queryDefaultRows, queryMaxRows, sessionLifetimeHours, workspaceRetentionDays, mcpEnabled, assistantCompressPercent, assistantMaxToolCalls]
       properties:
         exportRetentionHours: { type: integer }
         exportTimeoutMinutes: { type: integer }
@@ -2154,6 +2156,8 @@ components:
         sessionLifetimeHours: { type: integer }
         workspaceRetentionDays: { type: integer }
         mcpEnabled: { type: boolean }
+        assistantCompressPercent: { type: integer }
+        assistantMaxToolCalls: { type: integer }
     SystemSettings:
       type: object
       required: [values, defaults]

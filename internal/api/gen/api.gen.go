@@ -2968,24 +2968,32 @@ type Subject struct {
 
 // SystemSettingDefaults What each system setting is when left out.
 type SystemSettingDefaults struct {
-	AuditRetentionDays     int   `json:"auditRetentionDays"`
-	ExportMaxRows          int64 `json:"exportMaxRows"`
-	ExportMaxSizeMb        int   `json:"exportMaxSizeMb"`
-	ExportRetentionHours   int   `json:"exportRetentionHours"`
-	ExportTimeoutMinutes   int   `json:"exportTimeoutMinutes"`
-	McpEnabled             bool  `json:"mcpEnabled"`
-	QueryCacheTtlMinutes   int   `json:"queryCacheTtlMinutes"`
-	QueryDefaultRows       int   `json:"queryDefaultRows"`
-	QueryMaxRows           int   `json:"queryMaxRows"`
-	QueryTimeoutSeconds    int   `json:"queryTimeoutSeconds"`
-	SessionLifetimeHours   int   `json:"sessionLifetimeHours"`
-	WorkspaceRetentionDays int   `json:"workspaceRetentionDays"`
+	AssistantCompressPercent int   `json:"assistantCompressPercent"`
+	AssistantMaxToolCalls    int   `json:"assistantMaxToolCalls"`
+	AuditRetentionDays       int   `json:"auditRetentionDays"`
+	ExportMaxRows            int64 `json:"exportMaxRows"`
+	ExportMaxSizeMb          int   `json:"exportMaxSizeMb"`
+	ExportRetentionHours     int   `json:"exportRetentionHours"`
+	ExportTimeoutMinutes     int   `json:"exportTimeoutMinutes"`
+	McpEnabled               bool  `json:"mcpEnabled"`
+	QueryCacheTtlMinutes     int   `json:"queryCacheTtlMinutes"`
+	QueryDefaultRows         int   `json:"queryDefaultRows"`
+	QueryMaxRows             int   `json:"queryMaxRows"`
+	QueryTimeoutSeconds      int   `json:"queryTimeoutSeconds"`
+	SessionLifetimeHours     int   `json:"sessionLifetimeHours"`
+	WorkspaceRetentionDays   int   `json:"workspaceRetentionDays"`
 }
 
 // SystemSettingValues The system settings, in the units the settings page shows. A setting
 // left out takes its default, which a newer version may change. See
 // .agents/design/configuration.md 10.
 type SystemSettingValues struct {
+	// AssistantCompressPercent Share of a model's usable context past which the AI assistant summarizes the earlier conversation and an answer stops calling tools
+	AssistantCompressPercent *int `json:"assistantCompressPercent,omitempty"`
+
+	// AssistantMaxToolCalls The most tools one answer of the AI assistant may call; 0 sets no limit
+	AssistantMaxToolCalls *int `json:"assistantMaxToolCalls,omitempty"`
+
 	// AuditRetentionDays How long audit events and records of calls to AI models are kept; 0 keeps them
 	AuditRetentionDays *int `json:"auditRetentionDays,omitempty"`
 

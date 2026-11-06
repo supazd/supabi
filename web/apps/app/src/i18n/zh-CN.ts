@@ -2186,7 +2186,7 @@ export const zhCN = {
   },
   systemSettings: {
     hint: '全组织只有一份，各实例每次用到时读取，保存后立即生效，不用重启。',
-    groups: { exports: '导出', audit: '审计', query: '查询', workspaces: '工作空间', signIn: '登录', mcp: 'MCP 服务' },
+    groups: { exports: '导出', audit: '审计', query: '查询', workspaces: '工作空间', signIn: '登录', assistant: 'AI 助手', mcp: 'MCP 服务' },
     exportRetentionHours: { label: '导出文件保留', unit: '小时', hint: '导出完成后可以下载多久，到期后删除文件。留空用默认值 {{value}} 小时。' },
     exportTimeoutMinutes: { label: '导出超时', unit: '分钟', hint: '一次导出最长执行多久，超时即失败。留空用默认值 {{value}} 分钟。' },
     exportMaxRows: { label: '导出行数上限', unit: '行', hint: '结果超过这么多行时导出失败，不留下不完整的文件。留空用默认值 {{value}} 行。' },
@@ -2199,6 +2199,8 @@ export const zhCN = {
     workspaceRetentionDays: { label: '已删除工作空间保留', unit: '天', hint: '删除的工作空间保留多久，期间可以还原，到期后永久删除。留空用默认值 {{value}} 天。' },
     mcpEnabled: { label: 'MCP 客户端', allow: '允许', hint: '允许用户连接自己的 AI 客户端（如 Claude、Cursor），读取自己能打开的仪表盘。数据会发给各人客户端所用的模型，这个模型不是你选的。默认关闭。' },
     sessionLifetimeHours: { label: '登录会话有效期', unit: '小时', hint: '这么久没有活动就要重新登录。调短后，闲置超过这么久的会话立即失效。留空用默认值 {{value}} 小时。' },
+    assistantCompressPercent: { label: '上下文压缩阈值', unit: '%', hint: '对话占到模型上下文的这个比例时，下一次回答前先总结较早的内容。一条回答之内超过这个比例，就不再查数据，用已查到的结果作答。留空用默认值 {{value}}%。' },
+    assistantMaxToolCalls: { label: '每个回答的工具调用上限', unit: '次', hint: '一条回答最多查几次数据、算几次、画几张图，到了上限就用已查到的结果作答。0 表示不限制。每次调用都要把整段对话重新发给模型，次数越多花费越多。留空用默认值 {{value}} 次。' },
     defaultAboveMax: '不能大于返回行数上限。',
     range: '须为 {{min}} 到 {{max}} 之间的整数。',
     days_one: '{{count}} 天',

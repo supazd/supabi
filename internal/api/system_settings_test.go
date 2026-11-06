@@ -21,22 +21,27 @@ func TestSystemSettings(t *testing.T) {
 	}
 	defaults := got["defaults"].(map[string]any)
 	for setting, want := range map[string]float64{"exportRetentionHours": 24, "exportTimeoutMinutes": 15, "exportMaxRows": 2_000_000, "exportMaxSizeMb": 512, "auditRetentionDays": 180, "queryCacheTtlMinutes": 10,
-		"queryTimeoutSeconds": 60, "queryDefaultRows": 1000, "queryMaxRows": 10000, "sessionLifetimeHours": 168, "workspaceRetentionDays": 30} {
+		"queryTimeoutSeconds": 60, "queryDefaultRows": 1000, "queryMaxRows": 10000, "sessionLifetimeHours": 168, "workspaceRetentionDays": 30,
+		"assistantCompressPercent": 80, "assistantMaxToolCalls": 60} {
 		if defaults[setting] != want {
 			t.Errorf("default %s = %v, want %v", setting, defaults[setting], want)
 		}
 	}
 
 	for setting, value := range map[string]any{"exportRetentionHours": 0, "exportMaxRows": 100_000_001, "auditRetentionDays": -1, "queryCacheTtlMinutes": 1441,
-		"queryTimeoutSeconds": 3601, "queryDefaultRows": 0, "queryMaxRows": 100_001, "sessionLifetimeHours": 0, "workspaceRetentionDays": 3651} {
+		"queryTimeoutSeconds": 3601, "queryDefaultRows": 0, "queryMaxRows": 100_001, "sessionLifetimeHours": 0, "workspaceRetentionDays": 3651,
+		"assistantCompressPercent": 49, "assistantMaxToolCalls": 1001} {
 		admin.expect("PUT", "/system/settings", map[string]any{setting: value}, 400, "invalid_setting")
 	}
 	// Against each other as they apply: what is left empty is its default.
 	admin.expect("PUT", "/system/settings", map[string]any{"queryDefaultRows": 20_000}, 400, "default_rows_above_max")
 	admin.expect("PUT", "/system/settings", map[string]any{"queryMaxRows": 500}, 400, "default_rows_above_max")
 	admin.expect("PUT", "/system/settings", map[string]any{"queryDefaultRows": 600, "queryMaxRows": 500}, 400, "default_rows_above_max")
-	saved := admin.expect("PUT", "/system/settings", map[string]any{"exportMaxRows": 1000, "auditRetentionDays": 0}, 200, "")
-	if values := saved["values"].(map[string]any); len(values) != 2 || values["exportMaxRows"] != float64(1000) || values["auditRetentionDays"] != float64(0) {
+	admin.expect("PUT", "/system/settings", map[string]any{"assistantCompressPercent": 96}, 400, "invalid_setting")
+	admin.expect("PUT", "/system/settings", map[string]any{"assistantMaxToolCalls": -1}, 400, "invalid_setting")
+	// 0 calls is no limit, not none.
+	saved := admin.expect("PUT", "/system/settings", map[string]any{"exportMaxRows": 1000, "auditRetentionDays": 0, "assistantMaxToolCalls": 0}, 200, "")
+	if values := saved["values"].(map[string]any); len(values) != 3 || values["exportMaxRows"] != float64(1000) || values["auditRetentionDays"] != float64(0) || values["assistantMaxToolCalls"] != float64(0) {
 		t.Errorf("saved = %v", values)
 	}
 	if page := admin.expect("GET", "/exports", nil, 200, ""); page["maxRows"] != float64(1000) {
@@ -50,7 +55,8 @@ func TestSystemSettings(t *testing.T) {
 	e := eventOf(t, auditEvents(t, admin, "?category=system"), "system_settings.update", nil)
 	detail := e["detail"].(map[string]any)
 	before, after := detail["before"].(map[string]any), detail["after"].(map[string]any)
-	if before["exportMaxRows"] != float64(1000) || before["auditRetentionDays"] != float64(0) || after["exportMaxRows"] != nil || after["auditRetentionDays"] != float64(30) {
+	if before["exportMaxRows"] != float64(1000) || before["auditRetentionDays"] != float64(0) || before["assistantMaxToolCalls"] != float64(0) ||
+		after["exportMaxRows"] != nil || after["auditRetentionDays"] != float64(30) || after["assistantMaxToolCalls"] != nil {
 		t.Errorf("detail = %v", detail)
 	}
 

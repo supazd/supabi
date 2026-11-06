@@ -68,7 +68,7 @@ func (s *Service) compress(ctx context.Context, sc store.Scope, chat store.AIMod
 // model can read together with the summary so far, which grows as it goes.
 // A message too long to fit is cut short.
 func (s *Service) parts(model store.AIModelCall, summary string, messages []store.Message) [][]string {
-	limit := int64(compressAt*float64(room(model.AIModel))) - llm.EstimateTokens(summaryPrompt) - llm.EstimateTokens(summary) - int64(min(model.MaxOutputTokens, maxSummaryTokens))
+	limit := int64(partFill*float64(room(model.AIModel))) - llm.EstimateTokens(summaryPrompt) - llm.EstimateTokens(summary) - int64(min(model.MaxOutputTokens, maxSummaryTokens))
 	limit = max(limit, 1000)
 	var (
 		out  [][]string

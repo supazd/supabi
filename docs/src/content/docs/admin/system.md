@@ -65,6 +65,8 @@ Read-only actions, such as opening a list or an editor, are not recorded. Each e
 | | **Default cache lifetime** | 10 minutes | A data source can set its own |
 | **Workspaces** | **Deleted workspaces kept for** | 30 days | |
 | **Sign-in** | **Session lifetime** | 168 hours | Signs out after this long without activity. An [MCP client](/admin/mcp/) unused for this long has to be allowed again |
+| **AI assistant** | **Compress context at** | 80% | A share of the model's context, from 50 to 95. Past it, the earlier part of a conversation is summarized before the next answer, and an answer stops looking things up |
+| | **Most tool calls per answer** | 60 | Lookups, calculations and charts all count. `0` sets no limit. Each call sends the whole conversation to the model again, so more calls cost more |
 | **MCP service** | **MCP clients** | Off | Lets people connect AI clients of their own; see [MCP](/admin/mcp/) |
 
 Shortening a retention period asks for confirmation first, because what is past the new limit is deleted within the hour.
