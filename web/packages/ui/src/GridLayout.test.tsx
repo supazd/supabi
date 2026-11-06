@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GridGroup, type GridMove } from './GridGroup'
 import { GridLayout, type GridItem } from './GridLayout'
@@ -701,5 +701,54 @@ describe('dragging between the grids of a group', () => {
     expect(position(placeholderIn('top')!)).toEqual({ left: 202, top: 0 })
     fireEvent.mouseUp(document, { clientX: pointer.clientX, clientY: pointer.clientY + 521 })
     expect(areas().bottom).toEqual([{ id: 'third', x: 2, y: 4, w: 4, h: 2 }, { id: 'fourth', x: 8, y: 4, w: 4, h: 2 }, { id: 'first', x: 2, y: 2, w: 4, h: 2 }])
+  })
+})
+
+describe('narrow screens', () => {
+  it('stacks the items in reading order without drawing them anew, so none asks for its data again', () => {
+    let width = gridWidth
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => width)
+    const observers = new Set<ResizeObserverCallback>()
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(private callback: ResizeObserverCallback) {}
+      observe() { observers.add(this.callback) }
+      unobserve() {}
+      disconnect() { observers.delete(this.callback) }
+    })
+    const flushFrames = controlAnimationFrames()
+    const resize = (next: number) => {
+      width = next
+      act(() => { for (const callback of [...observers]) callback([{ contentRect: { width: next } } as ResizeObserverEntry], {} as ResizeObserver) })
+      flushFrames()
+    }
+    // Each item asks for its data when it is first drawn, as a chart does.
+    const fetched = vi.fn()
+    function Chart({ id }: { id: string }) {
+      useEffect(() => fetched(id), [id])
+      return <div data-testid={`chart-${id}`}>{id}</div>
+    }
+    const items: GridItem[] = [{ id: 'right', x: 6, y: 0, w: 6, h: 2 }, { id: 'left', x: 0, y: 0, w: 6, h: 2 }, { id: 'below', x: 0, y: 2, w: 12, h: 3 }]
+    render(<GridLayout items={items} columns={12} rowHeight={rowHeight} gap={gap} containerGap={1} renderItem={(item) => <Chart id={item.id} />} />)
+    const drawn = items.map((item) => screen.getByTestId(`chart-${item.id}`))
+    expect(fetched).toHaveBeenCalledTimes(3)
+    const box = (id: string) => {
+      const element = screen.getByTestId(`chart-${id}`).closest<HTMLElement>('.react-grid-item')!
+      return { ...position(element), width: parseFloat(element.style.width), height: parseFloat(element.style.height) }
+    }
+
+    // Across the 640px breakpoint and back, then quickly to and fro across it.
+    for (const next of [375, gridWidth, 375, 639, 640, 639, 641, 375]) resize(next)
+    expect(fetched).toHaveBeenCalledTimes(3)
+    items.forEach((item, index) => expect(screen.getByTestId(`chart-${item.id}`)).toBe(drawn[index]))
+    // One under another, left before right, each the full width and kept apart as containers are.
+    const pitch = rowHeight + gap
+    expect(box('left')).toEqual({ left: 0, top: 0, width: 375, height: 2 * pitch - gap })
+    expect(box('right')).toEqual({ left: 0, top: 3 * pitch, width: 375, height: 2 * pitch - gap })
+    expect(box('below')).toEqual({ left: 0, top: 6 * pitch, width: 375, height: 3 * pitch - gap })
+
+    resize(gridWidth)
+    expect(box('right')).toEqual({ left: 6 * 101, top: 0, width: 594, height: 2 * pitch - gap })
+    expect(box('below')).toEqual({ left: 0, top: 3 * pitch, width: gridWidth, height: 3 * pitch - gap })
+    expect(fetched).toHaveBeenCalledTimes(3)
   })
 })

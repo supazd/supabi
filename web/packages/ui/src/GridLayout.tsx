@@ -46,7 +46,10 @@ export interface GridLayoutProps<T extends GridItem> {
   /** Automatic compaction, as distinct from an author's drag or resize. */
   onNormalize?: (items: T[]) => void
   renderItem: (item: T) => ReactNode
-  /** Below this container width items are stacked in reading order instead. */
+  /**
+   * Below this container width, unless being arranged, items are stacked in
+   * reading order instead. They are only moved there: what they show stays.
+   */
   stackBelow?: number
   /**
    * When set on an editable layout, something dragged from elsewhere on the
@@ -100,6 +103,19 @@ function makeRoom(items: { id: string; x: number; y: number; w: number; h: numbe
 function pointOf(event: Event): { x: number; y: number } {
   const at = 'touches' in event ? (event as TouchEvent).touches[0] ?? (event as TouchEvent).changedTouches[0] : event as MouseEvent
   return { x: at?.clientX ?? 0, y: at?.clientY ?? 0 }
+}
+
+/**
+ * The items one under another in reading order, each as wide as the grid and
+ * as tall as it is there, kept apart as containers are.
+ */
+function stack<L extends { x: number; y: number; w: number; h: number }>(layout: L[], columns: number, containerGap: number): L[] {
+  let y = 0
+  return [...layout].sort((a, b) => a.y - b.y || a.x - b.x).map((entry) => {
+    const placed = { ...entry, x: 0, y, w: columns }
+    y += entry.h + containerGap
+    return placed
+  })
 }
 
 /** The pixel height of an item `h` rows tall. */
@@ -227,7 +243,13 @@ export function GridLayout<T extends GridItem>({ items, columns, rowHeight, gap,
       away: (on) => member.current!.away(on),
     })
   }, [joined, group])
-  const shown = incoming ? arrange(layout, incoming).map((entry) => entry.i === incomingKey ? { ...entry, static: true } : entry) : layout
+  // On a narrow screen the same items are laid out in one column, not drawn
+  // anew: drawn anew, every chart and filter would ask for its data again.
+  // The column count stays, so before the library takes up the new layout it
+  // shows the old one at the new width, not items far off to the right.
+  // See .agents/design/chart-dashboard.md §7.
+  const stacked = !editable && width < stackBelow
+  const shown = incoming ? arrange(layout, incoming).map((entry) => entry.i === incomingKey ? { ...entry, static: true } : entry) : stacked ? stack(layout, columns, containerGap) : layout
   // Use the layout library's rounded boundaries for every background cell too.
   // A full-width, two-row tile avoids accumulated fractional-pixel drift at 1.5px gaps.
   const cell = useMemo(() => {
@@ -238,19 +260,6 @@ export function GridLayout<T extends GridItem>({ items, columns, rowHeight, gap,
     }).join('')
     return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${2 * pitch}">${cells}</svg>`)}")`
   }, [columns, positionParams, width, pitch, editable, mounted])
-
-  if (mounted && !editable && width < stackBelow) {
-    const ordered = [...items].sort((a, b) => a.y - b.y || a.x - b.x)
-    return (
-      <div ref={containerRef} style={{ display: 'grid', gap: gap + containerGap * pitch }}>
-        {ordered.map((item) => (
-          <div ref={(node) => { if (node) itemNodes.current.set(item.id, node); else itemNodes.current.delete(item.id) }} key={item.id} style={{ height: gridItemHeight(layout.find((entry) => entry.i === item.id)!.h, rowHeight, gap) }}>
-            {renderItem(item)}
-          </div>
-        ))}
-      </div>
-    )
-  }
 
   return (
     // Room is kept under the items of a layout being arranged, to move them into and to drop new ones on.
