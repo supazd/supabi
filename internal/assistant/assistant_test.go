@@ -625,10 +625,31 @@ func TestAnswerWithTools(t *testing.T) {
 	}
 }
 
-// Past the most calls an answer may make, the model is given no tools and
-// answers with what it has found.
+// setSystem sets the system settings the next answers start with.
+func (e *env) setSystem(v store.SystemSettingValues) {
+	e.t.Helper()
+	if err := store.SetSystemSettings(e.ctx, e.pool.Pool, e.scope, v); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// toolResults counts what the model was given back in this answer and the ones before.
+func (c call) toolResults() int {
+	n := 0
+	for _, m := range c.Messages {
+		if m.Role == "tool" {
+			n++
+		}
+	}
+	return n
+}
+
+// Past the most calls an answer may make, as set, the model is given no
+// tools and answers with what it has found.
 func TestToolCallsEnd(t *testing.T) {
 	e := newEnv(t, 64000)
+	most := 3
+	e.setSystem(store.SystemSettingValues{AssistantMaxToolCalls: &most})
 	var called []string
 	e.tools = testTools(&called)
 	e.fake.answer = func(c call, w http.ResponseWriter, _ *http.Request) {
@@ -639,7 +660,7 @@ func TestToolCallsEnd(t *testing.T) {
 		reply(w, "查不完。", "")
 	}
 	answer, _ := e.ask(e.ctx, e.conversation().ID, "一直查")
-	if answer.Status != store.MessageDone || answer.Text() != "查不完。" || len(called) != maxToolCalls {
+	if answer.Status != store.MessageDone || answer.Text() != "查不完。" || len(called) != most {
 		t.Errorf("answer %q after %d calls", answer.Text(), len(called))
 	}
 
@@ -650,7 +671,7 @@ func TestToolCallsEnd(t *testing.T) {
 			reply(w, "够了。", "")
 			return
 		}
-		many := make([][2]string, maxToolCalls+5)
+		many := make([][2]string, most+5)
 		for i := range many {
 			many[i] = [2]string{"list_dashboards", `{}`}
 		}
@@ -663,7 +684,7 @@ func TestToolCallsEnd(t *testing.T) {
 			notRun++
 		}
 	}
-	if answer.Text() != "够了。" || len(called) != maxToolCalls || notRun != 5 {
+	if answer.Text() != "够了。" || len(called) != most || notRun != 5 {
 		t.Errorf("answer %q after %d calls, %d not run", answer.Text(), len(called), notRun)
 	}
 
@@ -674,8 +695,75 @@ func TestToolCallsEnd(t *testing.T) {
 			callTools(w, [2]string{"list_dashboards", `{}`})
 		}
 	}
-	if answer, _ := e.ask(e.ctx, e.conversation().ID, "还查"); answer.Status != store.MessageDone || len(called) != maxToolCalls {
+	if answer, _ := e.ask(e.ctx, e.conversation().ID, "还查"); answer.Status != store.MessageDone || len(called) != most {
 		t.Errorf("answer %+v after %d calls", answer, len(called))
+	}
+
+	// With no most, an answer calls tools for as long as the model asks,
+	// past the default too.
+	none, wanted := 0, store.DefaultSystemSettings.AssistantMaxToolCalls+5
+	e.setSystem(store.SystemSettingValues{AssistantMaxToolCalls: &none})
+	called = nil
+	conv := e.conversation()
+	e.fake.answer = func(c call, w http.ResponseWriter, _ *http.Request) {
+		if len(c.Tools) > 0 && c.toolResults() < wanted {
+			callTools(w, [2]string{"list_dashboards", `{}`})
+			return
+		}
+		reply(w, "查完了。", "")
+	}
+	if answer, _ := e.ask(e.ctx, conv.ID, "查到底"); answer.Text() != "查完了。" || len(called) != wanted {
+		t.Errorf("answer %q after %d calls, without a most", answer.Text(), len(called))
+	}
+}
+
+// Past the share of the room set, an answer is given no more tools and
+// answers with what it has found.
+func TestToolsEndWhenTheRoomFills(t *testing.T) {
+	e := newEnv(t, 64000) // room: 56000 tokens, half of it 28000
+	half := 50
+	e.setSystem(store.SystemSettingValues{AssistantCompressPercent: &half})
+	calls := 0
+	e.tools = []Tool{{Name: "big", Parameters: json.RawMessage(`{"type":"object"}`), Run: func(context.Context, string) ToolResult {
+		calls++
+		return ToolResult{Content: strings.Repeat("数", 10000)}
+	}}}
+	e.fake.answer = func(c call, w http.ResponseWriter, _ *http.Request) {
+		if len(c.Tools) > 0 {
+			callTools(w, [2]string{"big", `{}`})
+			return
+		}
+		reply(w, "就这些。", "")
+	}
+	// Each result takes 10000: after the third, the next call would read
+	// more than 28000.
+	if answer, _ := e.ask(e.ctx, e.conversation().ID, "查很多"); answer.Text() != "就这些。" || calls != 3 {
+		t.Errorf("answer %q after %d calls", answer.Text(), calls)
+	}
+}
+
+// A conversation is summarized past the share of the room set.
+func TestCompressAtTheSetShare(t *testing.T) {
+	e := newEnv(t, 64000) // room: 56000 tokens, half of it 28000
+	half := 50
+	e.setSystem(store.SystemSettingValues{AssistantCompressPercent: &half})
+	e.fake.answer = func(c call, w http.ResponseWriter, _ *http.Request) {
+		if strings.Contains(c.system(), "keep the memory") {
+			reply(w, "摘要", "")
+			return
+		}
+		reply(w, "好的。", "")
+	}
+	conv := e.conversation()
+	long := strings.Repeat("销", 10000)
+	for i := range 2 {
+		if _, events := e.ask(e.ctx, conv.ID, fmt.Sprintf("第%d问%s", i+1, long)); events[0].Status == StatusCompressing {
+			t.Fatalf("summarized at question %d", i+1)
+		}
+	}
+	// A third takes it past 28000, though not past the default of 44800.
+	if _, events := e.ask(e.ctx, conv.ID, "第3问"+long); events[0].Status != StatusCompressing {
+		t.Errorf("not summarized past half the room: %+v", events[0])
 	}
 }
 

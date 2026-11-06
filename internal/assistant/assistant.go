@@ -22,11 +22,14 @@ import (
 	"github.com/supazd/supabi/internal/store"
 )
 
+// How full the model's room may get before the earlier part of a
+// conversation is summarized, and before an answer stops looking things up,
+// and how many tools an answer may call, are system settings:
+// .agents/design/configuration.md 10.9.
 const (
-	// compressAt is how full the model's room may get before the earlier
-	// part of a conversation is summarized, and before an answer stops
-	// looking things up.
-	compressAt = 0.8
+	// partFill is how much of the summarizing model's room one part of what
+	// it summarizes may take, a margin for the estimate of its length.
+	partFill = 0.8
 	// keepShare: the latest messages kept as they are take at most this
 	// share of the room, the rest being summarized.
 	keepShare = 4
@@ -34,9 +37,6 @@ const (
 	maxTitleTokens   = 1024
 	maxSummaryTokens = 4096
 	titleTimeout     = time.Minute
-	// maxToolCalls is how many tools an answer may call. Past it, the model
-	// answers with what it has found.
-	maxToolCalls = 20
 )
 
 // ErrMessageTooLong means a message does not fit in what the model can read.
@@ -253,8 +253,14 @@ func (s *Service) write(ctx context.Context, sc store.Scope, answer store.Messag
 	if err != nil {
 		return fail(err)
 	}
+	// Read once: an answer keeps to the settings it started with.
+	settings, err := store.SystemSettingsInForce(ctx, s.Pool, sc.OrgID)
+	if err != nil {
+		return fail(err)
+	}
+	maxCalls := settings.AssistantMaxToolCalls
 	system := systemPrompt(s.now(), workspace.Timezone, "")
-	full := int64(compressAt * float64(room(chat.AIModel)))
+	full := room(chat.AIModel) * int64(settings.AssistantCompressPercent) / 100
 
 	compressed := false
 	compress := func(refused bool) {
@@ -305,8 +311,8 @@ func (s *Service) write(ctx context.Context, sc store.Scope, answer store.Messag
 			Messages:      slices.Concat([]llm.Message{{Role: "system", Content: systemPrompt(s.now(), workspace.Timezone, conv.Summary)}}, readable(conv, history, answer), turn),
 		}
 		// Past the most calls, or with the room nearly full, the model
-		// answers with what it has found.
-		if calls < maxToolCalls && filled <= full {
+		// answers with what it has found. No most is no limit.
+		if (maxCalls == 0 || calls < maxCalls) && filled <= full {
 			req.Tools = offered
 		}
 		result, err := s.stream(ctx, sc, chat, req, answer, sofar, emit)
@@ -354,7 +360,7 @@ func (s *Service) write(ctx context.Context, sc store.Scope, answer store.Messag
 			)
 			// One reply may call many tools at once: past the most, they are not run.
 			switch {
-			case calls >= maxToolCalls:
+			case maxCalls > 0 && calls >= maxCalls:
 				out = ToolResult{Content: "Not run: this answer has called tools as often as it may. Answer with what you have found.", Failed: true}
 			case call.Name == calculatorName:
 				var result *big.Rat

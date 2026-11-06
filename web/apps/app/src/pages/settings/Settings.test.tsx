@@ -33,6 +33,7 @@ const response = (data: unknown) => ({ data, response: { ok: true } })
 const systemDefaults = {
   exportRetentionHours: 24, exportTimeoutMinutes: 15, exportMaxRows: 2_000_000, exportMaxSizeMb: 512, auditRetentionDays: 180, queryCacheTtlMinutes: 10,
   queryTimeoutSeconds: 60, queryDefaultRows: 1000, queryMaxRows: 10_000, sessionLifetimeHours: 168, workspaceRetentionDays: 30, mcpEnabled: false,
+  assistantCompressPercent: 80, assistantMaxToolCalls: 60,
 }
 
 /** Picks an action from the menu at the end of someone's or something's row. */
@@ -331,6 +332,20 @@ describe('system settings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(server.put).toHaveBeenLastCalledWith('/system/settings', { body: { auditRetentionDays: 0 } }))
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('takes 0 tool calls as no limit, and keeps the share of the context from 50 to 95', async () => {
+    open('/settings/system/general')
+    const share = await screen.findByLabelText('Compress context at') as HTMLInputElement
+    expect(share.placeholder).toBe('80')
+    const save = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement
+    fireEvent.change(share, { target: { value: '40' } })
+    expect(screen.getByText('A whole number from 50 to 95.')).toBeTruthy()
+    expect(save.disabled).toBe(true)
+    fireEvent.change(share, { target: { value: '90' } })
+    fireEvent.change(screen.getByLabelText('Most tool calls per answer'), { target: { value: '0' } })
+    fireEvent.click(save)
+    await waitFor(() => expect(server.put).toHaveBeenCalledExactlyOnceWith('/system/settings', { body: { assistantCompressPercent: 90, assistantMaxToolCalls: 0 } }))
   })
 
   it('turns MCP clients on, and keeps the switch as set once it is', async () => {

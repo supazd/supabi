@@ -1917,6 +1917,10 @@ export interface components {
             workspaceRetentionDays?: number;
             /** @description Whether people may connect MCP clients to read their dashboards */
             mcpEnabled?: boolean;
+            /** @description Share of a model's usable context past which the AI assistant summarizes the earlier conversation and an answer stops calling tools */
+            assistantCompressPercent?: number;
+            /** @description The most tools one answer of the AI assistant may call; 0 sets no limit */
+            assistantMaxToolCalls?: number;
         };
         /** @description What each system setting is when left out. */
         SystemSettingDefaults: {
@@ -1933,6 +1937,8 @@ export interface components {
             sessionLifetimeHours: number;
             workspaceRetentionDays: number;
             mcpEnabled: boolean;
+            assistantCompressPercent: number;
+            assistantMaxToolCalls: number;
         };
         SystemSettings: {
             values: components["schemas"]["SystemSettingValues"];
