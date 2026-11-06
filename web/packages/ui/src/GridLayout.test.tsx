@@ -703,3 +703,15 @@ describe('dragging between the grids of a group', () => {
     expect(areas().bottom).toEqual([{ id: 'third', x: 2, y: 4, w: 4, h: 2 }, { id: 'fourth', x: 8, y: 4, w: 4, h: 2 }, { id: 'first', x: 2, y: 2, w: 4, h: 2 }])
   })
 })
+
+describe('the single column on a narrow screen', () => {
+  it('puts items in reading order, each at least its grid height, so that what it holds can make it taller', () => {
+    const items: GridItem[] = [{ id: 'right', x: 6, y: 0, w: 6, h: 2 }, { id: 'left', x: 0, y: 0, w: 6, h: 3 }]
+    render(<GridLayout items={items} columns={12} rowHeight={rowHeight} gap={gap} stackBelow={gridWidth + 1} renderItem={(item) => <div data-testid={`item-${item.id}`}>{item.id}</div>} />)
+    const left = screen.getByTestId('item-left').parentElement!
+    const right = screen.getByTestId('item-right').parentElement!
+    expect(left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect([left.style.minHeight, right.style.minHeight]).toEqual([`${3 * (rowHeight + gap) - gap}px`, `${2 * (rowHeight + gap) - gap}px`])
+    expect([left.style.height, right.style.height]).toEqual(['', ''])
+  })
+})

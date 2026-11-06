@@ -53,6 +53,7 @@ const shapes = {
   ),
   folder: <path d="M2 4.5a1 1 0 0 1 1-1h3L7.5 5H13a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />,
   folderPlus: <path d="M2 4.5a1 1 0 0 1 1-1h3L7.5 5H13a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1zM8 7.5v3M6.5 9h3" />,
+  chevronLeft: <path d="M10 3.5 5.5 8 10 12.5" />,
   chevronRight: <path d="M6 3.5 10.5 8 6 12.5" />,
   chevronDown: <path d="M3.5 6 8 10.5 12.5 6" />,
   sortAsc: <path d="M8 13V3M4.5 6.5 8 3l3.5 3.5" />,

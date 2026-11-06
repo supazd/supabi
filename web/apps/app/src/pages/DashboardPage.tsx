@@ -747,6 +747,9 @@ function Widget({
     ],
   } : undefined
   const crumbs = <DrillCrumbs position={position} onBack={(depth) => interaction.setWidget(item.id, { drill: depth ? { ...position!, steps: position!.steps.slice(0, depth) } : undefined })} />
+  // A KPI on the board fills its box by CSS, so that in a single column its figures can make the box taller.
+  // See .agents/design/chart-dashboard.md §3.16.
+  const kpi = effectiveSpec?.viz.type === 'kpi'
   // On the board a chart is drawn on its box's colour; enlarged, on the dialog's.
   const drawChart = (height: number, onBox = true) => chart && spec && (
     <Async state={shown} reload={data.reload}>
@@ -758,7 +761,7 @@ function Widget({
             pageKey={loaded.key}
             colorScheme={onBox ? look.scheme ?? colorScheme : colorScheme}
             surface={onBox ? look.surface : undefined}
-            height={height}
+            height={onBox && kpi ? undefined : height}
             label={chartName}
             clickActions={clickActions}
             selection={activeLink ? { value: linking.values[activeLink.id] ?? null } : undefined}
@@ -770,7 +773,7 @@ function Widget({
   )
 
   return (
-    <article ref={box} className={`card widget ${look.className}${hideHeader ? editing ? ' header-faded' : ' header-hidden' : ''}${editing ? ' editing' : ''}${selected ? ' selected' : ''}${dropOver ? ' drop-over' : ''}${pending && outdated ? ' outdated' : ''}`} style={look.style} aria-label={chartName} aria-busy={pending || !near}
+    <article ref={box} className={`card widget ${look.className}${kpi ? ' kpi' : ''}${hideHeader ? editing ? ' header-faded' : ' header-hidden' : ''}${editing ? ' editing' : ''}${selected ? ' selected' : ''}${dropOver ? ' drop-over' : ''}${pending && outdated ? ' outdated' : ''}`} style={look.style} aria-label={chartName} aria-busy={pending || !near}
       data-drop-into={editing ? item.id : undefined} {...dropHandlers}
       onClick={(event) => { if (!(event.target as HTMLElement).closest('button, a, input, .widget-filters, .widget-actions')) onSelect?.() }}>
       {pending && result && <div className="widget-progress" role="progressbar" aria-label={t('dashboard.loadingChart', { name: chartName })} />}
