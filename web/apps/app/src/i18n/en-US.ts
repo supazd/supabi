@@ -1720,6 +1720,7 @@ export const enUS: Messages = {
     removeComponent: 'Remove component',
     removeComponentConfirm: 'Remove “{{name}}” from this dashboard? Its global filter mappings will also be removed. The source chart is kept, and you can undo this change.',
     choose: 'Choose a dashboard on the left.',
+    backToList: 'Back to dashboards',
     title: 'Dashboards',
     new: 'New dashboard',
     empty: 'No dashboards yet.',

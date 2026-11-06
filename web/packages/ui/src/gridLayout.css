@@ -21,6 +21,18 @@
 .lb-grid.editable > .react-grid-layout { box-sizing: content-box; min-height: var(--lb-grid-least); padding-bottom: var(--lb-grid-room); }
 
 .lb-grid-item-content { height: 100%; min-height: 0; }
+
+/* The single column on a narrow screen: the same items, laid out by the
+   browser one under another, in the reading order they are given in. The
+   library's fixed positions and sizes are set aside, so that each item is
+   as tall as its least height or what it holds, whichever is taller; being
+   a grid of one cell, its content hands that height on to what fills it.
+   See .agents/design/chart-dashboard.md §3.16. */
+.lb-grid.stacked > .react-grid-layout { display: grid; gap: var(--lb-grid-stack-gap); height: auto !important; transition: none; }
+.lb-grid.stacked > .react-grid-layout > .react-grid-item { position: relative !important; transform: none !important; width: auto !important; height: auto !important; transition: none; }
+.lb-grid.stacked .lb-grid-item-content { display: grid; grid-template-columns: minmax(0, 1fr); height: auto; }
+/* Just out of the column, items are put on the grid without easing. */
+.lb-grid.settling > .react-grid-layout, .lb-grid.settling > .react-grid-layout > .react-grid-item { transition: none; }
 /* After the library's own styles, which this file follows wherever the grid's code is loaded. */
 .react-grid-item.react-grid-placeholder { background: var(--lb-color-primary); border-radius: var(--lb-radius); }
 .react-grid-item > .react-resizable-handle::after { border-color: var(--lb-color-text-secondary); }

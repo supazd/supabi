@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import ReactGridLayout, { useContainerWidth, type Layout } from 'react-grid-layout'
 import { calcGridItemPosition, calcXYRaw, defaultConstraints, type LayoutConstraint, type PositionParams } from 'react-grid-layout/core'
 import { gridColumnGap, gridCompactor } from './gridCompactor'
@@ -48,7 +48,8 @@ export interface GridLayoutProps<T extends GridItem> {
   renderItem: (item: T) => ReactNode
   /**
    * Below this container width, unless being arranged, items are stacked in
-   * reading order instead. They are only moved there: what they show stays.
+   * reading order instead, each growing with what it holds. They are the same
+   * items, only placed otherwise: what they show stays.
    */
   stackBelow?: number
   /**
@@ -103,19 +104,6 @@ function makeRoom(items: { id: string; x: number; y: number; w: number; h: numbe
 function pointOf(event: Event): { x: number; y: number } {
   const at = 'touches' in event ? (event as TouchEvent).touches[0] ?? (event as TouchEvent).changedTouches[0] : event as MouseEvent
   return { x: at?.clientX ?? 0, y: at?.clientY ?? 0 }
-}
-
-/**
- * The items one under another in reading order, each as wide as the grid and
- * as tall as it is there, kept apart as containers are.
- */
-function stack<L extends { x: number; y: number; w: number; h: number }>(layout: L[], columns: number, containerGap: number): L[] {
-  let y = 0
-  return [...layout].sort((a, b) => a.y - b.y || a.x - b.x).map((entry) => {
-    const placed = { ...entry, x: 0, y, w: columns }
-    y += entry.h + containerGap
-    return placed
-  })
 }
 
 /** The pixel height of an item `h` rows tall. */
@@ -243,13 +231,30 @@ export function GridLayout<T extends GridItem>({ items, columns, rowHeight, gap,
       away: (on) => member.current!.away(on),
     })
   }, [joined, group])
-  // On a narrow screen the same items are laid out in one column, not drawn
-  // anew: drawn anew, every chart and filter would ask for its data again.
-  // The column count stays, so before the library takes up the new layout it
-  // shows the old one at the new width, not items far off to the right.
-  // See .agents/design/chart-dashboard.md §7.
+  // On a narrow screen the same items are shown in one column, not drawn anew:
+  // drawn anew, every chart and filter would ask for its data again. There the
+  // browser lays them out instead of the library, in reading order, each at
+  // least as tall as on the grid and taller when what it holds needs more
+  // room, as wrapped figures or text on a phone do. The library would keep
+  // them at fixed heights. See .agents/design/chart-dashboard.md §3.16 and §7.
   const stacked = !editable && width < stackBelow
-  const shown = incoming ? arrange(layout, incoming).map((entry) => entry.i === incomingKey ? { ...entry, static: true } : entry) : stacked ? stack(layout, columns, containerGap) : layout
+  const ordered = stacked ? [...items].sort((a, b) => a.y - b.y || a.x - b.x) : items
+  // Leaving the column, items are put at once where they belong on the grid.
+  // Eased there, they would all set out from its top left corner, which is
+  // where the library's positions start from once nothing sets them aside.
+  const [wasStacked, setWasStacked] = useState(stacked)
+  const [settling, setSettling] = useState(false)
+  if (wasStacked !== stacked) {
+    setWasStacked(stacked)
+    if (!stacked) setSettling(true)
+  }
+  useLayoutEffect(() => {
+    if (!settling) return
+    // The browser has to have placed them before easing is back, or it eases them all the same.
+    void containerRef.current?.offsetHeight
+    setSettling(false)
+  }, [settling, containerRef])
+  const shown = incoming ? arrange(layout, incoming).map((entry) => entry.i === incomingKey ? { ...entry, static: true } : entry) : layout
   // Use the layout library's rounded boundaries for every background cell too.
   // A full-width, two-row tile avoids accumulated fractional-pixel drift at 1.5px gaps.
   const cell = useMemo(() => {
@@ -265,14 +270,14 @@ export function GridLayout<T extends GridItem>({ items, columns, rowHeight, gap,
     // Room is kept under the items of a layout being arranged, to move them into and to drop new ones on.
     <div
       ref={containerRef}
-      className={`${editable ? 'lb-grid editable' : 'lb-grid'}${away ? ' away' : ''}`}
+      className={`${editable ? 'lb-grid editable' : 'lb-grid'}${stacked ? ' stacked' : ''}${settling ? ' settling' : ''}${away ? ' away' : ''}`}
       onMouseDownCapture={(event) => { pressed.current = { x: event.clientX, y: event.clientY } }}
       onTouchStartCapture={(event) => { const touch = event.touches[0]; if (touch) pressed.current = { x: touch.clientX, y: touch.clientY } }}
       // Caught on the way down: the library keeps this event to itself.
       onDragLeaveCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setReceiving(false)
       }}
-      style={{ '--lb-grid-room': `${2 * unitScale * pitch}px`, '--lb-grid-least': `${gridItemHeight(4 * unitScale, rowHeight, gap)}px` } as CSSProperties}
+      style={{ '--lb-grid-room': `${2 * unitScale * pitch}px`, '--lb-grid-least': `${gridItemHeight(4 * unitScale, rowHeight, gap)}px`, '--lb-grid-stack-gap': `${gap + containerGap * pitch}px` } as CSSProperties}
     >
       {/* The cells items keep to: faint while arranging, plainer while something is being moved or resized. */}
       {mounted && editable && <div className={dragging || resizing || receiving || incoming ? 'lb-grid-cells active' : 'lb-grid-cells'} style={{ maskImage: cell, WebkitMaskImage: cell, maskSize: `${width}px ${2 * pitch}px`, WebkitMaskSize: `${width}px ${2 * pitch}px` }} aria-hidden />}
@@ -389,8 +394,9 @@ export function GridLayout<T extends GridItem>({ items, columns, rowHeight, gap,
             if (next.some((item, index) => item.x !== items[index]!.x || item.y !== items[index]!.y || item.w !== items[index]!.w || item.h !== items[index]!.h)) (arranging.current ? onChange : onNormalize ?? onChange)(next)
           }}
         >
-          {items.map((item) => (
-            <div key={item.id}><div className="lb-grid-item-content" ref={(node) => { if (node) itemNodes.current.set(item.id, node); else itemNodes.current.delete(item.id) }}>{renderItem(resizing?.id === item.id ? { ...item, w: resizing.w, h: resizing.h } : item)}</div></div>
+          {ordered.map((item) => (
+            // In the column, being a grid of one cell, the content hands the height it is given on to what fills it.
+            <div key={item.id}><div className="lb-grid-item-content" ref={(node) => { if (node) itemNodes.current.set(item.id, node); else itemNodes.current.delete(item.id) }} style={stacked ? { minHeight: gridItemHeight(layout.find((entry) => entry.i === item.id)!.h, rowHeight, gap) } : undefined}>{renderItem(resizing?.id === item.id ? { ...item, w: resizing.w, h: resizing.h } : item)}</div></div>
           ))}
           {incoming && <div key={incomingKey} className="react-grid-placeholder" aria-hidden />}
         </ReactGridLayout>

@@ -704,8 +704,18 @@ describe('dragging between the grids of a group', () => {
   })
 })
 
-describe('narrow screens', () => {
-  it('stacks the items in reading order without drawing them anew, so none asks for its data again', () => {
+describe('the single column on a narrow screen', () => {
+  it('puts items in reading order, each at least its grid height, so that what it holds can make it taller', () => {
+    const items: GridItem[] = [{ id: 'right', x: 6, y: 0, w: 6, h: 2 }, { id: 'left', x: 0, y: 0, w: 6, h: 3 }]
+    render(<GridLayout items={items} columns={12} rowHeight={rowHeight} gap={gap} stackBelow={gridWidth + 1} renderItem={(item) => <div data-testid={`item-${item.id}`}>{item.id}</div>} />)
+    const left = screen.getByTestId('item-left').parentElement!
+    const right = screen.getByTestId('item-right').parentElement!
+    expect(left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect([left.style.minHeight, right.style.minHeight]).toEqual([`${3 * (rowHeight + gap) - gap}px`, `${2 * (rowHeight + gap) - gap}px`])
+    expect([left.style.height, right.style.height]).toEqual(['', ''])
+  })
+
+  it('switches between the grid and the column without drawing the items anew, so none asks for its data again', () => {
     let width = gridWidth
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => width)
     const observers = new Set<ResizeObserverCallback>()
@@ -728,7 +738,7 @@ describe('narrow screens', () => {
       return <div data-testid={`chart-${id}`}>{id}</div>
     }
     const items: GridItem[] = [{ id: 'right', x: 6, y: 0, w: 6, h: 2 }, { id: 'left', x: 0, y: 0, w: 6, h: 2 }, { id: 'below', x: 0, y: 2, w: 12, h: 3 }]
-    render(<GridLayout items={items} columns={12} rowHeight={rowHeight} gap={gap} containerGap={1} renderItem={(item) => <Chart id={item.id} />} />)
+    const { container } = render(<GridLayout items={items} columns={12} rowHeight={rowHeight} gap={gap} containerGap={1} renderItem={(item) => <Chart id={item.id} />} />)
     const drawn = items.map((item) => screen.getByTestId(`chart-${item.id}`))
     expect(fetched).toHaveBeenCalledTimes(3)
     const box = (id: string) => {
@@ -740,13 +750,16 @@ describe('narrow screens', () => {
     for (const next of [375, gridWidth, 375, 639, 640, 639, 641, 375]) resize(next)
     expect(fetched).toHaveBeenCalledTimes(3)
     items.forEach((item, index) => expect(screen.getByTestId(`chart-${item.id}`)).toBe(drawn[index]))
-    // One under another, left before right, each the full width and kept apart as containers are.
+    // One under another, left before right, each at least its grid height; the browser places them.
     const pitch = rowHeight + gap
-    expect(box('left')).toEqual({ left: 0, top: 0, width: 375, height: 2 * pitch - gap })
-    expect(box('right')).toEqual({ left: 0, top: 3 * pitch, width: 375, height: 2 * pitch - gap })
-    expect(box('below')).toEqual({ left: 0, top: 6 * pitch, width: 375, height: 3 * pitch - gap })
+    const content = (id: string) => screen.getByTestId(`chart-${id}`).parentElement!
+    expect(container.querySelector('.lb-grid')!.classList.contains('stacked')).toBe(true)
+    expect([...container.querySelectorAll('.lb-grid-item-content')].map((element) => element.firstElementChild!.textContent)).toEqual(['left', 'right', 'below'])
+    expect(['left', 'right', 'below'].map((id) => content(id).style.minHeight)).toEqual([`${2 * pitch - gap}px`, `${2 * pitch - gap}px`, `${3 * pitch - gap}px`])
 
     resize(gridWidth)
+    expect(container.querySelector('.lb-grid')!.classList.contains('stacked')).toBe(false)
+    expect(content('right').style.minHeight).toBe('')
     expect(box('right')).toEqual({ left: 6 * 101, top: 0, width: 594, height: 2 * pitch - gap })
     expect(box('below')).toEqual({ left: 0, top: 3 * pitch, width: gridWidth, height: 3 * pitch - gap })
     expect(fetched).toHaveBeenCalledTimes(3)

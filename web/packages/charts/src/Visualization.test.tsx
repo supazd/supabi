@@ -339,3 +339,14 @@ describe('conditional formats', () => {
     expect(regions[0]!.style.background).not.toBe(shade('red'))
   })
 })
+
+describe('KPI figures', () => {
+  const figures: QueryResult = { columns: [{ name: 'revenue', type: 'integer', role: 'measure' }], rows: [[1200]] }
+
+  it('fill the box they are in when given no height, and keep to a height they are given', () => {
+    const { rerender } = render(<Visualization viz={{ type: 'kpi', y: ['revenue'] }} result={figures} aria-label="figures" locale="en-US" />)
+    expect(screen.getByRole('group', { name: 'figures' }).style.height).toBe('100%')
+    rerender(<Visualization viz={{ type: 'kpi', y: ['revenue'] }} result={figures} aria-label="figures" locale="en-US" height={120} />)
+    expect(screen.getByRole('group', { name: 'figures' }).style.height).toBe('120px')
+  })
+})

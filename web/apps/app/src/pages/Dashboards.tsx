@@ -1,5 +1,5 @@
 import { Input, Tooltip, type ColorScheme } from '@supabi/ui'
-import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import { api, unwrap, type DashboardSummary, type Folder } from '../api/client'
@@ -16,7 +16,8 @@ import { DashboardView } from './DashboardPage'
 /**
  * The dashboards there are to read: their folders on the left, the chosen
  * dashboard on the right. Nothing is changed here; dashboards are made and
- * put into folders in the workbench.
+ * put into folders in the workbench. On a narrow screen the list and the
+ * dashboard are two screens, see .agents/design/chart-dashboard.md §3.16.
  */
 export function MyDashboards({ colorScheme }: { colorScheme: ColorScheme }) {
   const { t } = useTranslation()
@@ -80,10 +81,13 @@ export function MyDashboards({ colorScheme }: { colorScheme: ColorScheme }) {
 
   const wanted = filter.trim().toLowerCase()
   const matches = wanted ? dashboards.filter((item) => item.name.toLowerCase().includes(wanted)) : []
+  // Shown above the dashboard only when the list beside it is not: the name is then nowhere else.
+  const name = dashboards.find((item) => item.id === id)?.name
 
   return (
-    <div className="board-browser">
-      <aside className="wb-side" style={{ width }}>
+    <div className={id ? 'board-browser has-board' : 'board-browser'}>
+      {/* The width is the stylesheet's to drop on a narrow screen, where the list takes the whole of it. */}
+      <aside className="wb-side" style={{ '--board-side-width': `${width}px` } as CSSProperties}>
         <div className="wb-side-header">
           <span className="wb-side-title">{t('nav.dashboards')}</span>
           {canEdit && (
@@ -117,7 +121,15 @@ export function MyDashboards({ colorScheme }: { colorScheme: ColorScheme }) {
       <Resizer direction="horizontal" grows="forward" size={width} min={180} max={560} onResize={setWidth} label={t('workbench.resizeSide')} />
       <div ref={content} className="board-content">
         {id ? (
-          <ScrollArea value={area}><DashboardView key={id} colorScheme={colorScheme} /></ScrollArea>
+          <>
+            <div className="board-back">
+              <Link to="/dashboards" className="wb-icon-button" aria-label={t('dashboard.backToList')}>
+                <Icon name="chevronLeft" />
+              </Link>
+              {name && <span className="board-back-name" title={name}>{name}</span>}
+            </div>
+            <ScrollArea value={area}><DashboardView key={id} colorScheme={colorScheme} /></ScrollArea>
+          </>
         ) : (
           <div className="wb-landing">
             <Icon name="dashboard" size={40} />
