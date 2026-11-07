@@ -222,15 +222,15 @@ function DashboardFilters({ filters, shown = filters, interaction, dashboardId, 
     return [source, widget?.selections ?? {}, source ? paramsOf(source).map((id) => widget?.chosen[id]) : []]
   })
   const definitionsKey = JSON.stringify([interaction.globalKeys, selectionContext, interaction.mode, linking.values])
-  const options = (filterId: string, values: Record<string, unknown>, search = '', related = false) => {
+  const options = (filterId: string, values: Record<string, unknown>, search = '', related = false, signal?: AbortSignal) => {
     const filter = filters.find((entry) => entry.id === filterId)!
     const source = sourceOf(filter)
     const widget = source ? interaction.widgets[source] : undefined
     const asked = { links: linking.values, filters: values, selections: widget?.selections ?? {}, chartFilters: widget?.chosen ?? {}, search, related }
     const body = { ...asked, ...(freshOptions(filterId, refreshKey, JSON.stringify(asked)) ? { refresh: true } : {}) }
     return preview
-      ? unwrap(api.POST('/dashboards/preview/filters/{filterId}/options', { params: { path: { filterId } }, body: { ...preview, spec: preview.spec as unknown as Record<string, unknown>, ...body } }))
-      : unwrap(api.POST('/dashboards/{id}/filters/{filterId}/options', { params: { path: { id: dashboardId!, filterId } }, body }))
+      ? unwrap(api.POST('/dashboards/preview/filters/{filterId}/options', { params: { path: { filterId } }, body: { ...preview, spec: preview.spec as unknown as Record<string, unknown>, ...body }, signal }))
+      : unwrap(api.POST('/dashboards/{id}/filters/{filterId}/options', { params: { path: { id: dashboardId!, filterId } }, body, signal }))
   }
   const valueOf = (filter: GlobalFilter) => filter.id in interaction.draftValues ? interaction.draftValues[filter.id] : filter.default
   const cascade = useCascadeChange({
@@ -263,7 +263,7 @@ function DashboardFilters({ filters, shown = filters, interaction, dashboardId, 
           return result
         })}
         value={cascade.shown(filter.id, valueOf(filter))}
-        onChange={(value) => { void cascade.change(filter, value) }} loadOptions={(search) => options(filter.id, interaction.draftValues, search)} />
+        onChange={(value) => { void cascade.change(filter, value) }} loadOptions={(search, signal) => options(filter.id, interaction.draftValues, search, false, signal)} />
     </div>)}
     {interaction.mode === 'manual' && <div className="query-submit">
       {interaction.hasPending && <span className="note small" role="status">{t('dashboard.queryPending')}</span>}
@@ -591,16 +591,16 @@ function Widget({
   const asked = [loadKey, refreshKey, tickKey]
   const [heldAsk, holdAsk] = useState(asked)
   if (visible && heldAsk.some((key, index) => key !== asked[index])) holdAsk(asked)
-  const data = useAsync(async () => {
+  const data = useAsync(async (signal) => {
     if (!chart) return undefined
     const refreshing = freshData(refreshKey, loadKey)
     const timed = timedData(tickKey, loadKey) && Boolean(autoRefresh?.maxAge)
     const fresh = refreshing ? { refresh: true } : timed ? { maxAge: autoRefresh!.maxAge } : {}
     const result = await (preview
-      ? unwrap(api.POST('/dashboards/preview/items/{itemId}/data', { params: { path: { itemId: item.id } }, body: { ...preview, spec: preview.spec as unknown as Record<string, unknown>, ...body, ...drilling, ...fresh } }))
+      ? unwrap(api.POST('/dashboards/preview/items/{itemId}/data', { params: { path: { itemId: item.id } }, body: { ...preview, spec: preview.spec as unknown as Record<string, unknown>, ...body, ...drilling, ...fresh }, signal }))
       : dashboardId
-        ? unwrap(api.POST('/dashboards/{id}/items/{itemId}/data', { params: { path: { id: dashboardId, itemId: item.id } }, body: { ...body, ...drilling, ...fresh } }))
-        : unwrap(api.POST('/charts/{id}/data', { params: { path: { id: chart.id } }, body: { filters: body.chartFilters, selections, ...drilling, ...(refreshing ? { refresh: true } : {}) } })))
+        ? unwrap(api.POST('/dashboards/{id}/items/{itemId}/data', { params: { path: { id: dashboardId, itemId: item.id } }, body: { ...body, ...drilling, ...fresh }, signal }))
+        : unwrap(api.POST('/charts/{id}/data', { params: { path: { id: chart.id } }, body: { filters: body.chartFilters, selections, ...drilling, ...(refreshing ? { refresh: true } : {}) }, signal })))
     // The conditions the result answers, to tell it from a result for conditions since changed.
     return { key: loadKey, result }
   // Nor does it ask before it is first shown, however near it is.
@@ -628,12 +628,12 @@ function Widget({
     onStatus?.(item.id, { at: meta?.cachedAt, pending, failed })
   }, [onStatus, item.id, meta?.cachedAt, pending, failed])
   const cachedAt = meta?.cached && meta.cachedAt ? new Date(meta.cachedAt) : undefined
-  const loadOptions = (filterId: string, values: Record<string, unknown>, search = '', related = false) => {
+  const loadOptions = (filterId: string, values: Record<string, unknown>, search = '', related = false, signal?: AbortSignal) => {
     const asked = { ...body, chartFilters: values, search, related }
     const context = { ...asked, ...(freshOptions(filterId, refreshKey, JSON.stringify(asked)) ? { refresh: true } : {}) }
-    if (preview) return unwrap(api.POST('/dashboards/preview/items/{itemId}/filters/{filterId}/options', { params: { path: { itemId: item.id, filterId } }, body: { ...preview, spec: preview.spec as unknown as Record<string, unknown>, ...context } }))
-    if (dashboardId) return unwrap(api.POST('/dashboards/{id}/items/{itemId}/filters/{filterId}/options', { params: { path: { id: dashboardId, itemId: item.id, filterId } }, body: context }))
-    return unwrap(api.POST('/charts/{id}/filters/{filterId}/options', { params: { path: { id: chart!.id, filterId } }, body: { filters: values, selections, search, related, ...(context.refresh ? { refresh: true } : {}) } }))
+    if (preview) return unwrap(api.POST('/dashboards/preview/items/{itemId}/filters/{filterId}/options', { params: { path: { itemId: item.id, filterId } }, body: { ...preview, spec: preview.spec as unknown as Record<string, unknown>, ...context }, signal }))
+    if (dashboardId) return unwrap(api.POST('/dashboards/{id}/items/{itemId}/filters/{filterId}/options', { params: { path: { id: dashboardId, itemId: item.id, filterId } }, body: context, signal }))
+    return unwrap(api.POST('/charts/{id}/filters/{filterId}/options', { params: { path: { id: chart!.id, filterId } }, body: { filters: values, selections, search, related, ...(context.refresh ? { refresh: true } : {}) }, signal }))
   }
   const cascadeContext = JSON.stringify([body.links, useChartFilters, conditions.values, selections, interaction.widgetKeys[item.id], own.filter(isParamFilter).map((filter) => chosen[filter.id])])
   const takenOver = (filter: ChartFilter) => !useChartFilters && takenByAll(conditions.filters, { item: item.id, field: filter.field, aggregation: filter.aggregation }).length > 0
@@ -722,7 +722,7 @@ function Widget({
                 value={cascade.shown(filter.id, filter.id in chosen ? chosen[filter.id] : filter.value)}
                 onChange={(value) => { void cascade.change(filter, value) }}
                 // Its lists are asked for too: not before the chart is near.
-                loadOptions={near ? (search) => loadOptions(filter.id, body.chartFilters, search) : undefined}
+                loadOptions={near ? (search, signal) => loadOptions(filter.id, body.chartFilters, search, false, signal) : undefined}
               />
             </span>
           </Tooltip>

@@ -27,6 +27,9 @@ import (
 
 const connectTimeout = 10 * time.Second
 
+// statusClientClosed answers a request its client has left, as nginx logs it.
+const statusClientClosed = 499
+
 // Server holds what the handlers need. It implements gen.StrictServerInterface.
 type Server struct {
 	Exports *exports.Service
@@ -167,6 +170,10 @@ func (s *Server) toAPIError(ctx context.Context, err error) *apiError {
 		return &apiError{status: http.StatusGatewayTimeout, code: "queue_timeout", message: "the data source was too busy to start the query in time"}
 	case errors.Is(err, context.DeadlineExceeded):
 		return &apiError{status: http.StatusGatewayTimeout, code: "timeout", message: "the database took too long to answer"}
+	case errors.Is(err, context.Canceled):
+		// The client left, as pages do with what they no longer need; nobody
+		// reads the answer, and nothing went wrong: .agents/design/query-ir.md 6.7.
+		return &apiError{status: statusClientClosed, code: "canceled", message: "the request was cancelled"}
 	}
 	// Anything else is ours to fix; the details stay in the log.
 	s.Logger.ErrorContext(ctx, "request failed", "error", err)
