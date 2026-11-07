@@ -30,6 +30,7 @@ bin/supabi serve --config supabi.yaml
 | `secret-key` | 必填 | 加密保存的密码和 API 密钥。用 `supabi generate-key` 生成一次 |
 | `roles` | 全部 | 要运行的角色，取自 `api`、`worker`、`scheduler`，用逗号分隔 |
 | `http-addr` | `127.0.0.1:8080` | `api` 角色的监听地址 |
+| `http-max-body-size` | `8MB` | `api` 角色读取的请求体上限，超过的返回 413 |
 | `auto-migrate` | `true` | 启动时执行待处理的迁移。关闭后，启动新版本前要先运行 `supabi migrate` |
 | `data-dir` | `data` | 数据目录。`export-storage: local` 时导出文件存在这里 |
 

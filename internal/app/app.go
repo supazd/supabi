@@ -232,7 +232,7 @@ func Run(ctx context.Context, cfg config.Config, logOut io.Writer) error {
 		var run runner
 		switch r {
 		case role.API:
-			run = server.New(cfg.HTTPAddr, cfg.ShutdownTimeout, apiServer.Register, pool.Ping, logger)
+			run = server.New(cfg.HTTPAddr, cfg.ShutdownTimeout, cfg.HTTPMaxBodySize, apiServer.Register, pool.Ping, logger)
 		case role.Worker:
 			run = &worker.Worker{Pool: pool, Exports: exportService, Logger: logger, Concurrency: cfg.ExportWorkers, Audit: recorder}
 		case role.Scheduler:

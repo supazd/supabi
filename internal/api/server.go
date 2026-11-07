@@ -16,6 +16,7 @@ import (
 	"github.com/supazd/supabi/internal/assistant"
 	"github.com/supazd/supabi/internal/audit"
 	"github.com/supazd/supabi/internal/buildinfo"
+	"github.com/supazd/supabi/internal/config"
 	"github.com/supazd/supabi/internal/dataset"
 	"github.com/supazd/supabi/internal/datasource"
 	"github.com/supazd/supabi/internal/exports"
@@ -59,7 +60,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	// that recordAudit then records.
 	strict := gen.NewStrictHandlerWithOptions(s, []gen.StrictMiddlewareFunc{s.recordAudit, s.authenticate}, gen.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
-			writeError(w, &apiError{status: http.StatusBadRequest, code: "invalid_request", message: err.Error()})
+			writeError(w, requestError(err))
 		},
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 			writeError(w, s.toAPIError(r.Context(), err))
@@ -102,6 +103,18 @@ type apiError struct {
 }
 
 func (e *apiError) Error() string { return e.code + ": " + e.message }
+
+// requestError reports a request body that could not be read. One cut off at
+// the limit of the startup configuration gets the answer the server gives one
+// that says beforehand it is too large: .agents/design/configuration.md 12.
+func requestError(err error) *apiError {
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		return &apiError{status: http.StatusRequestEntityTooLarge, code: "request_too_large", message: "the request body is larger than the server accepts",
+			params: map[string]string{"limit": config.FormatBytes(tooLarge.Limit)}}
+	}
+	return &apiError{status: http.StatusBadRequest, code: "invalid_request", message: err.Error()}
+}
 
 func badRequest(code, message string) *apiError {
 	return &apiError{status: http.StatusBadRequest, code: code, message: message}

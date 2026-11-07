@@ -1905,6 +1905,7 @@ export const enUS: Messages = {
     cannot_change_self: 'You cannot change your own role or status; ask another administrator',
     wrong_password: 'The current password is not correct',
     internal: 'Internal server error',
+    request_too_large: 'The request is larger than the {{limit}} the server accepts. An administrator can raise http-max-body-size',
     not_found: 'Not found',
     name_taken: 'The name is already in use',
     name_required: 'Enter a name',

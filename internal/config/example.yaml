@@ -47,6 +47,11 @@ secret-key:
 # handles HTTPS.
 # http-addr: 127.0.0.1:8080
 
+# The largest request body the api role reads; a larger one is refused with
+# 413. Behind a reverse proxy, let the proxy accept as much (nginx's
+# client_max_body_size is 1m by default).
+# http-max-body-size: 8MB
+
 # Apply pending database migrations on startup. When off, run
 # supabi migrate before starting a new version.
 # auto-migrate: true

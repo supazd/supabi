@@ -27,8 +27,11 @@ import (
 var Example string
 
 type Config struct {
-	Roles           []role.Role
-	HTTPAddr        string
+	Roles    []role.Role
+	HTTPAddr string
+	// HTTPMaxBodySize is the largest request body the api role reads, in
+	// bytes: .agents/design/configuration.md 12.
+	HTTPMaxBodySize int64
 	DatabaseURL     string
 	AutoMigrate     bool
 	SecretKey       string
@@ -105,6 +108,7 @@ type Override struct {
 type raw struct {
 	configFile                                                 string
 	roles, httpAddr, databaseURL, dataDir, logLevel, logFormat string
+	httpMaxBodySize                                            string
 	queryCache, queryCacheSize, redisURL, redisKeyPrefix       string
 	exportStorage, s3Endpoint, s3Region, s3Bucket, s3Prefix    string
 	secretKey, s3AccessKeyID, s3SecretAccessKey                string
@@ -204,6 +208,9 @@ func Load(command string, args []string) (Config, error) {
 	if cfg.QueryCacheSize, err = parseBytes(r.queryCacheSize); err != nil {
 		return Config{}, fmt.Errorf("invalid query cache size %q: %w", r.queryCacheSize, err)
 	}
+	if cfg.HTTPMaxBodySize, err = parseBytes(r.httpMaxBodySize); err != nil {
+		return Config{}, fmt.Errorf("invalid http max body size %q: %w", r.httpMaxBodySize, err)
+	}
 	return cfg, nil
 }
 
@@ -213,6 +220,7 @@ func define(command string, r *raw) settings {
 	fs.StringVar(&r.configFile, "config", "", "YAML file with the settings below, also given by SUPABI_CONFIG; \"supabi example-config\" prints an example")
 	fs.StringVar(&r.roles, "roles", "", "comma-separated roles to run: api, worker, scheduler (default all)")
 	fs.StringVar(&r.httpAddr, "http-addr", "127.0.0.1:8080", "listen address of the api role")
+	fs.StringVar(&r.httpMaxBodySize, "http-max-body-size", "8MB", "largest request body the api role reads, e.g. 8MB; a larger one is refused with 413")
 	fs.StringVar(&r.databaseURL, "database-url", "", "metadata database, e.g. postgres://user:pass@host:5432/supabi; set it in the config file or SUPABI_DATABASE_URL so the password stays out of the process list")
 	fs.BoolVar(&r.autoMigrate, "auto-migrate", true, "apply pending schema migrations on startup")
 	fs.StringVar(&r.dataDir, "data-dir", "data", "directory for export files with --export-storage=local; API and worker instances must share it")
@@ -382,13 +390,9 @@ func readFile(path string) ([]entry, error) {
 
 // parseBytes reads a size such as 256MB, 1GB or a plain number of bytes.
 func parseBytes(s string) (int64, error) {
-	units := []struct {
-		suffix string
-		factor int64
-	}{{"GB", 1 << 30}, {"MB", 1 << 20}, {"KB", 1 << 10}, {"B", 1}}
 	s = strings.ToUpper(strings.TrimSpace(s))
 	factor := int64(1)
-	for _, u := range units {
+	for _, u := range byteUnits {
 		if strings.HasSuffix(s, u.suffix) {
 			s, factor = strings.TrimSpace(strings.TrimSuffix(s, u.suffix)), u.factor
 			break
@@ -399,4 +403,22 @@ func parseBytes(s string) (int64, error) {
 		return 0, errors.New("must be a positive size")
 	}
 	return n * factor, nil
+}
+
+// byteUnits are the units of a size, largest first; B, a suffix of the
+// others, comes last.
+var byteUnits = []struct {
+	suffix string
+	factor int64
+}{{"GB", 1 << 30}, {"MB", 1 << 20}, {"KB", 1 << 10}, {"B", 1}}
+
+// FormatBytes writes a size as the settings take it, in the largest unit it
+// is a whole number of: 8MB, 1536KB.
+func FormatBytes(n int64) string {
+	for _, u := range byteUnits {
+		if n != 0 && n%u.factor == 0 {
+			return strconv.FormatInt(n/u.factor, 10) + u.suffix
+		}
+	}
+	return strconv.FormatInt(n, 10) + "B"
 }
