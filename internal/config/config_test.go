@@ -201,6 +201,35 @@ func TestQueryCacheSettings(t *testing.T) {
 	}
 }
 
+func TestHTTPMaxBodySize(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("SUPABI_DATABASE_URL", "postgres://localhost/supabi")
+	cfg, err := Load("serve", nil)
+	if err != nil || cfg.HTTPMaxBodySize != 8<<20 {
+		t.Errorf("default: %d, %v", cfg.HTTPMaxBodySize, err)
+	}
+	cfg, err = Load("serve", []string{"--config", writeFile(t, "http-max-body-size: 16mb\n")})
+	if err != nil || cfg.HTTPMaxBodySize != 16<<20 {
+		t.Errorf("from the file: %d, %v", cfg.HTTPMaxBodySize, err)
+	}
+	for _, value := range []string{"0", "lots", "-1MB"} {
+		if _, err := Load("serve", []string{"--http-max-body-size=" + value}); err == nil || !strings.Contains(err.Error(), "invalid http max body size") {
+			t.Errorf("%s: %v", value, err)
+		}
+	}
+}
+
+func TestFormatBytes(t *testing.T) {
+	for n, want := range map[int64]string{8 << 20: "8MB", 1 << 30: "1GB", 1536 << 10: "1536KB", 1000: "1000B", 3 << 30: "3GB"} {
+		if got := FormatBytes(n); got != want {
+			t.Errorf("FormatBytes(%d) = %s, want %s", n, got, want)
+		}
+		if back, err := parseBytes(FormatBytes(n)); err != nil || back != n {
+			t.Errorf("%s reads back as %d, %v", FormatBytes(n), back, err)
+		}
+	}
+}
+
 func TestExportStorageSettings(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("SUPABI_DATABASE_URL", "postgres://localhost/supabi")

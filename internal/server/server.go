@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/supazd/supabi/internal/config"
 	"github.com/supazd/supabi/internal/webui"
 )
 
@@ -26,8 +27,27 @@ type ReadyFunc func(ctx context.Context) error
 // Routes mounts handlers on the server's mux.
 type Routes func(mux *http.ServeMux)
 
-func New(addr string, shutdownTimeout time.Duration, api Routes, ready ReadyFunc, logger *slog.Logger) *Server {
-	return &Server{addr: addr, handler: NewHandler(api, ready, logger), logger: logger, shutdownTimeout: shutdownTimeout}
+// New serves the route table on addr, reading request bodies of at most
+// maxBodySize bytes.
+func New(addr string, shutdownTimeout time.Duration, maxBodySize int64, api Routes, ready ReadyFunc, logger *slog.Logger) *Server {
+	return &Server{addr: addr, handler: limitBody(NewHandler(api, ready, logger), maxBodySize), logger: logger, shutdownTimeout: shutdownTimeout}
+}
+
+// limitBody refuses a request body over limit bytes: before reading any of it
+// when its length says so, else where it passes the limit. The API reports
+// the second as this does the first. See .agents/design/configuration.md 12.
+func limitBody(next http.Handler, limit int64) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.ContentLength > limit {
+			writeJSON(w, http.StatusRequestEntityTooLarge, map[string]any{
+				"code": "request_too_large", "message": "the request body is larger than the server accepts",
+				"params": map[string]string{"limit": config.FormatBytes(limit)},
+			})
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
+		next.ServeHTTP(w, r)
+	})
 }
 
 // NewHandler builds the route table. It is exported so tests can exercise it
@@ -66,7 +86,17 @@ func (s *Server) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	srv := &http.Server{Handler: s.handler, ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{
+		Handler:           s.handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		// Reading the whole request, body included. A handler may run on
+		// past it, and a client that leaves later still cancels it.
+		ReadTimeout: 60 * time.Second,
+		// No limit on keep-alive connections, so that a load balancer in
+		// front decides how long to keep them; left at zero this would be
+		// ReadTimeout. See .agents/design/configuration.md 12.
+		IdleTimeout: -1,
+	}
 	s.logger.Info("api listening", "addr", ln.Addr().String())
 
 	errc := make(chan error, 1)

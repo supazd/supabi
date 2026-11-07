@@ -30,6 +30,7 @@ If a setting that moved to System administration is still present, SupaBI refuse
 | `secret-key` | Required | Encrypts stored passwords and API keys. Create it once with `supabi generate-key` |
 | `roles` | All | The roles to run, of `api`, `worker` and `scheduler`, separated by commas |
 | `http-addr` | `127.0.0.1:8080` | The listen address of the `api` role |
+| `http-max-body-size` | `8MB` | The largest request body the `api` role reads. A larger one is refused with 413 |
 | `auto-migrate` | `true` | Applies pending migrations at startup. When off, run `supabi migrate` before starting a new version |
 | `data-dir` | `data` | The data directory. Export files go here with `export-storage: local` |
 

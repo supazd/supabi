@@ -1903,6 +1903,7 @@ export const zhCN = {
     cannot_change_self: '不能修改自己的角色或状态，请让其他管理员操作',
     wrong_password: '当前密码不正确',
     internal: '服务内部错误',
+    request_too_large: '请求超过了服务器接受的 {{limit}}，管理员可以调大 http-max-body-size',
     not_found: '对象不存在',
     name_taken: '名称已被使用',
     name_required: '请填写名称',

@@ -2,7 +2,7 @@
 
 The startup configuration used to be set only by command-line flags or `SUPABI_*` environment variables, and the three secrets only by environment variables. This design adds a YAML config file as the main way to configure a deployment. Environment variables and command-line flags stay, and override individual settings.
 
-Status: implemented. Section 10 moves the six settings that should have only one value for the whole organization into System administration, and section 11 checks the secret key at startup.
+Status: implemented. Section 10 moves the six settings that should have only one value for the whole organization into System administration, section 11 checks the secret key at startup, and section 12 limits what one request can cost.
 
 ## 1. Goals
 
@@ -57,7 +57,7 @@ redis-url: redis://:PASSWORD@redis.internal:6379/0
   | `export-workers` | `--export-workers` | `SUPABI_EXPORT_WORKERS` |
   | `secret-key` | none | `SUPABI_SECRET_KEY` |
 
-- The settings you can write are all 18 flags, plus the three secrets `secret-key`, `s3-access-key-id` and `s3-secret-access-key`. Flags added later can be written in the file automatically, and their names follow the same rule.
+- The settings you can write are all 19 flags, plus the three secrets `secret-key`, `s3-access-key-id` and `s3-secret-access-key`. Flags added later can be written in the file automatically, and their names follow the same rule.
 - **Values are always read as text**, then passed to the same parsing and validation as command-line flags, so YAML's own type inference has no effect: `auto-migrate: false`, `export-workers: 4` and `query-cache-size: 256MB` are all understood by the flag's rules. Quotes are optional.
 - Only "key: single value" is accepted. A list or a nested value is an error; `roles` is written as `api,worker`, the same as the flag.
 - A `key:` with no value after it is the same as not having the line, that is, the setting is unset. To set an empty string, write `""`.
@@ -308,3 +308,32 @@ supabi clear-secrets --config /etc/supabi/supabi.yaml --yes
 - It uses only `database-url` and does not need `secret-key`.
 
 Changing the secret key (decrypting all the values with the old key and encrypting them again with the new one) is not done, see [Deferred items](../backlog.md).
+
+## 12. Request limits
+
+The API reads a request's JSON body before it checks who sent it: the generated server decodes the body first, and only then runs the middleware that authenticates. With no limit on the body, anyone who can reach the server can make it allocate several times what they send, signed in or not. A 64 MiB body sent with no session got 401, after the server had allocated about 320 MiB reading it. The limits below bound what one request can cost. How many connections one client may open is for the reverse proxy.
+
+**Body size**: the startup setting `http-max-body-size`, `8MB` by default, written like `query-cache-size`. It bounds the memory of one process, so it is in the startup configuration. Instances behind one load balancer should share it, or the same save could succeed on one and fail on another.
+
+- It applies in front of the route table, to every path the api role serves. Some endpoints keep smaller limits of their own: OAuth's 64 KiB, and the MCP SDK's 4 MiB. The setting is a ceiling over them.
+- A request whose `Content-Length` is over the limit is refused before any of it is read. One with no length, or a wrong one, is cut off where it passes the limit (`http.MaxBytesReader`).
+- Either way the answer is 413 with the code `request_too_large` and the limit, in the spelling of the setting, as the parameter `limit`. When the cut-off happens inside the generated decoder, the API's handler of request errors recognises it, which would otherwise report it as `invalid_request`.
+- The default: the largest request the interface sends is an export's SQL, up to 1,000,000 bytes (`internal/api/exports.go`), under 2 MB as JSON. Dataset and dashboard definitions are tens to hundreds of KB.
+- Any positive size is accepted, with no lower bound: a limit too small to save a chart shows at once.
+
+**Reading time**: 60 seconds to read the whole request, headers and body (`ReadTimeout`), hard-coded like the 10 seconds for the headers alone. Otherwise a client could send a body a byte at a time and hold the connection for as long as it likes.
+
+- It does not cut long requests. The deadline applies only while the request is read: the handler may run on past it, as a query may for up to 3600 seconds (section 10.7), and a client that leaves later still cancels the query.
+- nginx by default reads the whole body before it passes the request on (`proxy_request_buffering`), so behind it the 60 seconds are for nginx's read, not the browser's upload.
+
+**Idle connections**: no limit, as before. `IdleTimeout` is set to a negative value to say so, because when it is zero Go uses `ReadTimeout` for it instead. Keep-alive connections would then close after 60 seconds, which is the default idle time of AWS load balancers, while Google Cloud's keep them about 10 minutes and ask backends to keep them longer. A backend that closes a connection the balancer is about to reuse causes sporadic 502s.
+
+There is still no write timeout, see section 10.7.
+
+Not doing:
+
+| Item | Reason |
+|---|---|
+| Authenticating before the body is read | The generated server decodes first. Changing that means authenticating in a middleware outside the generated chain as well as inside it. With the limit, what an anonymous request can cost is bounded |
+| A setting for the idle timeout | Kept without a limit, as before. Add it when a deployment behind a load balancer needs it |
+| Limiting connections per client | The reverse proxy's job |
