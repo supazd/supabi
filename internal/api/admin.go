@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/supazd/supabi/internal/api/gen"
-	"github.com/supazd/supabi/internal/auth"
 	"github.com/supazd/supabi/internal/authz"
 	"github.com/supazd/supabi/internal/dialect"
 	"github.com/supazd/supabi/internal/store"
@@ -52,7 +51,7 @@ func (s *Server) CreateUser(ctx context.Context, req gen.CreateUserRequestObject
 	if req.Body == nil {
 		return nil, badRequest("invalid_request", "a request body is required")
 	}
-	email, name, hash, err := checkNewAccount(req.Body.Email, req.Body.DisplayName, req.Body.Password)
+	email, name, hash, err := checkNewAccount(ctx, req.Body.Email, req.Body.DisplayName, req.Body.Password)
 	if err != nil {
 		return nil, err
 	}
@@ -92,9 +91,9 @@ func (s *Server) UpdateUser(ctx context.Context, req gen.UpdateUserRequestObject
 		return nil, errChangeSelf
 	}
 	if req.Body.Password != nil {
-		hash, err := auth.HashPassword(*req.Body.Password)
+		hash, err := hashPassword(ctx, *req.Body.Password)
 		if err != nil {
-			return nil, badRequest("invalid_password", err.Error())
+			return nil, err
 		}
 		change.PasswordHash = &hash
 	}
