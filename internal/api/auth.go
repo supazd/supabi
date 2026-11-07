@@ -75,7 +75,17 @@ func (s *Server) signIn(ctx context.Context, u store.User) (gen.SessionInfo, err
 	return s.sessionInfo(ctx, &principal)
 }
 
-func checkNewAccount(email, displayName, password string) (string, string, string, error) {
+// hashPassword hashes a new password, reporting one of the wrong length as
+// the caller's mistake.
+func hashPassword(ctx context.Context, password string) (string, error) {
+	hash, err := auth.HashPassword(ctx, password)
+	if errors.Is(err, auth.ErrPasswordLength) {
+		return "", badRequest("invalid_password", err.Error())
+	}
+	return hash, err
+}
+
+func checkNewAccount(ctx context.Context, email, displayName, password string) (string, string, string, error) {
 	normalized, err := auth.NormalizeEmail(email)
 	if err != nil {
 		return "", "", "", badRequest("invalid_email", "enter a valid email address")
@@ -84,9 +94,9 @@ func checkNewAccount(email, displayName, password string) (string, string, strin
 	if displayName == "" {
 		return "", "", "", badRequest("name_required", "name is required")
 	}
-	hash, err := auth.HashPassword(password)
+	hash, err := hashPassword(ctx, password)
 	if err != nil {
-		return "", "", "", badRequest("invalid_password", err.Error())
+		return "", "", "", err
 	}
 	return normalized, displayName, hash, nil
 }
@@ -95,7 +105,7 @@ func (s *Server) Setup(ctx context.Context, req gen.SetupRequestObject) (gen.Set
 	if req.Body == nil {
 		return nil, badRequest("invalid_request", "a request body is required")
 	}
-	email, name, hash, err := checkNewAccount(req.Body.Email, req.Body.DisplayName, req.Body.Password)
+	email, name, hash, err := checkNewAccount(ctx, req.Body.Email, req.Body.DisplayName, req.Body.Password)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +139,9 @@ func (s *Server) Login(ctx context.Context, req gen.LoginRequestObject) (gen.Log
 		s.recordLogin(ctx, store.User{Email: req.Body.Email}, "unknown_account")
 		return nil, rejected
 	}
-	allowed, err := s.Logins.Allow(ctx, signInOrg, email)
+	// The attempt counts as a failure from before its password is checked
+	// until it succeeds: .agents/design/access-control.md 13.
+	allowed, err := s.Logins.Attempt(ctx, signInOrg, email)
 	if err != nil {
 		return nil, err
 	}
@@ -140,20 +152,26 @@ func (s *Server) Login(ctx context.Context, req gen.LoginRequestObject) (gen.Log
 	user, err := store.GetUserByEmail(ctx, s.Pool, signInOrg, email)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
-		auth.VerifyAgainstNothing(req.Body.Password)
+		if err := auth.VerifyAgainstNothing(ctx, req.Body.Password); err != nil {
+			return nil, err
+		}
 		s.recordLogin(ctx, store.User{Email: email}, "unknown_account")
-		return nil, s.failLogin(ctx, email, rejected)
+		return nil, rejected
 	case err != nil:
 		return nil, err
 	}
 	// The audit tells the reasons apart; the response must not.
-	if !auth.VerifyPassword(user.PasswordHash, req.Body.Password) {
+	ok, err := auth.VerifyPassword(ctx, user.PasswordHash, req.Body.Password)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
 		s.recordLogin(ctx, user, "wrong_password")
-		return nil, s.failLogin(ctx, email, rejected)
+		return nil, rejected
 	}
 	if user.Status != store.UserActive {
 		s.recordLogin(ctx, user, "disabled")
-		return nil, s.failLogin(ctx, email, rejected)
+		return nil, rejected
 	}
 	if err := s.Logins.Succeed(ctx, signInOrg, email); err != nil {
 		return nil, err
@@ -163,16 +181,6 @@ func (s *Server) Login(ctx context.Context, req gen.LoginRequestObject) (gen.Log
 		s.recordLogin(ctx, user, "")
 	}
 	return gen.Login200JSONResponse(info), err
-}
-
-// failLogin counts a failed sign-in against the address and returns the
-// rejection, unless counting failed: a failure that is not counted must not
-// look like one that was.
-func (s *Server) failLogin(ctx context.Context, email string, rejected error) error {
-	if err := s.Logins.Fail(ctx, signInOrg, email); err != nil {
-		return err
-	}
-	return rejected
 }
 
 func (s *Server) Logout(ctx context.Context, _ gen.LogoutRequestObject) (gen.LogoutResponseObject, error) {
@@ -195,12 +203,16 @@ func (s *Server) ChangePassword(ctx context.Context, req gen.ChangePasswordReque
 	if err != nil {
 		return nil, err
 	}
-	if !auth.VerifyPassword(current, req.Body.CurrentPassword) {
+	ok, err := auth.VerifyPassword(ctx, current, req.Body.CurrentPassword)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
 		return nil, badRequest("wrong_password", "the current password is not correct")
 	}
-	hash, err := auth.HashPassword(req.Body.NewPassword)
+	hash, err := hashPassword(ctx, req.Body.NewPassword)
 	if err != nil {
-		return nil, badRequest("invalid_password", err.Error())
+		return nil, err
 	}
 	if err := store.SetPassword(ctx, s.Pool, c.principal.OrgID, c.principal.UserID, hash, c.tokenHash); err != nil {
 		return nil, err

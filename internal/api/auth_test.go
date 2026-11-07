@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -151,6 +152,42 @@ func TestLoginIsThrottled(t *testing.T) {
 	if err := c.db.Pool.QueryRow(ctx, `SELECT failures FROM login_throttle WHERE email='old@example.com'`).Scan(&left); err != nil || left != 1 {
 		t.Fatalf("failures in a new window: %d %v", left, err)
 	}
+}
+
+// Attempts made at the same time cannot get past the limit: each is counted
+// before its password is checked. See .agents/design/access-control.md 13.
+func TestLoginThrottleHoldsAtOnce(t *testing.T) {
+	c := newClient(t)
+	const attempts = 40
+	statuses := make(chan int, attempts)
+	var group sync.WaitGroup
+	for range attempts {
+		group.Go(func() {
+			body := `{"email":"` + adminEmail + `","password":"guess-guess"}`
+			resp, err := http.Post(c.server.URL+"/api/v1/auth/login", "application/json", strings.NewReader(body))
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			resp.Body.Close()
+			statuses <- resp.StatusCode
+		})
+	}
+	group.Wait()
+	close(statuses)
+	count := map[int]int{}
+	for status := range statuses {
+		count[status]++
+	}
+	if count[401] != 5 || count[429] != attempts-5 || len(count) != 2 {
+		t.Errorf("of %d at once: %v, want 5 checked (401) and the rest refused (429)", attempts, count)
+	}
+	// The refused ones are not counted, so the window still ends on time.
+	var failures int
+	if err := c.db.Pool.QueryRow(context.Background(), `SELECT failures FROM login_throttle WHERE email=$1`, adminEmail).Scan(&failures); err != nil || failures != 5 {
+		t.Errorf("failures counted: %d %v, want 5", failures, err)
+	}
+	c.anonymous().expect("POST", "/auth/login", map[string]any{"email": adminEmail, "password": adminPassword}, 429, "too_many_attempts")
 }
 
 func TestCrossSiteRequestsAreRefused(t *testing.T) {
