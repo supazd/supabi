@@ -398,6 +398,8 @@ func errorCode(err error) string {
 		return "database_error"
 	case errors.Is(err, context.DeadlineExceeded):
 		return "timeout"
+	case errors.Is(err, context.Canceled):
+		return "canceled"
 	}
 	return "error"
 }
@@ -416,10 +418,13 @@ func requestBody(request any) any {
 }
 
 // objectName is what an object is called now, or "" if that cannot be told.
+// It is looked up even when the caller has gone, as the event is recorded.
 func (s *Server) objectName(ctx context.Context, o audit.Object) string {
 	if o.Type == "" || o.ID == "" {
 		return ""
 	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
 	name, err := store.ObjectName(ctx, s.Pool, s.scope(ctx), o.Type, o.ID)
 	if err != nil {
 		s.Logger.WarnContext(ctx, "audit object name", "type", o.Type, "id", o.ID, "error", err)

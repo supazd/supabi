@@ -2,7 +2,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../i18n'
-import { FilterControl, FilterLabel, filterCaption, tilesLimit } from './FilterControl'
+import { FilterControl, FilterLabel, filterCaption, tilesLimit, type FilterOptions } from './FilterControl'
+import { ExactFilterValues } from './ExactFilterValues'
 import i18n from 'i18next'
 
 afterEach(() => { cleanup(); vi.useRealTimers() })
@@ -97,5 +98,31 @@ describe('choice controls', () => {
     expect(filterCaption('Region', 'in', i18n.t.bind(i18n))).toBe('Region')
     render(<FilterLabel label="Region" op="not_in" />)
     expect(screen.getByText('NOT IN').className).toBe('filter-op-tag')
+  })
+})
+
+describe('options no longer needed', () => {
+  const waitForever = (signals: (AbortSignal | undefined)[]) => (_search: string, signal?: AbortSignal) => {
+    signals.push(signal)
+    return new Promise<FilterOptions>(() => undefined)
+  }
+
+  it('aborts the request for a select\'s options once newer ones are asked for, and when it goes away', () => {
+    const signals: (AbortSignal | undefined)[] = []
+    const props = { control: { type: 'select' as const }, label: 'Region', value: [], onChange: vi.fn(), loadOptions: waitForever(signals) }
+    const view = render(<FilterControl {...props} optionsKey="east" />)
+    view.rerender(<FilterControl {...props} optionsKey="west" />)
+    expect(signals.map((signal) => signal?.aborted)).toEqual([true, false])
+    view.unmount()
+    expect(signals[1]!.aborted).toBe(true)
+  })
+
+  it('aborts the request for the values of an exact filter when it goes away', async () => {
+    const signals: (AbortSignal | undefined)[] = []
+    const view = render(<ExactFilterValues value={[]} onChange={vi.fn()} loadOptions={waitForever(signals)} />)
+    await waitFor(() => expect(signals).toHaveLength(1))
+    expect(signals[0]!.aborted).toBe(false)
+    view.unmount()
+    expect(signals[0]!.aborted).toBe(true)
   })
 })

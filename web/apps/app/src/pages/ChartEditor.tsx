@@ -306,7 +306,7 @@ function Builder({ chart, colorScheme, editorKey }: { chart?: Chart; colorScheme
   // The values of a field, for choosing a filter's value from.
   const optionsOf =
     (filter: ChartFilter, values = preview.values, related = false): LoadOptions =>
-    async (text) => {
+    async (text, signal) => {
       if (!dataset || !current) return { values: [], truncated: false }
       const source = spec.fields.find((field) => field.key === filter.field)
       if (source?.role === 'metric' || filter.aggregation) return { values: source?.type === 'boolean' && !filter.aggregation ? [true, false] : [], truncated: false }
@@ -314,12 +314,14 @@ function Builder({ chart, colorScheme, editorKey }: { chart?: Chart; colorScheme
       if (readOnly) return unwrap(api.POST('/charts/{id}/filters/{filterId}/options', {
         params: { path: { id: chart!.id, filterId: filter.id } },
         body,
+        signal,
       }))
       // A newly configured filter already needs candidates, before it is saved onto the shelf.
       const filters = [...(current.filters ?? []).filter((other) => other.id !== filter.id), filter]
       return unwrap(api.POST('/charts/preview/filters/{filterId}/options', {
         params: { path: { filterId: filter.id } },
         body: { ...body, spec: { ...current, filters } as unknown as Record<string, unknown> },
+        signal,
       }))
     }
   // The parameters shape what the lists are drawn from, so a list reloads when one changes.

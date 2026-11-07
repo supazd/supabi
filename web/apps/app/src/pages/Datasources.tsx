@@ -269,7 +269,7 @@ function Schema({ source }: { source: Datasource }) {
   const { t } = useTranslation()
   const [filter, setFilter] = useState('')
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
-  const catalog = useAsync(() => unwrap(api.GET('/datasources/{id}/tables', { params: { path: { id: source.id } } })), [source.id, source.updatedAt])
+  const catalog = useAsync((signal) => unwrap(api.GET('/datasources/{id}/tables', { params: { path: { id: source.id } }, signal })), [source.id, source.updatedAt])
   const wanted = filter.trim().toLowerCase()
   const has = (text: string) => text.toLowerCase().includes(wanted)
   // What was looked for is marked where it was found.

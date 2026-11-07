@@ -15,11 +15,12 @@ export function ExactFilterValues({ value, onChange, loadOptions, multi = true, 
   const selected: unknown[] = Array.isArray(value) ? value : []
   useEffect(() => {
     let current = true
+    const controller = new AbortController()
     const timer = setTimeout(() => {
       setLoading(true); setFailed(false)
-      loadOptions(search).then((result) => { if (current) { setOptions(result.values); setTruncated(result.truncated); setLoading(false) } }, () => { if (current) { setFailed(true); setLoading(false) } })
+      loadOptions(search, controller.signal).then((result) => { if (current) { setOptions(result.values); setTruncated(result.truncated); setLoading(false) } }, () => { if (current) { setFailed(true); setLoading(false) } })
     }, search ? 250 : 0)
-    return () => { current = false; clearTimeout(timer) }
+    return () => { current = false; clearTimeout(timer); controller.abort() }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- callers create the loader while rendering
   }, [search])
   const key = (item: unknown) => JSON.stringify(item)

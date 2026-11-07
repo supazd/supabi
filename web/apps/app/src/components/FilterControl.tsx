@@ -12,8 +12,11 @@ export interface FilterOptions {
   truncated: boolean
 }
 
-/** Looks up the values a filter offers, narrowed to those containing `search` when it is not empty. */
-export type LoadOptions = (search: string) => Promise<FilterOptions>
+/**
+ * Looks up the values a filter offers, narrowed to those containing `search` when it is not empty.
+ * `signal` is aborted once a newer search replaces this one or the control goes away.
+ */
+export type LoadOptions = (search: string, signal?: AbortSignal) => Promise<FilterOptions>
 
 export interface FilterControlProps {
   control: Control
@@ -102,16 +105,18 @@ function SelectControl({ control, value, onChange, loadOptions, label, id, size,
   useEffect(() => {
     if (!loadOptions || disabled) { setLoading(false); return }
     let current = true
+    const controller = new AbortController()
     setLoading(true)
     setFailed(false)
     // The previous list stays in sight while the next one loads, so nothing jumps.
-    loadOptions(asked).then(
+    loadOptions(asked, controller.signal).then(
       (loaded) => current && (setOptions(loaded), setLoading(false)),
       // A filter is still usable without its list: what is chosen stays chosen.
       () => current && (setLoading(false), setFailed(true)),
     )
     return () => {
       current = false
+      controller.abort()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadOptions is made anew on every render
   }, [asked, Boolean(loadOptions), disabled, optionsKey])
