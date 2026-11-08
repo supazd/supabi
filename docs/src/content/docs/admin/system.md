@@ -1,6 +1,6 @@
 ---
 title: System administration
-description: Accounts, groups, workspaces, the audit log and settings for the whole organization.
+description: Accounts, groups, workspaces, email, the audit log and settings for the whole organization.
 ---
 
 **System administration** is in the avatar menu, for system administrators only. It does not depend on the current workspace.
@@ -30,6 +30,23 @@ Only a system administrator can delete a workspace, in two steps:
 
 Accounts and groups belong to the organization and are not deleted. Audit events are kept. Until the permanent deletion, the name of a deleted workspace cannot be reused.
 
+## Email
+
+**Email** sets the SMTP server SupaBI sends email through, one for the whole organization. No feature sends email yet; set it up and send a test now, so it works when one does. Every instance reads the settings for each message, so a change applies at once.
+
+| Setting | Meaning |
+|---|---|
+| **SMTP server** | A host name or IP address, such as `smtp.example.com`. Email is on once this and the **Sender address** are set; leave it empty to turn email off, and the other settings are kept |
+| **Encryption** | **STARTTLS** (port 587) connects, then has the server encrypt, and is an error if it cannot. **SSL/TLS** (port 465) encrypts from the start. **No encryption** (port 25) is for a relay inside your network, and never signs in |
+| **Port** | Empty takes the usual port of the encryption |
+| **Username**, **Password** | Leave the username empty if the server takes mail without signing in. A saved password is never shown; leave the field empty to keep it, or tick **Remove the saved password** |
+| **Sender address** | The address messages come from. The server may only accept addresses it is allowed to send as |
+| **Sender name** | Shown with the sender address. Empty takes `SupaBI` |
+
+The server's certificate is checked against the trust store of the machine SupaBI runs on. For a server whose certificate comes from an internal CA, add that CA to the trust store, for example with `SSL_CERT_FILE`.
+
+**Send a test email** sends with the settings on the page, saved or not, to the address you enter, your own to start with. The email is in the language of the page. When the server refuses, the page says at which step, such as signing in or the recipient, with the server's own reply under it. The server accepting the email does not mean it reached the inbox: if it does not arrive, look in the spam folder, and check that the server may send as the sender address.
+
 ## Audit log
 
 The **Audit log** records who did what, when, and which data they read. Filter by time, workspace, actor, category and outcome, and open an event for its details. For a query, that includes the SQL and parameters of each statement.
@@ -44,7 +61,7 @@ The **Audit log** records who did what, when, and which data they read. Filter b
 | **Queries** | Each fetch of data from a data source |
 | **Exports** | Creating, finishing, cancelling and downloading |
 | **AI models** | Changes to the AI configuration |
-| **System** | Changes to the general settings |
+| **System** | Changes to the general and email settings, and test emails |
 
 Read-only actions, such as opening a list or an editor, are not recorded. Each event also writes a line of application log with `msg=audit`, which a log system can collect. That line holds no SQL, parameters or request content.
 

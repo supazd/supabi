@@ -990,6 +990,56 @@ paths:
               schema: { $ref: "#/components/schemas/SystemSettings" }
         "400": { $ref: "#/components/responses/Error" }
 
+  /system/email:
+    get:
+      operationId: getEmailSettings
+      summary: The SMTP server the organization sends email through (system admins only)
+      description: |
+        The password is never returned: the settings say only whether there
+        is one. See .agents/design/email.md.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailSettings" }
+    put:
+      operationId: setEmailSettings
+      summary: Replace the email settings (system admins only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailSettingsInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailSettings" }
+        "400": { $ref: "#/components/responses/Error" }
+
+  /system/email/test:
+    post:
+      operationId: testEmailSettings
+      summary: Send a test email with the settings given, saved or not (system admins only)
+      description: |
+        A password left out is the one saved. A failure at the server is a
+        successful response that names the stage it failed at, in the
+        server's words: only system administrators see it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailTestRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailTest" }
+        "400": { $ref: "#/components/responses/Error" }
+
   /audit-events:
     get:
       operationId: listAuditEvents
@@ -2164,6 +2214,99 @@ components:
       properties:
         values: { $ref: "#/components/schemas/SystemSettingValues" }
         defaults: { $ref: "#/components/schemas/SystemSettingDefaults" }
+
+    EmailSecurity:
+      description: >
+        starttls has the server encrypt after connecting, and fails if it
+        cannot; tls encrypts from the first byte; none sends in plain text and
+        never signs in.
+      type: string
+      enum: [starttls, tls, none]
+    EmailSettings:
+      type: object
+      required: [security, hasPassword, defaults]
+      properties:
+        host:
+          description: Absent while email is off
+          type: string
+        port:
+          description: Absent to follow the encryption
+          type: integer
+        security: { $ref: "#/components/schemas/EmailSecurity" }
+        username:
+          description: Absent to send without signing in
+          type: string
+        hasPassword: { type: boolean }
+        fromAddress: { type: string }
+        fromName:
+          description: Absent to follow the default
+          type: string
+        defaults:
+          type: object
+          required: [ports, fromName]
+          properties:
+            ports:
+              description: The port of each encryption
+              type: object
+              required: [starttls, tls, none]
+              properties:
+                starttls: { type: integer }
+                tls: { type: integer }
+                none: { type: integer }
+            fromName: { type: string }
+    EmailSettingsInput:
+      type: object
+      additionalProperties: false
+      required: [security]
+      properties:
+        host:
+          description: A host name or IP address, without a scheme or port; empty turns email off
+          type: string
+        port:
+          description: 1 to 65535; absent follows the encryption
+          type: integer
+        security: { $ref: "#/components/schemas/EmailSecurity" }
+        username:
+          description: Empty sends without signing in, and removes the password. Cannot be set with security none.
+          type: string
+        password:
+          description: A new password; an empty string removes it. Left out, the password stays as it is.
+          type: string
+        fromAddress:
+          description: A bare address such as bi@example.com; required with a host
+          type: string
+        fromName:
+          description: At most 100 characters; empty follows the default
+          type: string
+    EmailTestRequest:
+      type: object
+      additionalProperties: false
+      required: [settings, to, locale]
+      properties:
+        settings: { $ref: "#/components/schemas/EmailSettingsInput" }
+        to:
+          description: The one address to send to
+          type: string
+        locale:
+          description: The language to write the email in, that of the interface of whoever sends it
+          type: string
+          enum: [en-US, zh-CN]
+    EmailFailureStage:
+      description: See .agents/design/email.md 4.
+      type: string
+      enum: [connect, tls, no_starttls, auth, no_auth, sender, recipient, data]
+    EmailTest:
+      type: object
+      required: [ok, durationMs]
+      properties:
+        ok:
+          description: The server accepted the message; whether it reaches the inbox is up to the mail system after that
+          type: boolean
+        durationMs: { type: integer }
+        stage: { $ref: "#/components/schemas/EmailFailureStage" }
+        message:
+          description: The server's reply as it wrote it, or what went wrong on the way to it
+          type: string
 
     AuditCategory:
       type: string

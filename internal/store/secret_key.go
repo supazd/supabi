@@ -8,8 +8,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// The secret key seals the passwords of data sources and the API keys of AI
-// providers. Every instance must hold the same one: .agents/design/configuration.md 11.
+// The secret key seals the passwords of data sources, the API keys of AI
+// providers and the password of the email server. Every instance must hold
+// the same one: .agents/design/configuration.md 11.
 
 // ErrWrongSecretKey means the stored secrets were sealed with another key.
 var ErrWrongSecretKey = errors.New("secret-key is not the key this database was set up with; start every instance with the same secret-key")
@@ -31,7 +32,8 @@ func CheckSecretKey(ctx context.Context, pool *pgxpool.Pool, key Sealer) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		var stored []byte
 		err = pool.QueryRow(ctx, `SELECT secret FROM datasources WHERE secret IS NOT NULL
- UNION ALL SELECT api_key FROM ai_providers WHERE api_key IS NOT NULL LIMIT 1`).Scan(&stored)
+ UNION ALL SELECT api_key FROM ai_providers WHERE api_key IS NOT NULL
+ UNION ALL SELECT smtp_password FROM email_settings WHERE smtp_password IS NOT NULL LIMIT 1`).Scan(&stored)
 		switch {
 		case err == nil:
 			if _, err := key.Open(stored); err != nil {
@@ -55,22 +57,24 @@ func CheckSecretKey(ctx context.Context, pool *pgxpool.Pool, key Sealer) error {
 	return nil
 }
 
-// StoredSecrets counts the data sources with a password and the AI
-// providers with an API key.
+// StoredSecrets counts the data sources with a password, the AI providers
+// with an API key and the organizations whose email server has a password.
 type StoredSecrets struct {
-	Datasources, AIProviders int64
+	Datasources, AIProviders, EmailServers int64
 }
 
 func CountSecrets(ctx context.Context, pool *pgxpool.Pool) (StoredSecrets, error) {
 	var n StoredSecrets
 	err := pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM datasources WHERE secret IS NOT NULL),
- (SELECT count(*) FROM ai_providers WHERE api_key IS NOT NULL)`).Scan(&n.Datasources, &n.AIProviders)
+ (SELECT count(*) FROM ai_providers WHERE api_key IS NOT NULL),
+ (SELECT count(*) FROM email_settings WHERE smtp_password IS NOT NULL)`).Scan(&n.Datasources, &n.AIProviders, &n.EmailServers)
 	return n, err
 }
 
 // ClearSecrets removes every secret and the check of the key that sealed
 // them, for an installation that lost its key to start with a new one. The
-// data sources and providers stay, to be given their secrets again.
+// data sources, providers and email settings stay, to be given their secrets
+// again.
 func ClearSecrets(ctx context.Context, pool *pgxpool.Pool) (StoredSecrets, error) {
 	var n StoredSecrets
 	err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
@@ -84,6 +88,10 @@ func ClearSecrets(ctx context.Context, pool *pgxpool.Pool) (StoredSecrets, error
 			return err
 		}
 		n.AIProviders = tag.RowsAffected()
+		if tag, err = tx.Exec(ctx, `UPDATE email_settings SET smtp_password = NULL, updated_at = now() WHERE smtp_password IS NOT NULL`); err != nil {
+			return err
+		}
+		n.EmailServers = tag.RowsAffected()
 		_, err = tx.Exec(ctx, `DELETE FROM secret_key_check`)
 		return err
 	})

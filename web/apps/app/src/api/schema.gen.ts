@@ -894,6 +894,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/system/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The SMTP server the organization sends email through (system admins only)
+         * @description The password is never returned: the settings say only whether there
+         *     is one. See .agents/design/email.md.
+         */
+        get: operations["getEmailSettings"];
+        /** Replace the email settings (system admins only) */
+        put: operations["setEmailSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/system/email/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test email with the settings given, saved or not (system admins only)
+         * @description A password left out is the one saved. A failure at the server is a
+         *     successful response that names the stage it failed at, in the
+         *     server's words: only system administrators see it.
+         */
+        post: operations["testEmailSettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/audit-events": {
         parameters: {
             query?: never;
@@ -1943,6 +1987,71 @@ export interface components {
         SystemSettings: {
             values: components["schemas"]["SystemSettingValues"];
             defaults: components["schemas"]["SystemSettingDefaults"];
+        };
+        /**
+         * @description starttls has the server encrypt after connecting, and fails if it cannot; tls encrypts from the first byte; none sends in plain text and never signs in.
+         * @enum {string}
+         */
+        EmailSecurity: "starttls" | "tls" | "none";
+        EmailSettings: {
+            /** @description Absent while email is off */
+            host?: string;
+            /** @description Absent to follow the encryption */
+            port?: number;
+            security: components["schemas"]["EmailSecurity"];
+            /** @description Absent to send without signing in */
+            username?: string;
+            hasPassword: boolean;
+            fromAddress?: string;
+            /** @description Absent to follow the default */
+            fromName?: string;
+            defaults: {
+                /** @description The port of each encryption */
+                ports: {
+                    starttls: number;
+                    tls: number;
+                    none: number;
+                };
+                fromName: string;
+            };
+        };
+        EmailSettingsInput: {
+            /** @description A host name or IP address, without a scheme or port; empty turns email off */
+            host?: string;
+            /** @description 1 to 65535; absent follows the encryption */
+            port?: number;
+            security: components["schemas"]["EmailSecurity"];
+            /** @description Empty sends without signing in, and removes the password. Cannot be set with security none. */
+            username?: string;
+            /** @description A new password; an empty string removes it. Left out, the password stays as it is. */
+            password?: string;
+            /** @description A bare address such as bi@example.com; required with a host */
+            fromAddress?: string;
+            /** @description At most 100 characters; empty follows the default */
+            fromName?: string;
+        };
+        EmailTestRequest: {
+            settings: components["schemas"]["EmailSettingsInput"];
+            /** @description The one address to send to */
+            to: string;
+            /**
+             * @description The language to write the email in, that of the interface of whoever sends it
+             * @enum {string}
+             */
+            locale: "en-US" | "zh-CN";
+        };
+        /**
+         * @description See .agents/design/email.md 4.
+         * @enum {string}
+         */
+        EmailFailureStage: "connect" | "tls" | "no_starttls" | "auth" | "no_auth" | "sender" | "recipient" | "data";
+        EmailTest: {
+            /** @description The server accepted the message; whether it reaches the inbox is up to the mail system after that */
+            ok: boolean;
+            durationMs: number;
+            stage?: components["schemas"]["EmailFailureStage"];
+            /** @description The server's reply as it wrote it, or what went wrong on the way to it */
+            message?: string;
         };
         /** @enum {string} */
         AuditCategory: "auth" | "account" | "workspace" | "access" | "content" | "query" | "export" | "ai" | "system";
@@ -4894,6 +5003,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SystemSettings"];
+                };
+            };
+            400: components["responses"]["Error"];
+        };
+    };
+    getEmailSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailSettings"];
+                };
+            };
+        };
+    };
+    setEmailSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailSettings"];
+                };
+            };
+            400: components["responses"]["Error"];
+        };
+    };
+    testEmailSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailTestRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailTest"];
                 };
             };
             400: components["responses"]["Error"];

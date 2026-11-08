@@ -69,7 +69,7 @@ bin/supabi migrate --config supabi.yaml
 
 ## 丢失密钥
 
-`secret-key` 加密保存的数据源密码和 AI 供应商的 API 密钥。丢失后它们无法解密，SupaBI 也会拒绝用别的密钥启动。恢复步骤：
+`secret-key` 加密保存的数据源密码、AI 供应商的 API 密钥和邮件服务器的密码。丢失后它们无法解密，SupaBI 也会拒绝用别的密钥启动。恢复步骤：
 
 1. 停止所有实例。
 2. 查看将要清除的内容：
@@ -84,4 +84,4 @@ bin/supabi migrate --config supabi.yaml
    bin/supabi clear-secrets --config supabi.yaml --yes
    ```
 
-4. 用新的 `secret-key` 启动，重新填写数据源密码和 API 密钥。数据源和供应商本身都会保留。
+4. 用新的 `secret-key` 启动，重新填写数据源密码、API 密钥和邮件密码。数据源、供应商和邮件设置本身都会保留。

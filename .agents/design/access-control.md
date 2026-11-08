@@ -287,7 +287,7 @@ Audit answers "who did what to what, when, and which data they looked at". Event
 | Content `content` | Creating, changing and deleting data sources, datasets, charts, dashboards and folders, and moving them into folders; sharing a dashboard with filter conditions (`dashboard.share`, the details being the shared conditions and their validity period) |
 | Queries `query` | Each fetch of data from a data source; see 7.3 |
 | Exports `export` | Create, finish, cancel, download, download refused. A download is the moment data leaves the system, and is recorded separately |
-| System `system` | Changing the General settings of System administration (`system_settings.update`, the details being the values before and after the change) |
+| System `system` | Changing the General settings of System administration (`system_settings.update`, the details being the values before and after the change); changing the email settings (`email_settings.update`) and sending a test email (`email.test`), see [Email](email.md) 7 |
 
 Not recorded: read-only operations (lists, opening the editor, viewing configuration), requests that are not signed in, switching workspace, and database calls that return no data (`LIMIT 0` to get column info, `EXPLAIN`, testing a connection). Viewing the audit log itself is not recorded either.
 
@@ -297,6 +297,7 @@ The outcome of each event is success, failure or denied:
 - Sign-in records success and failure.
 - A query records success, failure and denied: a failed query has also already sent its SQL to the database.
 - An export finish records success or failure. An export canceled by the user is already recorded by the cancel event, and is no longer recorded as finished.
+- A test email records success or failure: it sends a message out of the system.
 
 ### 7.2 Contents of an event
 

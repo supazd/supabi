@@ -177,6 +177,10 @@ var auditRules = map[string]auditRule{
 
 	"GetSystemSettings": {},
 	"SetSystemSettings": {action: "system_settings.update", handler: true},
+	// The request has the email password; a test sends a message out.
+	"GetEmailSettings":  {},
+	"SetEmailSettings":  {action: "email_settings.update", handler: true},
+	"TestEmailSettings": {action: "email.test", handler: true},
 	// Conversations are not audited: see .agents/design/ai-assistant.md 8.
 	"GetAssistantStatus": {}, "ListConversations": {}, "CreateConversation": {}, "RenameConversation": {}, "DeleteConversation": {},
 	"ListConversationMessages": {}, "SendAssistantMessage": {}, "RetryAssistantMessage": {},

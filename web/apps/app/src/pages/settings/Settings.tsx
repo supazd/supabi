@@ -7,6 +7,7 @@ import { NotFound } from '../NotFound'
 import { Account } from './Account'
 import { AIModels } from './AIModels'
 import { AIUsage } from './AIUsage'
+import { EmailSettingsPage } from './EmailSettings'
 import { Audit } from './Audit'
 import { Groups } from './Groups'
 import { Mcp } from './Mcp'
@@ -80,6 +81,7 @@ export function Settings({ onManageWorkspace, onCurrentWorkspaceDeleted, busy = 
         { path: 'workspaces', label: t('settings.workspaces'), icon: 'layers', element: <Workspaces onManage={onManageWorkspace} onCurrentDeleted={onCurrentWorkspaceDeleted} busy={busy} /> },
         { path: 'ai', label: t('settings.ai'), icon: 'assistant', element: <AIModels /> },
         { path: 'ai-usage', label: t('settings.aiUsage'), icon: 'chart', element: <AIUsage /> },
+        { path: 'email', label: t('settings.email'), icon: 'mail', element: <EmailSettingsPage /> },
         { path: 'audit', label: t('settings.audit'), icon: 'clock', element: <Audit /> },
         { path: 'general', label: t('settings.systemGeneral'), icon: 'settings', element: <SystemGeneral /> },
       ]} />} />

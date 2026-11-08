@@ -597,6 +597,81 @@ func (e DisplayFormatWeek) Valid() bool {
 	}
 }
 
+// Defines values for EmailFailureStage.
+const (
+	EmailFailureStageAuth       EmailFailureStage = "auth"
+	EmailFailureStageConnect    EmailFailureStage = "connect"
+	EmailFailureStageData       EmailFailureStage = "data"
+	EmailFailureStageNoAuth     EmailFailureStage = "no_auth"
+	EmailFailureStageNoStarttls EmailFailureStage = "no_starttls"
+	EmailFailureStageRecipient  EmailFailureStage = "recipient"
+	EmailFailureStageSender     EmailFailureStage = "sender"
+	EmailFailureStageTls        EmailFailureStage = "tls"
+)
+
+// Valid indicates whether the value is a known member of the EmailFailureStage enum.
+func (e EmailFailureStage) Valid() bool {
+	switch e {
+	case EmailFailureStageAuth:
+		return true
+	case EmailFailureStageConnect:
+		return true
+	case EmailFailureStageData:
+		return true
+	case EmailFailureStageNoAuth:
+		return true
+	case EmailFailureStageNoStarttls:
+		return true
+	case EmailFailureStageRecipient:
+		return true
+	case EmailFailureStageSender:
+		return true
+	case EmailFailureStageTls:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EmailSecurity.
+const (
+	EmailSecurityNone     EmailSecurity = "none"
+	EmailSecurityStarttls EmailSecurity = "starttls"
+	EmailSecurityTls      EmailSecurity = "tls"
+)
+
+// Valid indicates whether the value is a known member of the EmailSecurity enum.
+func (e EmailSecurity) Valid() bool {
+	switch e {
+	case EmailSecurityNone:
+		return true
+	case EmailSecurityStarttls:
+		return true
+	case EmailSecurityTls:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EmailTestRequestLocale.
+const (
+	EnUS EmailTestRequestLocale = "en-US"
+	ZhCN EmailTestRequestLocale = "zh-CN"
+)
+
+// Valid indicates whether the value is a known member of the EmailTestRequestLocale enum.
+func (e EmailTestRequestLocale) Valid() bool {
+	switch e {
+	case EnUS:
+		return true
+	case ZhCN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ExportFormat.
 const (
 	ExportFormatCsv  ExportFormat = "csv"
@@ -2283,6 +2358,94 @@ type DrillStep struct {
 	Value interface{} `json:"value"`
 }
 
+// EmailFailureStage See .agents/design/email.md 4.
+type EmailFailureStage string
+
+// EmailSecurity starttls has the server encrypt after connecting, and fails if it cannot; tls encrypts from the first byte; none sends in plain text and never signs in.
+type EmailSecurity string
+
+// EmailSettings defines model for EmailSettings.
+type EmailSettings struct {
+	Defaults struct {
+		FromName string `json:"fromName"`
+
+		// Ports The port of each encryption
+		Ports struct {
+			None     int `json:"none"`
+			Starttls int `json:"starttls"`
+			Tls      int `json:"tls"`
+		} `json:"ports"`
+	} `json:"defaults"`
+	FromAddress *string `json:"fromAddress,omitempty"`
+
+	// FromName Absent to follow the default
+	FromName    *string `json:"fromName,omitempty"`
+	HasPassword bool    `json:"hasPassword"`
+
+	// Host Absent while email is off
+	Host *string `json:"host,omitempty"`
+
+	// Port Absent to follow the encryption
+	Port *int `json:"port,omitempty"`
+
+	// Security starttls has the server encrypt after connecting, and fails if it cannot; tls encrypts from the first byte; none sends in plain text and never signs in.
+	Security EmailSecurity `json:"security"`
+
+	// Username Absent to send without signing in
+	Username *string `json:"username,omitempty"`
+}
+
+// EmailSettingsInput defines model for EmailSettingsInput.
+type EmailSettingsInput struct {
+	// FromAddress A bare address such as bi@example.com; required with a host
+	FromAddress *string `json:"fromAddress,omitempty"`
+
+	// FromName At most 100 characters; empty follows the default
+	FromName *string `json:"fromName,omitempty"`
+
+	// Host A host name or IP address, without a scheme or port; empty turns email off
+	Host *string `json:"host,omitempty"`
+
+	// Password A new password; an empty string removes it. Left out, the password stays as it is.
+	Password *string `json:"password,omitempty"`
+
+	// Port 1 to 65535; absent follows the encryption
+	Port *int `json:"port,omitempty"`
+
+	// Security starttls has the server encrypt after connecting, and fails if it cannot; tls encrypts from the first byte; none sends in plain text and never signs in.
+	Security EmailSecurity `json:"security"`
+
+	// Username Empty sends without signing in, and removes the password. Cannot be set with security none.
+	Username *string `json:"username,omitempty"`
+}
+
+// EmailTest defines model for EmailTest.
+type EmailTest struct {
+	DurationMs int `json:"durationMs"`
+
+	// Message The server's reply as it wrote it, or what went wrong on the way to it
+	Message *string `json:"message,omitempty"`
+
+	// Ok The server accepted the message; whether it reaches the inbox is up to the mail system after that
+	Ok bool `json:"ok"`
+
+	// Stage See .agents/design/email.md 4.
+	Stage *EmailFailureStage `json:"stage,omitempty"`
+}
+
+// EmailTestRequest defines model for EmailTestRequest.
+type EmailTestRequest struct {
+	// Locale The language to write the email in, that of the interface of whoever sends it
+	Locale   EmailTestRequestLocale `json:"locale"`
+	Settings EmailSettingsInput     `json:"settings"`
+
+	// To The one address to send to
+	To string `json:"to"`
+}
+
+// EmailTestRequestLocale The language to write the email in, that of the interface of whoever sends it
+type EmailTestRequestLocale string
+
 // Error defines model for Error.
 type Error struct {
 	// Code Example: unknown_field
@@ -3400,6 +3563,12 @@ type UpdateMemberJSONRequestBody = MemberChange
 // RunQueryJSONRequestBody defines body for RunQuery for application/json ContentType.
 type RunQueryJSONRequestBody = QueryRequest
 
+// SetEmailSettingsJSONRequestBody defines body for SetEmailSettings for application/json ContentType.
+type SetEmailSettingsJSONRequestBody = EmailSettingsInput
+
+// TestEmailSettingsJSONRequestBody defines body for TestEmailSettings for application/json ContentType.
+type TestEmailSettingsJSONRequestBody = EmailTestRequest
+
 // SetSystemSettingsJSONRequestBody defines body for SetSystemSettings for application/json ContentType.
 type SetSystemSettingsJSONRequestBody = SystemSettingValues
 
@@ -3747,6 +3916,15 @@ type ServerInterface interface {
 	// RunQuery Run a query described in the query IR
 	// (POST /query)
 	RunQuery(w http.ResponseWriter, r *http.Request)
+	// GetEmailSettings The SMTP server the organization sends email through (system admins only)
+	// (GET /system/email)
+	GetEmailSettings(w http.ResponseWriter, r *http.Request)
+	// SetEmailSettings Replace the email settings (system admins only)
+	// (PUT /system/email)
+	SetEmailSettings(w http.ResponseWriter, r *http.Request)
+	// TestEmailSettings Send a test email with the settings given, saved or not (system admins only)
+	// (POST /system/email/test)
+	TestEmailSettings(w http.ResponseWriter, r *http.Request)
 	// GetSystemSettings The settings the organization has one value of, and their defaults (system admins only)
 	// (GET /system/settings)
 	GetSystemSettings(w http.ResponseWriter, r *http.Request)
@@ -6529,6 +6707,48 @@ func (siw *ServerInterfaceWrapper) RunQuery(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// GetEmailSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetEmailSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEmailSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetEmailSettings operation middleware
+func (siw *ServerInterfaceWrapper) SetEmailSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetEmailSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestEmailSettings operation middleware
+func (siw *ServerInterfaceWrapper) TestEmailSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestEmailSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetSystemSettings operation middleware
 func (siw *ServerInterfaceWrapper) GetSystemSettings(w http.ResponseWriter, r *http.Request) {
 
@@ -7056,6 +7276,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/workspace", wrapper.UpdateWorkspace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/system/settings", wrapper.GetSystemSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/system/settings", wrapper.SetSystemSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/system/email", wrapper.GetEmailSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/system/email", wrapper.SetEmailSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/system/email/test", wrapper.TestEmailSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/audit-events", wrapper.ListAuditEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/charts", wrapper.ListCharts)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/charts", wrapper.CreateChart)
@@ -12220,6 +12443,99 @@ func (response RunQuery422JSONResponse) VisitRunQueryResponse(w http.ResponseWri
 	return err
 }
 
+type GetEmailSettingsRequestObject struct {
+}
+
+type GetEmailSettingsResponseObject interface {
+	VisitGetEmailSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetEmailSettings200JSONResponse EmailSettings
+
+func (response GetEmailSettings200JSONResponse) VisitGetEmailSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEmailSettingsRequestObject struct {
+	Body *SetEmailSettingsJSONRequestBody
+}
+
+type SetEmailSettingsResponseObject interface {
+	VisitSetEmailSettingsResponse(w http.ResponseWriter) error
+}
+
+type SetEmailSettings200JSONResponse EmailSettings
+
+func (response SetEmailSettings200JSONResponse) VisitSetEmailSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEmailSettings400JSONResponse struct{ ErrorJSONResponse }
+
+func (response SetEmailSettings400JSONResponse) VisitSetEmailSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestEmailSettingsRequestObject struct {
+	Body *TestEmailSettingsJSONRequestBody
+}
+
+type TestEmailSettingsResponseObject interface {
+	VisitTestEmailSettingsResponse(w http.ResponseWriter) error
+}
+
+type TestEmailSettings200JSONResponse EmailTest
+
+func (response TestEmailSettings200JSONResponse) VisitTestEmailSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestEmailSettings400JSONResponse struct{ ErrorJSONResponse }
+
+func (response TestEmailSettings400JSONResponse) VisitTestEmailSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetSystemSettingsRequestObject struct {
 }
 
@@ -13157,6 +13473,15 @@ type StrictServerInterface interface {
 	// RunQuery Run a query described in the query IR
 	// (POST /query)
 	RunQuery(ctx context.Context, request RunQueryRequestObject) (RunQueryResponseObject, error)
+	// GetEmailSettings The SMTP server the organization sends email through (system admins only)
+	// (GET /system/email)
+	GetEmailSettings(ctx context.Context, request GetEmailSettingsRequestObject) (GetEmailSettingsResponseObject, error)
+	// SetEmailSettings Replace the email settings (system admins only)
+	// (PUT /system/email)
+	SetEmailSettings(ctx context.Context, request SetEmailSettingsRequestObject) (SetEmailSettingsResponseObject, error)
+	// TestEmailSettings Send a test email with the settings given, saved or not (system admins only)
+	// (POST /system/email/test)
+	TestEmailSettings(ctx context.Context, request TestEmailSettingsRequestObject) (TestEmailSettingsResponseObject, error)
 	// GetSystemSettings The settings the organization has one value of, and their defaults (system admins only)
 	// (GET /system/settings)
 	GetSystemSettings(ctx context.Context, request GetSystemSettingsRequestObject) (GetSystemSettingsResponseObject, error)
@@ -16358,6 +16683,92 @@ func (sh *strictHandler) RunQuery(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RunQueryResponseObject); ok {
 		if err := validResponse.VisitRunQueryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEmailSettings operation middleware
+func (sh *strictHandler) GetEmailSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetEmailSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEmailSettings(ctx, request.(GetEmailSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEmailSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEmailSettingsResponseObject); ok {
+		if err := validResponse.VisitGetEmailSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetEmailSettings operation middleware
+func (sh *strictHandler) SetEmailSettings(w http.ResponseWriter, r *http.Request) {
+	var request SetEmailSettingsRequestObject
+
+	var body SetEmailSettingsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetEmailSettings(ctx, request.(SetEmailSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetEmailSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetEmailSettingsResponseObject); ok {
+		if err := validResponse.VisitSetEmailSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TestEmailSettings operation middleware
+func (sh *strictHandler) TestEmailSettings(w http.ResponseWriter, r *http.Request) {
+	var request TestEmailSettingsRequestObject
+
+	var body TestEmailSettingsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestEmailSettings(ctx, request.(TestEmailSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestEmailSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestEmailSettingsResponseObject); ok {
+		if err := validResponse.VisitTestEmailSettingsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
