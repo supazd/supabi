@@ -30,6 +30,9 @@ import { Settings } from './Settings'
 const workspace = { id: 'sales', name: 'Sales', timezone: 'UTC', weekStart: 1, firstWeekDays: 4 as const }
 const another = { ...workspace, id: 'finance', name: 'Finance' }
 const response = (data: unknown) => ({ data, response: { ok: true } })
+const emailDefaults = { ports: { starttls: 587, tls: 465, none: 25 }, fromName: 'SupaBI' }
+const emailOff = { security: 'starttls', hasPassword: false, defaults: emailDefaults }
+const emailOn = { host: 'smtp.example.com', security: 'starttls', username: 'bi', hasPassword: true, fromAddress: 'bi@example.com', defaults: emailDefaults }
 const systemDefaults = {
   exportRetentionHours: 24, exportTimeoutMinutes: 15, exportMaxRows: 2_000_000, exportMaxSizeMb: 512, auditRetentionDays: 180, queryCacheTtlMinutes: 10,
   queryTimeoutSeconds: 60, queryDefaultRows: 1000, queryMaxRows: 10_000, sessionLifetimeHours: 168, workspaceRetentionDays: 30, mcpEnabled: false,
@@ -62,7 +65,7 @@ beforeEach(async () => {
   server.grants = [{ groupId: 'east', name: 'East sales', role: 'developer' }]
   server.get.mockReset().mockImplementation(async (path: string) => response(({
     '/users': server.users, '/groups': server.groups, '/members': server.members, '/group-members': server.grants,
-    '/workspaces': [workspace, another], '/user-attributes': [], '/system/settings': { values: {}, defaults: systemDefaults },
+    '/workspaces': [workspace, another], '/user-attributes': [], '/system/settings': { values: {}, defaults: systemDefaults }, '/system/email': emailOff,
   } as Record<string, unknown>)[path]))
   server.post.mockReset().mockResolvedValue(response({}))
   server.put.mockReset().mockResolvedValue(response(workspace))
@@ -75,7 +78,7 @@ afterEach(cleanup)
 describe('separate settings scopes', () => {
   it.each([
     ['/settings/personal/account', 'Personal settings', ['My account', 'MCP']],
-    ['/settings/system/users', 'System administration', ['User management', 'Groups', 'Workspaces', 'AI models', 'AI usage', 'Audit log', 'General']],
+    ['/settings/system/users', 'System administration', ['User management', 'Groups', 'Workspaces', 'AI models', 'AI usage', 'Email', 'Audit log', 'General']],
     ['/settings/workspace/general', 'Sales · Workspace settings', ['General', 'Members and access', 'User attributes']],
   ] as const)('shows only the navigation for %s', async (path, title, links) => {
     open(path)
@@ -388,5 +391,85 @@ describe('MCP clients', () => {
     open('/settings/personal/mcp')
     expect(await screen.findByText(/An administrator has turned MCP off/)).toBeTruthy()
     expect(screen.getByText('Claude Code')).toBeTruthy()
+  })
+})
+
+describe('email settings', () => {
+  const pick = async (name: string, option: string) => {
+    openPopup(screen.getByRole('combobox', { name }))
+    fireEvent.click(await screen.findByRole('option', { name: option }))
+  }
+  const type = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
+  beforeEach(() => {
+    server.put.mockReset().mockImplementation(async (_path: string, { body }: { body: Record<string, unknown> }) =>
+      response({ ...body, hasPassword: Boolean(body.password), defaults: emailDefaults }))
+  })
+
+  it('is off until a server and a sender are set, the port following the encryption', async () => {
+    open('/settings/system/email')
+    expect(await screen.findByText('Email is off. Enter an SMTP server and a sender address to turn it on.')).toBeTruthy()
+    const port = screen.getByLabelText('Port') as HTMLInputElement
+    expect(port.placeholder).toBe('587')
+    await pick('Encryption', 'SSL/TLS')
+    expect(port.placeholder).toBe('465')
+    const save = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement
+    type('SMTP server', 'smtp.example.com')
+    expect(screen.getAllByText('A sender address is needed with an SMTP server.').length).toBeGreaterThan(0)
+    expect(save.disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Send test email' }) as HTMLButtonElement).disabled).toBe(true)
+    type('Sender address', 'bi@example.com')
+    fireEvent.click(save)
+    await waitFor(() => expect(server.put).toHaveBeenCalledExactlyOnceWith('/system/email', { body: { host: 'smtp.example.com', security: 'tls', username: '', fromAddress: 'bi@example.com', fromName: '' } }))
+    expect(await screen.findByText('Email is on, sent through smtp.example.com:465.')).toBeTruthy()
+  })
+
+  it('keeps the saved password unless it is replaced or removed', async () => {
+    server.get.mockImplementation(async (path: string) => response(path === '/system/email' ? emailOn : undefined))
+    open('/settings/system/email')
+    const password = await screen.findByLabelText('Password') as HTMLInputElement
+    expect(password.placeholder).toBe('Password set')
+    type('Sender name', 'Reports')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(server.put).toHaveBeenCalledOnce())
+    expect(server.put.mock.calls[0]![1].body).not.toHaveProperty('password')
+
+    server.get.mockImplementation(async (path: string) => response(path === '/system/email' ? emailOn : undefined))
+    cleanup()
+    open('/settings/system/email')
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Remove the saved password' }))
+    expect(screen.getByText('A password is needed with a username.')).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('never signs in without encryption', async () => {
+    server.get.mockImplementation(async (path: string) => response(path === '/system/email' ? emailOn : undefined))
+    open('/settings/system/email')
+    await screen.findByLabelText('Username')
+    await pick('Encryption', 'No encryption')
+    expect(screen.getByText('Without encryption the server is used without signing in. Clear the username, or choose an encryption.')).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true)
+    type('Username', '')
+    expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('sends a test with the settings in the form, to the administrator first, and says where it failed', async () => {
+    server.get.mockImplementation(async (path: string) => response(path === '/system/email' ? emailOn : undefined))
+    server.post.mockReset().mockResolvedValue(response({ ok: false, durationMs: 40, stage: 'auth', message: '535 5.7.8 Authentication credentials invalid' }))
+    open('/settings/system/email')
+    const to = await screen.findByLabelText('Recipient') as HTMLInputElement
+    expect(to.value).toBe('root@example.com')
+    type('Port', '2525')
+    fireEvent.click(screen.getByRole('button', { name: 'Send test email' }))
+    await waitFor(() => expect(server.post).toHaveBeenCalledExactlyOnceWith('/system/email/test', {
+      body: { settings: { host: 'smtp.example.com', security: 'starttls', username: 'bi', fromAddress: 'bi@example.com', fromName: '', port: 2525 }, to: 'root@example.com', locale: 'en-US' },
+    }))
+    expect(await screen.findByText('The server refused the username or password')).toBeTruthy()
+    expect(screen.getByText('535 5.7.8 Authentication credentials invalid')).toBeTruthy()
+    // Testing saves nothing.
+    expect(server.put).not.toHaveBeenCalled()
+
+    server.post.mockResolvedValue(response({ ok: true, durationMs: 120 }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send test email' }))
+    expect(await screen.findByText('The server accepted the email to root@example.com in 120 ms.')).toBeTruthy()
   })
 })

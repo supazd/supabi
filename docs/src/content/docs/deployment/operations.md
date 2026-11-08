@@ -69,7 +69,7 @@ Back up the metadata database, and keep `secret-key` apart from it. A backup wit
 
 ## Lost secret key
 
-`secret-key` encrypts the stored data source passwords and API keys of AI providers. If it is lost they cannot be decrypted, and SupaBI refuses to start with a different key. To recover:
+`secret-key` encrypts the stored data source passwords, API keys of AI providers and the password of the email server. If it is lost they cannot be decrypted, and SupaBI refuses to start with a different key. To recover:
 
 1. Stop all instances.
 2. See what would be cleared:
@@ -84,4 +84,4 @@ Back up the metadata database, and keep `secret-key` apart from it. A backup wit
    bin/supabi clear-secrets --config supabi.yaml --yes
    ```
 
-4. Start with a new `secret-key`, and enter the data source passwords and API keys again. The data sources and providers themselves are kept.
+4. Start with a new `secret-key`, and enter the data source passwords, API keys and email password again. The data sources, providers and email settings themselves are kept.

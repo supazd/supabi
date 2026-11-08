@@ -142,20 +142,22 @@ func ClearSecrets(ctx context.Context, cfg config.Config, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(out, `This would remove the passwords of %d data sources and the API keys of %d AI
-providers, for administrators to enter them again. Stop every instance
-first: one still running seals new secrets with the old key.
+		fmt.Fprintf(out, `This would remove the passwords of %d data sources, the API keys of %d AI
+providers and the passwords of %d email servers, for administrators to enter
+them again. Stop every instance first: one still running seals new secrets
+with the old key.
 Run again with --yes to remove them.
-`, n.Datasources, n.AIProviders)
+`, n.Datasources, n.AIProviders, n.EmailServers)
 		return nil
 	}
 	n, err := store.ClearSecrets(ctx, pool)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(out, `Removed the passwords of %d data sources and the API keys of %d AI providers.
+	fmt.Fprintf(out, `Removed the passwords of %d data sources, the API keys of %d AI providers
+and the passwords of %d email servers.
 Start with the new secret-key, then enter them again.
-`, n.Datasources, n.AIProviders)
+`, n.Datasources, n.AIProviders, n.EmailServers)
 	return nil
 }
 

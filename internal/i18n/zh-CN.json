@@ -1,0 +1,13 @@
+{
+  "email": {
+    "security": {
+      "starttls": "STARTTLS",
+      "tls": "SSL/TLS",
+      "none": "不加密"
+    },
+    "test": {
+      "subject": "SupaBI 测试邮件",
+      "body": "这是一封来自 SupaBI 的测试邮件，由 {{name}}（{{email}}）发送，用来检查邮件设置。\n\n服务器：{{server}}，{{security}}\n\n能读到这封信，说明 SupaBI 可以发邮件了。无需回复。"
+    }
+  }
+}

@@ -58,6 +58,19 @@ Parts of features that already exist and that are known to be missing. The diffe
 | Exporting with the header groups | The export writes a single row of column names; XLSX would need multi-row headers and merged cells, and CSV cannot express them. See [Charts and dashboards](design/chart-dashboard.md) 2.7 | When users need the exported header to match the screen |
 | A separate entry for notifications | In-app messages come only from exports for now, and the export center already covers them | When building messages unrelated to downloads, such as alerts and subscriptions |
 
+## Email
+
+The SMTP settings, a test email and a function to send with are implemented; no feature sends email yet. See [Email](design/email.md) section 10.
+
+| Item | Why deferred | When to re-evaluate |
+|---|---|---|
+| A queue, retries and a record of sent messages | How a message is sent and retried depends on what is sent and who waits for it | With the first feature that sends email |
+| Attachments, HTML templates and a shared layout | No message is designed yet; attachments are needed only by subscriptions and timed exports | With the first feature that sends email, and with subscriptions |
+| OAuth 2.0 sign-in (`XOAUTH2`) for Microsoft 365 and Gmail | Needs an application registered with the provider and a token refreshed in the background | When an organization's mail provider no longer accepts a password |
+| Skipping certificate verification | It would let anyone on the network read the password; an internal CA can be added to the trust store | When a deployment cannot change its trust store |
+| A sender per workspace | Nothing is sent from a workspace yet | When workspaces send subscriptions under their own names |
+| Knowing each person's interface language on the server | The interface keeps the choice in the browser, and `users.locale` is not used; the test email takes the language of the page that sends it | With the first feature that emails other people |
+
 ## Charts
 
 | Item | Why deferred | When to re-evaluate |

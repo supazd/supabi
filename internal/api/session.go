@@ -217,6 +217,10 @@ var requirements = map[string]requirement{
 	// What every instance keeps to: .agents/design/configuration.md 10.
 	"GetSystemSettings": {orgAdmin: true},
 	"SetSystemSettings": {orgAdmin: true},
+	// The server the organization sends email through, and its password.
+	"GetEmailSettings":  {orgAdmin: true},
+	"SetEmailSettings":  {orgAdmin: true},
+	"TestEmailSettings": {orgAdmin: true},
 
 	// Every member has the assistant, and their own conversations with it,
 	// which the handlers see to. It reads no data yet.

@@ -1,0 +1,13 @@
+{
+  "email": {
+    "security": {
+      "starttls": "STARTTLS",
+      "tls": "SSL/TLS",
+      "none": "no encryption"
+    },
+    "test": {
+      "subject": "SupaBI test email",
+      "body": "This is a test email from SupaBI. {{name}} ({{email}}) sent it to check the email settings.\n\nServer: {{server}}, {{security}}\n\nIf you can read this, SupaBI can send email. There is no need to reply."
+    }
+  }
+}

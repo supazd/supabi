@@ -36,7 +36,8 @@ type Outcome string
 
 const (
 	Success Outcome = "success"
-	// Failure is recorded for sign-ins, queries and finished exports only.
+	// Failure is recorded for sign-ins, queries, finished exports and test
+	// emails only.
 	Failure Outcome = "failure"
 	// Denied is a refusal by a permission check.
 	Denied Outcome = "denied"
@@ -108,6 +109,8 @@ var actions = map[string]Category{
 	"ai_settings.update": AI,
 
 	"system_settings.update": System,
+	"email_settings.update":  System,
+	"email.test":             System,
 }
 
 // CategoryOf returns the category of an action, and whether the action exists.

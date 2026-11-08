@@ -1,0 +1,5 @@
+/* The server's reply, as it wrote it, which can be long and without spaces. */
+.email-test-message { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* The recipient takes the room the button leaves. */
+.email-test-to { flex-wrap: nowrap; }
+.email-test-to > :first-child { flex: 1 1 auto; min-width: 0; }

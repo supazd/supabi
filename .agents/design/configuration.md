@@ -282,7 +282,7 @@ Two values of the AI assistant were hard-coded: the share of the model's context
 
 ## 11. Secret key check
 
-`secret-key` encrypts the data source passwords and the AI provider API keys in the database, and it can only live in the startup configuration: if it were kept with the database, anyone who got one database backup could decrypt all the passwords.
+`secret-key` encrypts the data source passwords, the AI provider API keys and the password of the email server ([Email](email.md) 9) in the database, and it can only live in the startup configuration: if it were kept with the database, anyone who got one database backup could decrypt all the passwords.
 
 Different secret keys across instances have the heaviest consequences: B cannot decrypt the passwords A stored, and queries fail; A cannot decrypt the passwords B newly stored either, so each side holds half, and it is hard to sort out afterwards. Today this is found only when a password is used. It changes to being found at startup:
 
@@ -302,8 +302,8 @@ Different secret keys across instances have the heaviest consequences: B cannot 
 supabi clear-secrets --config /etc/supabi/supabi.yaml --yes
 ```
 
-- It clears all the encrypted values in the database (data source passwords, AI provider API keys) and the check value. The data sources and providers themselves are kept, and an administrator fills in the passwords and API keys again. After that, start with the new secret key, and a new check value is written.
-- Without `--yes`, it only lists how many data source passwords and how many provider API keys would be cleared, and does not run.
+- It clears all the encrypted values in the database (data source passwords, AI provider API keys, the email server password) and the check value. The data sources, providers and email settings themselves are kept, and an administrator fills in the passwords and API keys again. After that, start with the new secret key, and a new check value is written.
+- Without `--yes`, it only lists how many data source passwords, provider API keys and email server passwords would be cleared, and does not run.
 - Stop all instances before running it: an instance that is still running holds the old key and keeps storing passwords with it.
 - It uses only `database-url` and does not need `secret-key`.
 
