@@ -105,7 +105,7 @@ func (s *Server) exportResponse(e store.Export, denied string) gen.Export {
 	if status == "succeeded" && !downloadable(e) {
 		status = "expired"
 	}
-	out := gen.Export{Id: e.ID, Name: e.Name, Format: gen.ExportFormat(e.Format), Source: gen.ExportSource(e.Source), Status: gen.ExportStatus(status), CreatedAt: e.CreatedAt, StartedAt: e.StartedAt, FinishedAt: e.FinishedAt, ExpiresAt: e.ExpiresAt, Rows: e.Rows, SizeBytes: e.SizeBytes, CancelRequested: e.CancelRequested, ErrorCode: optional(e.ErrorCode), Unseen: e.Unseen, Denied: optional(denied)}
+	out := gen.Export{Id: e.ID, WorkspaceId: e.WorkspaceID, WorkspaceName: e.WorkspaceName, Name: e.Name, Format: gen.ExportFormat(e.Format), Source: gen.ExportSource(e.Source), Status: gen.ExportStatus(status), CreatedAt: e.CreatedAt, StartedAt: e.StartedAt, FinishedAt: e.FinishedAt, ExpiresAt: e.ExpiresAt, Rows: e.Rows, SizeBytes: e.SizeBytes, CancelRequested: e.CancelRequested, ErrorCode: optional(e.ErrorCode), Unseen: e.Unseen, Denied: optional(denied)}
 	if e.Source == "chart" {
 		out.DashboardName, out.ChartName = &e.DashboardName, &e.ChartName
 	}
@@ -146,24 +146,61 @@ func (s *Server) describeExport(ctx context.Context, e store.Export, checked map
 	return s.exportResponse(e, denied), nil
 }
 
+// inWorkspaceOf acts as the caller in the workspace an export was made in,
+// with their role there, whichever workspace is current: an export is
+// checked where it was made. See .agents/design/exports.md 6.
+func (s *Server) inWorkspaceOf(ctx context.Context, e store.Export) (context.Context, error) {
+	c := callerFrom(ctx)
+	p := *c.principal
+	p.WorkspaceID = e.WorkspaceID
+	role, err := store.WorkspaceRole(ctx, s.Pool, p)
+	if err != nil {
+		return nil, err
+	}
+	in := *c
+	in.principal, in.role = &p, role
+	return context.WithValue(ctx, callerKey{}, &in), nil
+}
+
+// ownExport is one of the caller's exports, and the caller as they are in
+// its workspace.
+func (s *Server) ownExport(ctx context.Context, exportID string) (context.Context, store.Export, error) {
+	p := callerFrom(ctx).principal
+	e, err := store.GetExport(ctx, s.Pool, p.OrgID, p.UserID, exportID)
+	if err != nil {
+		return nil, e, err
+	}
+	in, err := s.inWorkspaceOf(ctx, e)
+	return in, e, err
+}
+
 func (s *Server) ListExports(ctx context.Context, req gen.ListExportsRequestObject) (gen.ListExportsResponseObject, error) {
-	list, err := store.ListExports(ctx, s.Pool, s.scope(ctx), req.Params.Before)
+	p := callerFrom(ctx).principal
+	list, err := store.ListExports(ctx, s.Pool, p.OrgID, p.UserID, req.Params.Before)
 	if err != nil {
 		return nil, err
 	}
-	unseen, err := store.UnseenExports(ctx, s.Pool, s.scope(ctx))
+	unseen, err := store.UnseenExports(ctx, s.Pool, p.OrgID, p.UserID)
 	if err != nil {
 		return nil, err
 	}
-	settings, err := store.SystemSettingsInForce(ctx, s.Pool, s.scope(ctx).OrgID)
+	settings, err := store.SystemSettingsInForce(ctx, s.Pool, p.OrgID)
 	if err != nil {
 		return nil, err
 	}
 	out := gen.ExportPage{Items: make([]gen.Export, len(list)), Unseen: unseen, MaxRows: settings.ExportMaxRows, MaxBytes: settings.ExportMaxBytes,
 		RetentionSeconds: int64(settings.ExportRetention.Seconds()), TimeoutSeconds: int64(settings.ExportTimeout.Seconds())}
 	checked := map[string]string{}
+	workspaces := map[string]context.Context{}
 	for i, e := range list {
-		if out.Items[i], err = s.describeExport(ctx, e, checked); err != nil {
+		in, ok := workspaces[e.WorkspaceID]
+		if !ok {
+			if in, err = s.inWorkspaceOf(ctx, e); err != nil {
+				return nil, err
+			}
+			workspaces[e.WorkspaceID] = in
+		}
+		if out.Items[i], err = s.describeExport(in, e, checked); err != nil {
 			return nil, err
 		}
 	}
@@ -174,25 +211,33 @@ func (s *Server) ListExports(ctx context.Context, req gen.ListExportsRequestObje
 }
 
 func (s *Server) GetExport(ctx context.Context, req gen.GetExportRequestObject) (gen.GetExportResponseObject, error) {
-	e, err := store.GetExport(ctx, s.Pool, s.scope(ctx), req.Id)
+	in, e, err := s.ownExport(ctx, req.Id)
 	if err != nil {
 		return nil, err
 	}
-	out, err := s.describeExport(ctx, e, map[string]string{})
+	out, err := s.describeExport(in, e, map[string]string{})
 	return gen.GetExport200JSONResponse(out), err
 }
 
 func (s *Server) MarkExportsSeen(ctx context.Context, _ gen.MarkExportsSeenRequestObject) (gen.MarkExportsSeenResponseObject, error) {
-	if err := store.SeeExports(ctx, s.Pool, s.scope(ctx)); err != nil {
+	p := callerFrom(ctx).principal
+	if err := store.SeeExports(ctx, s.Pool, p.OrgID, p.UserID); err != nil {
 		return nil, err
 	}
 	return gen.MarkExportsSeen204Response{}, nil
 }
 
+// CancelExport records the cancellation itself: it belongs to the export's
+// workspace, not to the current one.
 func (s *Server) CancelExport(ctx context.Context, req gen.CancelExportRequestObject) (gen.CancelExportResponseObject, error) {
-	if err := store.CancelExport(ctx, s.Pool, s.scope(ctx), req.Id); err != nil {
+	in, e, err := s.ownExport(ctx, req.Id)
+	if err != nil {
 		return nil, err
 	}
+	if err := store.CancelExport(ctx, s.Pool, e.OrgID, e.UserID, e.ID); err != nil {
+		return nil, err
+	}
+	s.recordExport(in, "export.cancel", audit.Success, e, nil)
 	return gen.CancelExport204Response{}, nil
 }
 
@@ -218,7 +263,8 @@ func (d exportDownload) VisitDownloadExportResponse(w http.ResponseWriter) error
 }
 
 func (s *Server) DownloadExport(ctx context.Context, req gen.DownloadExportRequestObject) (gen.DownloadExportResponseObject, error) {
-	e, err := store.GetExport(ctx, s.Pool, s.scope(ctx), req.Id)
+	// Checked and recorded in the export's workspace, whichever is current.
+	ctx, e, err := s.ownExport(ctx, req.Id)
 	if err != nil {
 		return nil, err
 	}

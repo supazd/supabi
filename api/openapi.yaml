@@ -517,7 +517,7 @@ paths:
   /exports:
     get:
       operationId: listExports
-      summary: The current user's exports in this workspace, from data exploration and dashboards
+      summary: The current user's exports in every workspace they can enter, from data exploration and dashboards
       parameters:
         - { name: before, in: query, schema: { type: string, format: date-time } }
       responses:
@@ -548,7 +548,7 @@ paths:
       - { name: id, in: path, required: true, schema: { type: string } }
     get:
       operationId: getExport
-      summary: Status of an export owned by the caller
+      summary: Status of an export owned by the caller, in any workspace they can enter
       responses:
         "200":
           description: OK
@@ -586,7 +586,7 @@ paths:
   /exports/seen:
     post:
       operationId: markExportsSeen
-      summary: Mark every new export result of the caller in this workspace as seen
+      summary: Mark every new export result of the caller, in every workspace they can enter, as seen
       responses:
         "204": { description: Seen }
 
@@ -2120,9 +2120,15 @@ components:
         drill: { $ref: "#/components/schemas/DrillPath" }
     Export:
       type: object
-      required: [id, name, format, source, status, createdAt, rows, sizeBytes, cancelRequested, unseen]
+      required: [id, name, format, source, status, createdAt, rows, sizeBytes, cancelRequested, unseen, workspaceId, workspaceName]
       properties:
         id: { type: string }
+        workspaceId:
+          description: The workspace the export was made in, which its permissions are checked in.
+          type: string
+        workspaceName:
+          description: That workspace's current name.
+          type: string
         name: { type: string }
         format: { type: string, enum: [csv, xlsx] }
         source:
@@ -2159,7 +2165,7 @@ components:
       properties:
         items: { type: array, items: { $ref: "#/components/schemas/Export" } }
         unseen:
-          description: Finished results in this workspace the owner has not looked at yet.
+          description: Finished results the owner has not looked at yet, in every workspace they can enter.
           type: integer
         nextBefore: { type: string, format: date-time }
         maxRows: { type: integer, format: int64 }

@@ -37,17 +37,40 @@ type Export struct {
 	ExpiresAt, CleanedAt                 *time.Time
 	// Unseen is a finished result its owner has not looked at yet.
 	Unseen bool
+	// WorkspaceName is the workspace's current name, read only for its
+	// owner's list.
+	WorkspaceName string
 }
 
 const exportColumns = `j.id,j.org_id,j.kind,j.status,COALESCE(j.lease_token,''),j.error_code,j.created_at,j.started_at,j.finished_at,j.attempts,j.cancel_requested,
  e.workspace_id,e.user_id,e.datasource_id,e.name,e.format,e.source,e.dashboard_id,e.item_id,e.chart_id,e.dashboard_name,e.chart_name,e.source_spec,e.row_count,e.size_bytes,e.file_key,e.expires_at,e.cleaned_at,e.unseen`
 const exportFrom = ` FROM exports e JOIN background_jobs j ON j.id=e.id AND j.org_id=e.org_id`
 
-func scanExport(row pgx.Row) (Export, error) {
+// ownExports are an owner's exports in the workspaces they can enter now,
+// whichever is current: .agents/design/exports.md 6. $1 is the org and $2
+// the owner.
+const ownExports = `SELECT ` + exportColumns + `,w.name` + exportFrom + `
+ JOIN workspaces w ON w.org_id=e.org_id AND w.id=e.workspace_id AND w.deleted_at IS NULL
+ JOIN users u ON u.org_id=e.org_id AND u.id=e.user_id
+ WHERE e.org_id=$1 AND e.user_id=$2 AND ` + workspaceAccess
+
+// ownedExport limits a statement on exports e to those of ownExports.
+const ownedExport = `e.org_id=$1 AND e.user_id=$2 AND EXISTS (
+ SELECT FROM workspaces w JOIN users u ON u.org_id=w.org_id AND u.id=e.user_id
+ WHERE w.org_id=e.org_id AND w.id=e.workspace_id AND w.deleted_at IS NULL AND ` + workspaceAccess + `)`
+
+func scanExport(row pgx.Row, more ...any) (Export, error) {
 	var e Export
-	err := row.Scan(&e.ID, &e.OrgID, &e.Kind, &e.Status, &e.LeaseToken, &e.ErrorCode, &e.CreatedAt, &e.StartedAt, &e.FinishedAt, &e.Attempts, &e.CancelRequested,
-		&e.WorkspaceID, &e.UserID, &e.DatasourceID, &e.Name, &e.Format, &e.Source, &e.DashboardID, &e.ItemID, &e.ChartID, &e.DashboardName, &e.ChartName, &e.SourceSpec, &e.Rows, &e.SizeBytes, &e.FileKey, &e.ExpiresAt, &e.CleanedAt, &e.Unseen)
+	err := row.Scan(append([]any{&e.ID, &e.OrgID, &e.Kind, &e.Status, &e.LeaseToken, &e.ErrorCode, &e.CreatedAt, &e.StartedAt, &e.FinishedAt, &e.Attempts, &e.CancelRequested,
+		&e.WorkspaceID, &e.UserID, &e.DatasourceID, &e.Name, &e.Format, &e.Source, &e.DashboardID, &e.ItemID, &e.ChartID, &e.DashboardName, &e.ChartName, &e.SourceSpec, &e.Rows, &e.SizeBytes, &e.FileKey, &e.ExpiresAt, &e.CleanedAt, &e.Unseen}, more...)...)
 	return e, translate(err)
+}
+
+func scanOwnExport(row pgx.Row) (Export, error) {
+	var name string
+	e, err := scanExport(row, &name)
+	e.WorkspaceName = name
+	return e, err
 }
 
 func CreateExport(ctx context.Context, pool *pgxpool.Pool, s Scope, e Export) (Export, error) {
@@ -77,19 +100,22 @@ func CreateExport(ctx context.Context, pool *pgxpool.Pool, s Scope, e Export) (E
 	if err != nil {
 		return Export{}, err
 	}
-	return GetExport(ctx, pool, s, e.ID)
+	return GetExport(ctx, pool, s.OrgID, s.UserID, e.ID)
 }
 
-func GetExport(ctx context.Context, pool *pgxpool.Pool, s Scope, exportID string) (Export, error) {
-	return scanExport(pool.QueryRow(ctx, `SELECT `+exportColumns+exportFrom+` WHERE e.org_id=$1 AND e.workspace_id=$2 AND e.user_id=$3 AND e.id=$4`, s.OrgID, s.WorkspaceID, s.UserID, exportID))
+// GetExport is one of an owner's exports, in any workspace they can enter.
+func GetExport(ctx context.Context, pool *pgxpool.Pool, orgID, userID, exportID string) (Export, error) {
+	return scanOwnExport(pool.QueryRow(ctx, ownExports+` AND e.id=$3`, orgID, userID, exportID))
 }
 
-func ListExports(ctx context.Context, pool *pgxpool.Pool, s Scope, before *time.Time) ([]Export, error) {
-	rows, err := pool.Query(ctx, `SELECT `+exportColumns+exportFrom+` WHERE e.org_id=$1 AND e.workspace_id=$2 AND e.user_id=$3 AND ($4::timestamptz IS NULL OR j.created_at<$4) ORDER BY j.created_at DESC LIMIT 50`, s.OrgID, s.WorkspaceID, s.UserID, before)
+// ListExports is a page of an owner's exports, newest first, from every
+// workspace they can enter.
+func ListExports(ctx context.Context, pool *pgxpool.Pool, orgID, userID string, before *time.Time) ([]Export, error) {
+	rows, err := pool.Query(ctx, ownExports+` AND ($3::timestamptz IS NULL OR j.created_at<$3) ORDER BY j.created_at DESC, j.id DESC LIMIT 50`, orgID, userID, before)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Export, error) { return scanExport(row) })
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Export, error) { return scanOwnExport(row) })
 }
 
 // ExportOwner returns a durable job's owner as they are now, independently
@@ -198,10 +224,12 @@ func FinishJob(ctx context.Context, pool *pgxpool.Pool, j Job, file ExportFile, 
 	return status, err
 }
 
-func CancelExport(ctx context.Context, pool *pgxpool.Pool, s Scope, exportID string) error {
+// CancelExport cancels one of an owner's exports, in any workspace they can
+// enter.
+func CancelExport(ctx context.Context, pool *pgxpool.Pool, orgID, userID, exportID string) error {
 	tag, err := pool.Exec(ctx, `UPDATE background_jobs j SET cancel_requested=CASE WHEN j.status IN ('queued','running') THEN true ELSE j.cancel_requested END,
  status=CASE WHEN j.status='queued' THEN 'cancelled' ELSE j.status END,finished_at=CASE WHEN j.status='queued' THEN now() ELSE j.finished_at END
- FROM exports e WHERE j.id=e.id AND e.org_id=$1 AND e.workspace_id=$2 AND e.user_id=$3 AND e.id=$4`, s.OrgID, s.WorkspaceID, s.UserID, exportID)
+ FROM exports e WHERE j.id=e.id AND e.id=$3 AND `+ownedExport, orgID, userID, exportID)
 	if err == nil && tag.RowsAffected() == 0 {
 		return ErrNotFound
 	}
@@ -216,16 +244,18 @@ func EnqueueExportCleanup(ctx context.Context, pool *pgxpool.Pool, now time.Time
 	return err
 }
 
-// UnseenExports counts the owner's new results in the workspace.
-func UnseenExports(ctx context.Context, pool *pgxpool.Pool, s Scope) (int, error) {
+// UnseenExports counts the owner's new results in the workspaces they can
+// enter.
+func UnseenExports(ctx context.Context, pool *pgxpool.Pool, orgID, userID string) (int, error) {
 	var n int
-	err := pool.QueryRow(ctx, `SELECT count(*) FROM exports WHERE org_id=$1 AND workspace_id=$2 AND user_id=$3 AND unseen`, s.OrgID, s.WorkspaceID, s.UserID).Scan(&n)
+	err := pool.QueryRow(ctx, `SELECT count(*) FROM exports e WHERE e.unseen AND `+ownedExport, orgID, userID).Scan(&n)
 	return n, err
 }
 
-// SeeExports marks all of the owner's new results in the workspace as seen.
-func SeeExports(ctx context.Context, pool *pgxpool.Pool, s Scope) error {
-	_, err := pool.Exec(ctx, `UPDATE exports SET unseen=false WHERE org_id=$1 AND workspace_id=$2 AND user_id=$3 AND unseen`, s.OrgID, s.WorkspaceID, s.UserID)
+// SeeExports marks all of the owner's new results in the workspaces they
+// can enter as seen.
+func SeeExports(ctx context.Context, pool *pgxpool.Pool, orgID, userID string) error {
+	_, err := pool.Exec(ctx, `UPDATE exports e SET unseen=false WHERE e.unseen AND `+ownedExport, orgID, userID)
 	return err
 }
 

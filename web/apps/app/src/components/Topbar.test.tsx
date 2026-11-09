@@ -66,6 +66,8 @@ describe('Topbar', () => {
     openMenu(screen.getByRole('button', { name: 'Account menu for Alex' }))
     expect(await screen.findByRole('menuitem', { name: 'System administration' })).toBeTruthy()
     expect(screen.queryByText('Workspace settings')).toBeNull()
+    // Exports are not tied to the current workspace, so they stay reachable.
+    expect(screen.getByRole('button', { name: 'Exports' })).toBeTruthy()
   })
 
   it('keeps the workspace visible with one membership and hides unavailable navigation and administration', async () => {

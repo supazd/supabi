@@ -109,11 +109,14 @@ var requirements = map[string]requirement{
 	// can open, when the chart allows it, and a developer's of SQL. Handlers
 	// see to ownership, and a download is checked as its source would be.
 	"CreateDashboardExport": needs(authz.Viewer),
-	"ListExports":           needs(authz.Viewer),
-	"GetExport":             needs(authz.Viewer),
-	"CancelExport":          needs(authz.Viewer),
-	"DownloadExport":        needs(authz.Viewer),
-	"MarkExportsSeen":       needs(authz.Viewer),
+	// The export center does not follow the current workspace: it holds the
+	// caller's exports from every workspace they can enter, and the handlers
+	// check each in its own. See .agents/design/exports.md 6.
+	"ListExports":     {},
+	"GetExport":       {},
+	"CancelExport":    {},
+	"DownloadExport":  {},
+	"MarkExportsSeen": {},
 
 	// Developers can read whatever the data sources' accounts can: they
 	// write SQL against them.
