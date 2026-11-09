@@ -446,7 +446,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The current user's exports in this workspace, from data exploration and dashboards */
+        /** The current user's exports in every workspace they can enter, from data exploration and dashboards */
         get: operations["listExports"];
         put?: never;
         /** Queue an immutable SQL snapshot for a CSV or XLSX export */
@@ -466,7 +466,7 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Status of an export owned by the caller */
+        /** Status of an export owned by the caller, in any workspace they can enter */
         get: operations["getExport"];
         put?: never;
         post?: never;
@@ -523,7 +523,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Mark every new export result of the caller in this workspace as seen */
+        /** Mark every new export result of the caller, in every workspace they can enter, as seen */
         post: operations["markExportsSeen"];
         delete?: never;
         options?: never;
@@ -1876,6 +1876,10 @@ export interface components {
         };
         Export: {
             id: string;
+            /** @description The workspace the export was made in, which its permissions are checked in. */
+            workspaceId: string;
+            /** @description That workspace's current name. */
+            workspaceName: string;
             name: string;
             /** @enum {string} */
             format: "csv" | "xlsx";
@@ -1915,7 +1919,7 @@ export interface components {
         };
         ExportPage: {
             items: components["schemas"]["Export"][];
-            /** @description Finished results in this workspace the owner has not looked at yet. */
+            /** @description Finished results the owner has not looked at yet, in every workspace they can enter. */
             unseen: number;
             /** Format: date-time */
             nextBefore?: string;

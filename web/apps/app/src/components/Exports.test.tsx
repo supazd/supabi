@@ -25,7 +25,7 @@ import { ChartExportDialog, ExportCenter, SqlExportDialog, exportFileName } from
 
 const response = (data: unknown): Promise<MockOutcome> => Promise.resolve({ data, response: { ok: true } })
 const page = (history: HistoryPage): Schemas['ExportPage'] => ({ ...history, unseen: history.items.filter((item) => item.unseen).length, maxRows: 2000000, maxBytes: 536870912, retentionSeconds: 86400, timeoutSeconds: 900 })
-const ready = (id: string, name = id): Schemas['Export'] => ({ id, name, format: 'xlsx', source: 'sql', status: 'succeeded', createdAt: '2026-10-18T10:00:00Z', expiresAt: '2099-10-19T10:00:00Z', rows: 2001, sizeBytes: 23456, cancelRequested: false, unseen: false })
+const ready = (id: string, name = id): Schemas['Export'] => ({ id, workspaceId: 'ws_main', workspaceName: 'Main workspace', name, format: 'xlsx', source: 'sql', status: 'succeeded', createdAt: '2026-10-18T10:00:00Z', expiresAt: '2099-10-19T10:00:00Z', rows: 2001, sizeBytes: 23456, cancelRequested: false, unseen: false })
 
 beforeEach(async () => {
   await i18n.changeLanguage('en-US')
@@ -92,6 +92,18 @@ describe('suggested file names', () => {
 })
 
 describe('export center', () => {
+  it('names the workspace of each export when the owner can enter several', async () => {
+    server.items = [
+      ready('exp_here', 'Here'),
+      { ...ready('exp_there', 'There'), workspaceId: 'ws_sales', workspaceName: 'Sales', source: 'chart', dashboardName: 'Orders', chartName: 'Trend' },
+    ]
+    render(<ExportCenter disabled={false} showWorkspace />)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Exports' })) })
+    expect(within(await screen.findByRole('article', { name: 'Here.xlsx' })).getByText('Main workspace · Data exploration')).toBeTruthy()
+    expect(within(screen.getByRole('article', { name: 'There.xlsx' })).getByText('Sales · Orders / Trend')).toBeTruthy()
+    expect(screen.getByText('Your exports in all your workspaces. Task history is kept for 30 days. Expired files must be exported again.')).toBeTruthy()
+  })
+
   it('lists every source, marks new results seen when opened, and offers only allowed downloads', async () => {
     const item = ready('exp_ready', 'Ready')
     server.items = [

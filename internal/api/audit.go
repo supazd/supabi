@@ -188,7 +188,7 @@ var auditRules = map[string]auditRule{
 	"CreateExport":          {action: "export.create", handler: true},
 	"CreateDashboardExport": {action: "export.create", handler: true},
 	"DownloadExport":        {action: "export.download", object: "export", from: byID, handler: true},
-	"CancelExport":          change("export.cancel", "export", byID),
+	"CancelExport":          {action: "export.cancel", object: "export", from: byID, handler: true},
 }
 
 // trail collects what a request did, for its audit event.

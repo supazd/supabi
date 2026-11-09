@@ -69,6 +69,6 @@ The export runs against the saved dashboard, so in the editor, save first. It fo
 
 ## Exports
 
-**Exports** in the top bar lists your export jobs, with a badge for new results. There you can **Download** a finished file or **Cancel task** on a running one.
+**Exports** in the top bar lists your export jobs from every workspace you can enter, whichever one you are in, with a badge for new results. When you can enter more than one workspace, each job starts with the name of the workspace it was made in. There you can **Download** a finished file or **Cancel task** on a running one, without switching workspace.
 
-Closing the page or signing out does not cancel a job. Every download checks permissions and is recorded in the audit log. By default a finished file is kept for 24 hours and job records for 30 days.
+Closing the page or signing out does not cancel a job. Every download checks your permissions in the workspace the export was made in, and is recorded in the audit log. The exports of a workspace you can no longer enter leave the list. By default a finished file is kept for 24 hours and job records for 30 days.

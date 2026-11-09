@@ -265,10 +265,86 @@ func TestExportOwnershipAndRevokedPermissions(t *testing.T) {
 	if f.developer.expect("GET", "/exports", nil, 200, "")["unseen"] != float64(2) {
 		t.Fatal("another user saw the owner's results")
 	}
-	// A different workspace cannot see a same-owner task either.
-	own := queueExport(f.admin, sourceID, "csv", "SELECT 1 AS n")
-	workspace := f.admin.expect("POST", "/workspaces", map[string]any{"name": "Other", "timezone": "UTC", "weekStart": 1}, 201, "")
-	f.admin.expect("POST", "/auth/workspace", map[string]any{"workspaceId": workspace["id"]}, 200, "")
+}
+
+// The export center holds the owner's exports from every workspace they can
+// enter, each checked in its own: .agents/design/exports.md 6.
+func TestExportCenterSpansWorkspaces(t *testing.T) {
+	f := newContentFixture(t)
+	w := testExportWorker(f.admin)
+	sourceID := f.sourceID(t)
+	first := f.admin.expect("GET", "/auth/session", nil, 200, "")["workspace"].(map[string]any)
+	done := queueExport(f.developer, sourceID, "csv", "SELECT 1 AS n")
+	processExport(t, w)
+	queued := queueExport(f.developer, sourceID, "csv", "SELECT 2 AS n")
+	own := queueExport(f.admin, sourceID, "csv", "SELECT 3 AS n")
+
+	// The developer is only a viewer in a second workspace, and works there.
+	other := f.admin.expect("POST", "/workspaces", map[string]any{"name": "Other", "timezone": "UTC", "weekStart": 1}, 201, "")
+	f.admin.expect("POST", "/auth/workspace", map[string]any{"workspaceId": other["id"]}, 200, "")
+	developer := userID(t, f.admin, "developer@example.com")
+	f.admin.expect("POST", "/members", map[string]any{"userId": developer, "role": "viewer"}, 201, "")
+	f.developer.expect("POST", "/auth/workspace", map[string]any{"workspaceId": other["id"]}, 200, "")
+
+	page := f.developer.expect("GET", "/exports", nil, 200, "")
+	items := page["items"].([]any)
+	if len(items) != 2 || page["unseen"] != float64(1) {
+		t.Fatalf("exports from another workspace: %v", page)
+	}
+	for _, item := range items {
+		e := item.(map[string]any)
+		if e["workspaceId"] != first["id"] || e["workspaceName"] != first["name"] || e["denied"] != nil {
+			t.Fatalf("export of the first workspace: %v", e)
+		}
+	}
+	// A SQL export is for developers, and the developer is one where it was made.
+	got := f.developer.expect("GET", "/exports/"+done, nil, 200, "")
+	if got["status"] != "succeeded" || got["workspaceName"] != first["name"] {
+		t.Fatalf("export: %v", got)
+	}
+	response, err := f.developer.http.Get(f.developer.server.URL + "/api/v1/exports/" + done + "/file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = response.Body.Close()
+	if response.StatusCode != 200 {
+		t.Fatalf("download from another workspace: %d", response.StatusCode)
+	}
+	f.developer.expect("POST", "/exports/"+queued+"/cancel", nil, 204, "")
+	f.developer.expect("POST", "/exports/seen", nil, 204, "")
+	if f.developer.expect("GET", "/exports", nil, 200, "")["unseen"] != float64(0) {
+		t.Fatal("new results stayed new after being seen")
+	}
+	// Both are recorded where the export was made, not where its owner was.
+	for _, action := range []string{"export.download", "export.cancel"} {
+		var workspace string
+		if err := f.admin.db.Pool.QueryRow(context.Background(), `SELECT workspace_id FROM audit_events WHERE action=$1 AND outcome='success' ORDER BY occurred_at DESC LIMIT 1`, action).Scan(&workspace); err != nil {
+			t.Fatal(err)
+		}
+		if workspace != first["id"] {
+			t.Fatalf("%s recorded in %q", action, workspace)
+		}
+	}
+	// The admin, working in the second workspace too, still has theirs.
+	if items := f.admin.expect("GET", "/exports", nil, 200, "")["items"].([]any); len(items) != 1 || items[0].(map[string]any)["id"] != own {
+		t.Fatalf("admin's exports from another workspace: %v", items)
+	}
+
+	// Once the developer cannot enter the first workspace, its exports are gone.
+	f.admin.expect("POST", "/auth/workspace", map[string]any{"workspaceId": first["id"]}, 200, "")
+	f.admin.expect("DELETE", "/members/"+developer, nil, 204, "")
+	if items := f.developer.expect("GET", "/exports", nil, 200, "")["items"].([]any); len(items) != 0 {
+		t.Fatalf("exports of a workspace left: %v", items)
+	}
+	f.developer.expect("GET", "/exports/"+done, nil, 404, "not_found")
+	f.developer.expect("GET", "/exports/"+done+"/file", nil, 404, "not_found")
+	f.developer.expect("POST", "/exports/"+queued+"/cancel", nil, 404, "not_found")
+
+	// So are those of a deleted workspace, even for a system administrator.
+	f.admin.expect("DELETE", "/workspaces/"+first["id"].(string), nil, 200, "")
+	if items := f.admin.expect("GET", "/exports", nil, 200, "")["items"].([]any); len(items) != 0 {
+		t.Fatalf("exports of a deleted workspace: %v", items)
+	}
 	f.admin.expect("GET", "/exports/"+own, nil, 404, "not_found")
 }
 

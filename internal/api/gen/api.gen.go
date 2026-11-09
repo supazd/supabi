@@ -2488,6 +2488,12 @@ type Export struct {
 
 	// Unseen A finished result the owner has not looked at yet.
 	Unseen bool `json:"unseen"`
+
+	// WorkspaceId The workspace the export was made in, which its permissions are checked in.
+	WorkspaceId string `json:"workspaceId"`
+
+	// WorkspaceName That workspace's current name.
+	WorkspaceName string `json:"workspaceName"`
 }
 
 // ExportFormat defines model for Export.Format.
@@ -2520,7 +2526,7 @@ type ExportPage struct {
 	RetentionSeconds int64      `json:"retentionSeconds"`
 	TimeoutSeconds   int64      `json:"timeoutSeconds"`
 
-	// Unseen Finished results in this workspace the owner has not looked at yet.
+	// Unseen Finished results the owner has not looked at yet, in every workspace they can enter.
 	Unseen int `json:"unseen"`
 }
 
@@ -3829,16 +3835,16 @@ type ServerInterface interface {
 	// TestStoredDatasource Try to connect as a saved data source does, or with the given settings before saving them over it. A password left out is the saved one.
 	// (POST /datasources/{id}/test)
 	TestStoredDatasource(w http.ResponseWriter, r *http.Request, id string)
-	// ListExports The current user's exports in this workspace, from data exploration and dashboards
+	// ListExports The current user's exports in every workspace they can enter, from data exploration and dashboards
 	// (GET /exports)
 	ListExports(w http.ResponseWriter, r *http.Request, params ListExportsParams)
 	// CreateExport Queue an immutable SQL snapshot for a CSV or XLSX export
 	// (POST /exports)
 	CreateExport(w http.ResponseWriter, r *http.Request)
-	// MarkExportsSeen Mark every new export result of the caller in this workspace as seen
+	// MarkExportsSeen Mark every new export result of the caller, in every workspace they can enter, as seen
 	// (POST /exports/seen)
 	MarkExportsSeen(w http.ResponseWriter, r *http.Request)
-	// GetExport Status of an export owned by the caller
+	// GetExport Status of an export owned by the caller, in any workspace they can enter
 	// (GET /exports/{id})
 	GetExport(w http.ResponseWriter, r *http.Request, id string)
 	// CancelExport Cancel a queued or running export
@@ -13386,16 +13392,16 @@ type StrictServerInterface interface {
 	// TestStoredDatasource Try to connect as a saved data source does, or with the given settings before saving them over it. A password left out is the saved one.
 	// (POST /datasources/{id}/test)
 	TestStoredDatasource(ctx context.Context, request TestStoredDatasourceRequestObject) (TestStoredDatasourceResponseObject, error)
-	// ListExports The current user's exports in this workspace, from data exploration and dashboards
+	// ListExports The current user's exports in every workspace they can enter, from data exploration and dashboards
 	// (GET /exports)
 	ListExports(ctx context.Context, request ListExportsRequestObject) (ListExportsResponseObject, error)
 	// CreateExport Queue an immutable SQL snapshot for a CSV or XLSX export
 	// (POST /exports)
 	CreateExport(ctx context.Context, request CreateExportRequestObject) (CreateExportResponseObject, error)
-	// MarkExportsSeen Mark every new export result of the caller in this workspace as seen
+	// MarkExportsSeen Mark every new export result of the caller, in every workspace they can enter, as seen
 	// (POST /exports/seen)
 	MarkExportsSeen(ctx context.Context, request MarkExportsSeenRequestObject) (MarkExportsSeenResponseObject, error)
-	// GetExport Status of an export owned by the caller
+	// GetExport Status of an export owned by the caller, in any workspace they can enter
 	// (GET /exports/{id})
 	GetExport(ctx context.Context, request GetExportRequestObject) (GetExportResponseObject, error)
 	// CancelExport Cancel a queued or running export

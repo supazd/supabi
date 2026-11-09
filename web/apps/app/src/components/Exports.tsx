@@ -89,11 +89,13 @@ function fileSize(bytes: number, language: string) {
 
 /**
  * Everyone's exports, from data exploration and from dashboards, behind one
- * entry. A finished result is new until its owner opens the list. Polling is
- * faster while a job is active; hidden windows pause polling and immediately
- * refresh when visible again.
+ * entry. It does not follow the current workspace: it holds the owner's
+ * exports from every workspace they can enter, and showWorkspace names the
+ * one each was made in. A finished result is new until its owner opens the
+ * list. Polling is faster while a job is active; hidden windows pause polling
+ * and immediately refresh when visible again.
  */
-export function ExportCenter({ disabled }: { disabled: boolean }) {
+export function ExportCenter({ disabled, showWorkspace = false }: { disabled: boolean; showWorkspace?: boolean }) {
   const { t, i18n } = useTranslation()
   const [open, setOpen] = useState(false)
   const [page, setPage] = useState<ExportPage>()
@@ -225,7 +227,8 @@ export function ExportCenter({ disabled }: { disabled: boolean }) {
           const expired = e.status === 'expired' || (e.expiresAt && Date.parse(e.expiresAt) <= Date.now())
           // A file its owner may no longer download is not ready for them, whatever the task did.
           const status = expired ? 'expired' : e.status === 'succeeded' && e.denied ? 'denied' : e.status
-          const origin = e.source === 'chart' ? t('exports.fromChart', { dashboard: e.dashboardName, chart: e.chartName }) : t('exports.fromSql')
+          const source = e.source === 'chart' ? t('exports.fromChart', { dashboard: e.dashboardName, chart: e.chartName }) : t('exports.fromSql')
+          const origin = showWorkspace ? t('exports.inWorkspace', { workspace: e.workspaceName, source }) : source
           return <article className={`export-item${fresh.has(e.id) ? ' new' : ''}`} key={e.id} aria-label={`${e.name}.${e.format}`}>
             <span className={`export-file-icon ${e.format}`}><Icon name={e.format === 'xlsx' ? 'table' : 'rows'} size={20} /><small>{e.format.toUpperCase()}</small></span>
             <div className="export-item-content"><div className="export-item-title"><strong title={e.name}>{e.name}.{e.format}</strong><span className={`export-status ${status}`}>{t(e.cancelRequested && active(e) ? 'exports.cancelling' : `exports.status.${status}`)}</span>{fresh.has(e.id) && <span className="export-new">{t('exports.new')}</span>}</div>
