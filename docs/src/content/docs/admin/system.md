@@ -1,6 +1,6 @@
 ---
 title: System administration
-description: Accounts, groups, workspaces, email, the audit log and settings for the whole organization.
+description: Accounts, groups, workspaces, email, announcements, the audit log and settings for the whole organization.
 ---
 
 **System administration** is in the avatar menu, for system administrators only. It does not depend on the current workspace.
@@ -47,6 +47,10 @@ The server's certificate is checked against the trust store of the machine SupaB
 
 **Send a test email** sends with the settings on the page, saved or not, to the address you enter, your own to start with. The email is in the language of the page. When the server refuses, the page says at which step, such as signing in or the recipient, with the server's own reply under it. The server accepting the email does not mean it reached the inbox: if it does not arrive, look in the spam folder, and check that the server may send as the sender address.
 
+## Announcements
+
+**Announcements** publishes system announcements, which everyone signed in sees. See [Announcements](/admin/announcements/).
+
 ## Audit log
 
 The **Audit log** records who did what, when, and which data they read. Filter by time, workspace, actor, category and outcome, and open an event for its details. For a query, that includes the SQL and parameters of each statement.
@@ -57,7 +61,7 @@ The **Audit log** records who did what, when, and which data they read. Filter b
 | **Accounts and groups** | Creating and changing accounts and groups |
 | **Workspaces and members** | Workspace settings, deletions and membership |
 | **Access and data permissions** | Dashboard grants, data permissions, user attributes |
-| **Content** | Creating, changing and deleting data sources, datasets, charts, dashboards and folders, and sharing with conditions |
+| **Content** | Creating, changing and deleting data sources, datasets, charts, dashboards and folders, sharing with conditions, and publishing, changing and deleting announcements |
 | **Queries** | Each fetch of data from a data source |
 | **Exports** | Creating, finishing, cancelling and downloading |
 | **AI models** | Changes to the AI configuration |
@@ -82,6 +86,7 @@ Read-only actions, such as opening a list or an editor, are not recorded. Each e
 | | **Default cache lifetime** | 10 minutes | A data source can set its own |
 | **Workspaces** | **Deleted workspaces kept for** | 30 days | |
 | **Sign-in** | **Session lifetime** | 168 hours | Signs out after this long without activity. An [MCP client](/admin/mcp/) unused for this long has to be allowed again |
+| **Notifications** | **Refresh interval** | 60 seconds | From 10 to 3,600. How often every open page checks for new [announcements](/admin/announcements/): shorter reaches people sooner, and asks more of the server |
 | **AI assistant** | **Compress context at** | 80% | A share of the model's context, from 50 to 95. Past it, the earlier part of a conversation is summarized before the next answer, and an answer stops looking things up |
 | | **Most tool calls per answer** | 60 | Lookups, calculations and charts all count. `0` sets no limit. Each call sends the whole conversation to the model again, so more calls cost more |
 | **MCP service** | **MCP clients** | Off | Lets people connect AI clients of their own; see [MCP](/admin/mcp/) |

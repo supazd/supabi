@@ -56,7 +56,6 @@ Parts of features that already exist and that are known to be missing. The diffe
 | Exporting totals and subtotals, and exporting a pivot table as a crosstab | A total is an extra query; the columns of a crosstab change with the data, and writing XLSX needs the columns fixed first | When users need the pivot structure exactly as on the screen |
 | Applying the display format on export | Raw values are easier to keep calculating on in Excel; the number formats of XLSX and the chart formats would have to be matched one by one | When users need the export to be the finished report, with no further processing |
 | Exporting with the header groups | The export writes a single row of column names; XLSX would need multi-row headers and merged cells, and CSV cannot express them. See [Charts and dashboards](design/chart-dashboard.md) 2.7 | When users need the exported header to match the screen |
-| A separate entry for notifications | In-app messages come only from exports for now, and the export center already covers them | When building messages unrelated to downloads, such as alerts and subscriptions |
 
 ## Email
 
@@ -70,6 +69,18 @@ The SMTP settings, a test email and a function to send with are implemented; no 
 | Skipping certificate verification | It would let anyone on the network read the password; an internal CA can be added to the trust store | When a deployment cannot change its trust store |
 | A sender per workspace | Nothing is sent from a workspace yet | When workspaces send subscriptions under their own names |
 | Knowing each person's interface language on the server | The interface keeps the choice in the browser, and `users.locale` is not used; the test email takes the language of the page that sends it | With the first feature that emails other people |
+
+## Announcements
+
+System and workspace announcements, the banner and the bell are implemented. See [Announcements](design/announcements.md) section 9.
+
+| Item | Why deferred | When to re-evaluate |
+|---|---|---|
+| Sending announcements by email | It would be the first feature that sends email, which decides the queue, retries and each person's language | When people miss announcements because they do not open SupaBI |
+| Announcing to some groups or roles only | Workspaces already separate the audiences | When one workspace holds audiences that need different messages |
+| System announcements on the sign-in page | It would make announcements readable without signing in | When maintenance needs announcing to people who cannot sign in |
+| Who has read an announcement | Not asked for | When administrators need to know who has seen one |
+| Levels and colors | Decided against for now | When ordinary announcements drown out urgent ones |
 
 ## Charts
 

@@ -8,7 +8,7 @@ import { Textarea as BaseTextarea } from './shadcn/textarea.tsx'
 export interface InputProps {
   value: string
   onChange: (value: string) => void
-  type?: 'text' | 'password' | 'number'
+  type?: 'text' | 'password' | 'number' | 'time'
   min?: number
   max?: number
   step?: number

@@ -1,0 +1,22 @@
+/* Written text in Markdown, such as an announcement. Kept apart from the chat's,
+   which follows the assistant's answers. */
+.lb-markdown { min-width: 0; line-height: 1.65; overflow-wrap: anywhere; }
+.lb-markdown > :first-child { margin-top: 0; }
+.lb-markdown > :last-child { margin-bottom: 0; }
+.lb-markdown p, .lb-markdown ul, .lb-markdown ol, .lb-markdown blockquote, .lb-markdown pre, .lb-markdown table { margin: 0 0 10px; }
+.lb-markdown h1, .lb-markdown h2, .lb-markdown h3, .lb-markdown h4 { margin: 16px 0 6px; line-height: 1.35; font-weight: 650; }
+.lb-markdown h1 { font-size: 18px; }
+.lb-markdown h2 { font-size: 16px; }
+.lb-markdown h3, .lb-markdown h4 { font-size: 14px; }
+.lb-markdown ul, .lb-markdown ol { padding-left: 1.5em; }
+.lb-markdown li + li { margin-top: 4px; }
+.lb-markdown blockquote { padding: 2px 12px; border-left: 3px solid var(--lb-color-border); color: var(--lb-color-text-secondary); }
+.lb-markdown code { padding: 1px 5px; border-radius: 5px; background: color-mix(in srgb, var(--lb-color-text) 7%, transparent); font-family: var(--lb-font-mono); font-size: 0.9em; }
+.lb-markdown pre { overflow: auto; padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, var(--lb-color-text) 5%, var(--lb-color-surface)); border: 1px solid color-mix(in srgb, var(--lb-color-border) 70%, transparent); line-height: 1.55; }
+.lb-markdown pre code { padding: 0; background: none; font-size: 13px; }
+.lb-markdown table { display: block; max-width: 100%; overflow: auto; border-collapse: collapse; font-size: 13px; }
+.lb-markdown th, .lb-markdown td { padding: 5px 10px; border: 1px solid var(--lb-color-border); text-align: left; }
+.lb-markdown th { background: color-mix(in srgb, var(--lb-color-text) 4%, transparent); font-weight: 600; }
+.lb-markdown img { max-width: 100%; border-radius: 6px; }
+.lb-markdown hr { margin: 14px 0; border: 0; border-top: 1px solid var(--lb-color-border); }
+.lb-markdown a { color: var(--lb-color-primary); }

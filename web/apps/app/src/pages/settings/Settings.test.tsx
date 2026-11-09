@@ -36,7 +36,7 @@ const emailOn = { host: 'smtp.example.com', security: 'starttls', username: 'bi'
 const systemDefaults = {
   exportRetentionHours: 24, exportTimeoutMinutes: 15, exportMaxRows: 2_000_000, exportMaxSizeMb: 512, auditRetentionDays: 180, queryCacheTtlMinutes: 10,
   queryTimeoutSeconds: 60, queryDefaultRows: 1000, queryMaxRows: 10_000, sessionLifetimeHours: 168, workspaceRetentionDays: 30, mcpEnabled: false,
-  assistantCompressPercent: 80, assistantMaxToolCalls: 60,
+  assistantCompressPercent: 80, assistantMaxToolCalls: 60, notificationRefreshSeconds: 60,
 }
 
 /** Picks an action from the menu at the end of someone's or something's row. */
@@ -78,8 +78,8 @@ afterEach(cleanup)
 describe('separate settings scopes', () => {
   it.each([
     ['/settings/personal/account', 'Personal settings', ['My account', 'MCP']],
-    ['/settings/system/users', 'System administration', ['User management', 'Groups', 'Workspaces', 'AI models', 'AI usage', 'Email', 'Audit log', 'General']],
-    ['/settings/workspace/general', 'Sales · Workspace settings', ['General', 'Members and access', 'User attributes']],
+    ['/settings/system/users', 'System administration', ['User management', 'Groups', 'Workspaces', 'AI models', 'AI usage', 'Email', 'Announcements', 'Audit log', 'General']],
+    ['/settings/workspace/general', 'Sales · Workspace settings', ['General', 'Members and access', 'Announcements', 'User attributes']],
   ] as const)('shows only the navigation for %s', async (path, title, links) => {
     open(path)
     await screen.findByRole('heading', { level: 1, name: title })

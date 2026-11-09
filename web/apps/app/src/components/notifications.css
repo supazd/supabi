@@ -1,0 +1,33 @@
+/* The bell, its panel and the banner: .agents/design/announcements.md 4. */
+.notification-trigger { position: relative; }
+.notification-badge { position: absolute; top: 0; right: -4px; padding: 1px 4px; min-width: 14px; border-radius: 9px; font-size: 9px; font-weight: 600; line-height: 13px; color: white; background: var(--lb-color-danger, #d94747); }
+
+.notification-panel { display: flex; flex-direction: column; max-height: min(560px, calc(100vh - 80px)); }
+.notification-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px 4px 14px; }
+.notification-panel .lb-tabs { padding: 0 8px; }
+/* On a narrow screen the tabs scroll rather than run past the panel. */
+.notification-panel [role='tablist'] { max-width: 100%; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
+.notification-list { display: flex; flex-direction: column; gap: 2px; overflow: auto; padding: 6px; }
+.notification-list > button { align-self: center; margin: 6px 0; }
+.notification-empty { padding: 20px 8px; text-align: center; }
+.notification-item { border-radius: 8px; }
+.notification-item-head { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; padding: 7px 8px; border: 0; border-radius: 8px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.notification-item-head:hover { background: color-mix(in srgb, var(--lb-color-text) 5%, transparent); }
+.notification-dot { width: 6px; height: 6px; border-radius: 50%; }
+.notification-item.unread .notification-dot { background: var(--lb-color-primary); }
+.notification-item-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.notification-item.unread .notification-item-title { font-weight: 600; }
+.notification-item-meta { max-width: 150px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; }
+.notification-item-body { display: grid; gap: 6px; padding: 0 10px 10px 24px; font-size: 13px; }
+.notification-item-body > .note { font-size: 12px; }
+
+.announcement-banner { flex: none; display: grid; gap: 4px; margin: 0 16px 8px; }
+.announcement-line { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 4px 12px; border-radius: 10px; background: color-mix(in srgb, var(--lb-color-primary) 10%, var(--lb-color-surface, var(--lb-color-bg))); border: 1px solid color-mix(in srgb, var(--lb-color-primary) 25%, transparent); font-size: 13px; }
+.announcement-line > .icon { flex: none; color: var(--lb-color-primary); }
+.announcement-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; }
+.announcement-line button, .announcement-more { flex: none; padding: 2px 4px; border: 0; background: none; color: var(--lb-color-primary); font: inherit; cursor: pointer; }
+.announcement-more { justify-self: start; margin-left: 8px; font-size: 12px; }
+@media (max-width: 640px) {
+  .announcement-banner { margin: 0 8px 8px; }
+  .notification-item-meta { max-width: 96px; }
+}

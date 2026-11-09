@@ -82,6 +82,8 @@ func newWorkspaceFixture(t *testing.T, files blob.Store) *workspaceFixture {
 	admin.expect("PUT", "/dashboards/"+board+"/grants", map[string]any{"subjects": []any{map[string]any{"everyone": true}}}, 200, "")
 	viewer.expect("POST", "/dashboards/"+board+"/views", map[string]any{"state": map[string]any{"filters": map[string]any{"g": []any{"华东"}}}, "validDays": 7}, 201, "")
 	viewer.expect("POST", "/assistant/conversations", nil, 201, "")
+	notice := admin.expect("POST", "/workspace/announcements", map[string]any{"title": "维护通知", "endsAt": time.Now().Add(24 * time.Hour)}, 201, "")["id"].(string)
+	viewer.expect("POST", "/notifications/"+notice+"/read", nil, 204, "")
 
 	finished := queueExport(admin, sourceID, "csv", "SELECT 1 AS n")
 	processExport(t, w)
@@ -244,6 +246,10 @@ func testPurgingAWorkspace(t *testing.T, files blob.Store) {
 	}
 	if n := f.count(t, `SELECT count(*) FROM background_jobs WHERE id = ANY($1)`, f.exportIDs); n != 0 {
 		t.Errorf("%d export jobs left", n)
+	}
+	if n := f.count(t, `SELECT count(*) FROM announcement_reads`); n != 0 {
+		// The fixture's viewer read its one announcement.
+		t.Errorf("%d reads of announcements left", n)
 	}
 	if files := f.exportFiles(t); len(files) != 0 {
 		t.Errorf("export files left: %v", files)

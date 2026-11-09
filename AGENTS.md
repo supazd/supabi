@@ -16,6 +16,7 @@ An open-source BI system in early development, with no real users yet. The backe
 | `.agents/design/access-control.md` | Permissions, workspaces and audit |
 | `.agents/design/exports.md` | Exports and background jobs |
 | `.agents/design/email.md` | Email: the SMTP settings and sending |
+| `.agents/design/announcements.md` | Announcements, the banner and the notification center (bell) |
 | `.agents/design/configuration.md` | Startup configuration and system settings |
 | `.agents/design/ai-assistant.md` | AI assistant |
 | `.agents/design/docs-site.md` | Documentation site: how it is built and the rules its pages follow |

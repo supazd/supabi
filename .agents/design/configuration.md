@@ -170,7 +170,7 @@ The lower limits are the same as those of the old startup flags, only rounded to
 ### 10.3 Page
 
 - A last item "General" (`/settings/system/general`) is added to the navigation bar of "System administration". Only a system administrator can see and change it.
-- The layout is the same as the workspace's "General" ([Access control and workspaces](access-control.md) 2.2.1): a single column, each setting with its name on the left, the input and unit on the right, and the description below. It is divided into seven groups, "Exports", "Audit", "Queries", "Workspaces", "Sign-in", "AI assistant" and "MCP service" (the "Workspaces" and "Sign-in" groups, and the timeout and row settings in "Queries", are in section 10.7; "MCP service" is in section 10.8; "AI assistant" is in section 10.9). An empty input means use the default, and the placeholder text is the default. Saving is possible only when something has changed; with unsaved changes, leaving the page asks for confirmation first.
+- The layout is the same as the workspace's "General" ([Access control and workspaces](access-control.md) 2.2.1): a single column, each setting with its name on the left, the input and unit on the right, and the description below. It is divided into eight groups, "Exports", "Audit", "Queries", "Workspaces", "Sign-in", "Notifications", "AI assistant" and "MCP service" (the "Workspaces" and "Sign-in" groups, and the timeout and row settings in "Queries", are in section 10.7; "MCP service" is in section 10.8; "AI assistant" is in section 10.9; "Notifications" is in section 10.10). An empty input means use the default, and the placeholder text is the default. Saving is possible only when something has changed; with unsaved changes, leaving the page asks for confirmation first.
 - A value out of range cannot be saved, and the reason is written under the input.
 - When the audit retention is shortened, confirm before saving: "Within an hour of saving, audit events and AI usage records older than N days will be deleted, and they cannot be restored after deletion." Changing from kept forever to a limited period also counts as shortening. The other settings are saved directly.
 
@@ -279,6 +279,20 @@ Two values of the AI assistant were hard-coded: the share of the model's context
 - They govern the AI assistant only. An MCP client runs its own loop ([AI assistant](ai-assistant.md) section 14), and SupaBI does not count its calls.
 - Both are saved directly, with no confirmation dialog: nothing is deleted.
 - **Page**: a new group "AI assistant", just before "MCP service".
+
+### 10.10 Notifications
+
+How often an open page reads the bell's badge and the banner ([Announcements](announcements.md) 4.4) has one value for the whole organization: it sets the load every open page puts on the server, and how soon an announcement reaches people. An administrator may want it faster for urgent notices, or slower for many people. It is a system setting, with storage, API and audit as in sections 10.2 and 10.4. A new migration adds the column to `system_settings`, and a null value means use the default. Decided on 2026-11-09.
+
+| Setting | Column | Default | Unit and range in the UI |
+|---|---|---|---|
+| Notification refresh interval | `notification_refresh_seconds` | 60 seconds | seconds, 10 to 3600 |
+
+- It is read on every read of the badge and the banner, and returned with it, so open pages take the new value at their next read, without reloading.
+- Each read is a few small indexed queries. Under 10 seconds the load grows with every open page and the announcements would arrive no sooner in any way that matters; above an hour, an announcement could be over before people see it.
+- The export center keeps its own pace ([Exports](exports.md) section 6): it follows a running job closely, which this setting is not about.
+- It is saved directly, with no confirmation dialog: nothing is deleted.
+- **Page**: a new group "Notifications", just before "AI assistant".
 
 ## 11. Secret key check
 

@@ -135,6 +135,8 @@ func ObjectName(ctx context.Context, pool *pgxpool.Pool, s Scope, kind, objectID
 		row = pool.QueryRow(ctx, `SELECT name FROM ai_providers WHERE org_id=$1 AND id=$2`, s.OrgID, objectID)
 	case "ai_model":
 		row = pool.QueryRow(ctx, `SELECT model FROM ai_models WHERE org_id=$1 AND id=$2`, s.OrgID, objectID)
+	case "announcement":
+		row = pool.QueryRow(ctx, `SELECT title FROM announcements WHERE org_id=$1 AND id=$2`, s.OrgID, objectID)
 	default:
 		return "", nil
 	}
