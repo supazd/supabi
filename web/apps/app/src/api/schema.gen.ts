@@ -531,6 +531,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notifications/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The bell's badge and the banner of the caller, and how soon to read them again. See .agents/design/announcements.md 4. */
+        get: operations["getNotificationSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A page of the caller's bell, the latest start first, from every workspace they can enter */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark one notification of the caller as read */
+        post: operations["markNotificationRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark every unread notification of the caller as read */
+        post: operations["markAllNotificationsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/session": {
         parameters: {
             query?: never;
@@ -867,6 +937,120 @@ export interface paths {
         /** Change the settings of the current workspace */
         put: operations["updateWorkspace"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workspace/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every workspace announcement, scheduled and ended ones included, the latest start first. Admins of the current workspace. */
+        get: operations["listWorkspaceAnnouncements"];
+        put?: never;
+        /** Publish a workspace announcement */
+        post: operations["createWorkspaceAnnouncement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workspace/announcements/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Change the text and period of a workspace announcement; who has read it stays as it was */
+        put: operations["updateWorkspaceAnnouncement"];
+        post?: never;
+        /** Delete a workspace announcement from everyone's notifications */
+        delete: operations["deleteWorkspaceAnnouncement"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workspace/announcements/{id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End a workspace announcement in effect now, by the server's clock */
+        post: operations["endWorkspaceAnnouncement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/system/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every system announcement, scheduled and ended ones included, the latest start first. System administrators. */
+        get: operations["listSystemAnnouncements"];
+        put?: never;
+        /** Publish a system announcement */
+        post: operations["createSystemAnnouncement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/system/announcements/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Change the text and period of a system announcement; who has read it stays as it was */
+        put: operations["updateSystemAnnouncement"];
+        post?: never;
+        /** Delete a system announcement from everyone's notifications */
+        delete: operations["deleteSystemAnnouncement"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/system/announcements/{id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End a system announcement in effect now, by the server's clock */
+        post: operations["endSystemAnnouncement"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1932,6 +2116,78 @@ export interface components {
             /** Format: int64 */
             timeoutSeconds: number;
         };
+        /** @description An announcement as administrators manage it. See .agents/design/announcements.md. */
+        Announcement: {
+            id: string;
+            title: string;
+            /** @description Markdown */
+            body: string;
+            /** Format: date-time */
+            startsAt: string;
+            /** Format: date-time */
+            endsAt: string;
+            /** @description Who published it */
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AnnouncementInput: {
+            /** @description One line */
+            title: string;
+            /** @description Markdown */
+            body?: string;
+            /**
+             * Format: date-time
+             * @description When it is first shown. Left out, now by the server's clock. A changed start cannot be in the past.
+             */
+            startsAt?: string;
+            /**
+             * Format: date-time
+             * @description When it leaves the banner; after the start. A new or changed end cannot be in the past.
+             */
+            endsAt: string;
+        };
+        /** @description Something in the caller's bell. Only announcements exist so far. */
+        Notification: {
+            id: string;
+            /** @enum {string} */
+            kind: "announcement";
+            /**
+             * @description A system announcement, or a workspace's.
+             * @enum {string}
+             */
+            category: "system" | "workspace";
+            /** @description For a workspace's announcement */
+            workspaceId?: string;
+            /** @description That workspace's current name */
+            workspaceName?: string;
+            title: string;
+            /** @description Markdown */
+            body: string;
+            /** Format: date-time */
+            startsAt: string;
+            /** Format: date-time */
+            endsAt: string;
+            /** @description In effect and not read yet. An ended one is history and never unread. */
+            unread: boolean;
+        };
+        NotificationPage: {
+            items: components["schemas"]["Notification"][];
+            /** Format: date-time */
+            nextBefore?: string;
+        };
+        NotificationSummary: {
+            /** @description Unread notifications in every workspace the caller can enter. */
+            unread: number;
+            /** @description The first unread announcements of the organization and of the current workspace, system ones first. */
+            banner: components["schemas"]["Notification"][];
+            /** @description How many unread announcements the banner could hold, beyond those it does. */
+            bannerTotal: number;
+            /** @description How soon to read this again; the system setting in force. */
+            refreshSeconds: number;
+        };
         /**
          * @description The system settings, in the units the settings page shows. A setting
          *     left out takes its default, which a newer version may change. See
@@ -1969,6 +2225,8 @@ export interface components {
             assistantCompressPercent?: number;
             /** @description The most tools one answer of the AI assistant may call; 0 sets no limit */
             assistantMaxToolCalls?: number;
+            /** @description How often an open page reads the bell's badge and the banner */
+            notificationRefreshSeconds?: number;
         };
         /** @description What each system setting is when left out. */
         SystemSettingDefaults: {
@@ -1987,6 +2245,7 @@ export interface components {
             mcpEnabled: boolean;
             assistantCompressPercent: number;
             assistantMaxToolCalls: number;
+            notificationRefreshSeconds: number;
         };
         SystemSettings: {
             values: components["schemas"]["SystemSettingValues"];
@@ -4347,6 +4606,88 @@ export interface operations {
             };
         };
     };
+    getNotificationSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSummary"];
+                };
+            };
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                category?: "system" | "workspace";
+                before?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPage"];
+                };
+            };
+        };
+    };
+    markNotificationRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Read */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["Error"];
+        };
+    };
+    markAllNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Read */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getSession: {
         parameters: {
             query?: never;
@@ -4964,6 +5305,242 @@ export interface operations {
                 };
             };
             400: components["responses"]["Error"];
+            409: components["responses"]["Error"];
+        };
+    };
+    listWorkspaceAnnouncements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"][];
+                };
+            };
+        };
+    };
+    createWorkspaceAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnouncementInput"];
+            };
+        };
+        responses: {
+            /** @description Published */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"];
+                };
+            };
+            400: components["responses"]["Error"];
+        };
+    };
+    updateWorkspaceAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnouncementInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"];
+                };
+            };
+            400: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+        };
+    };
+    deleteWorkspaceAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["Error"];
+        };
+    };
+    endWorkspaceAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ended */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"];
+                };
+            };
+            404: components["responses"]["Error"];
+            409: components["responses"]["Error"];
+        };
+    };
+    listSystemAnnouncements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"][];
+                };
+            };
+        };
+    };
+    createSystemAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnouncementInput"];
+            };
+        };
+        responses: {
+            /** @description Published */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"];
+                };
+            };
+            400: components["responses"]["Error"];
+        };
+    };
+    updateSystemAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnouncementInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"];
+                };
+            };
+            400: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+        };
+    };
+    deleteSystemAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["Error"];
+        };
+    };
+    endSystemAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ended */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"];
+                };
+            };
+            404: components["responses"]["Error"];
             409: components["responses"]["Error"];
         };
     };

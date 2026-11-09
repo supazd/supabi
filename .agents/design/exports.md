@@ -161,7 +161,7 @@ The API, worker and scheduler can run in the same process or separately; when on
 
 ## 6. Export center
 
-The top bar has a single "Exports" entry (a download icon), for everyone signed in, and its icon and meaning do not change with the role. For now, in-app messages come only from exports, and the export list already contains the status of every job, so a separate notification list would only repeat the same information.
+The top bar has a single "Exports" entry (a download icon), for everyone signed in, and its icon and meaning do not change with the role. Exports are not in the notification center (the bell, [Announcements](announcements.md) 4.2): the export list already contains the status of every job, and listing them there too would only repeat it.
 
 The export center does not follow the current workspace. It holds the user's exports from every workspace they can enter, so a file started in one workspace can still be downloaded after switching to another, and a result that finishes in another workspace is not missed. Until 2026-11-09 it showed only the current workspace: a file started just before switching could be found only by switching back.
 
@@ -174,7 +174,7 @@ The export center does not follow the current workspace. It holds the user's exp
 - **Permissions**: viewing one's own export list and cancelling one's own jobs requires only that the user can still enter the workspace the export was made in, whatever the role there and whichever workspace is current. Creating an export still happens in the current workspace: a SQL export requires the developer role, a chart export is covered in section 2.2, and download in section 4.
 - Records are kept after signing out and can be viewed the next time the user signs in. There is no email or off-site push.
 
-When messages unrelated to downloads, such as alerts and subscriptions, exist later, a separate notification entry (a bell) will be added to the top bar, showing messages by kind and jumping to the object each refers to; the export entry will continue to handle only export jobs.
+The bell holds announcements, and later the other messages unrelated to downloads, such as alerts and subscriptions, each kind under a tab of its own ([Announcements](announcements.md) 4.2); the export entry continues to handle only export jobs.
 
 Endpoints: `GET /exports` returns the user's exports, the number of new results (`unseen`) and the limits; each item carries the workspace it was made in (`workspaceId`, `workspaceName`), its source (`source`, `dashboardName`, `chartName`), whether it is a new result (`unseen`), and, when the job succeeded and has not expired but cannot be downloaded now, the reason (`denied`). `POST /exports/seen` marks all of the user's new results as seen. These two, `GET /exports/{id}`, `POST /exports/{id}/cancel` and `GET /exports/{id}/file` need a signed-in user but no current workspace: each export is checked in its own workspace, and the cancel and download events are recorded in that workspace (section 7). The earlier notification table and the `/notifications` endpoint have been removed, and the unread success and failure notifications were converted into new results during the migration.
 

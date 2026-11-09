@@ -220,6 +220,25 @@ var requirements = map[string]requirement{
 	// What every instance keeps to: .agents/design/configuration.md 10.
 	"GetSystemSettings": {orgAdmin: true},
 	"SetSystemSettings": {orgAdmin: true},
+
+	// Announcements: system ones are the organization's, a workspace's are
+	// its admins'. See .agents/design/announcements.md 6.
+	"ListSystemAnnouncements":     {orgAdmin: true},
+	"CreateSystemAnnouncement":    {orgAdmin: true},
+	"UpdateSystemAnnouncement":    {orgAdmin: true},
+	"EndSystemAnnouncement":       {orgAdmin: true},
+	"DeleteSystemAnnouncement":    {orgAdmin: true},
+	"ListWorkspaceAnnouncements":  needs(authz.Admin),
+	"CreateWorkspaceAnnouncement": needs(authz.Admin),
+	"UpdateWorkspaceAnnouncement": needs(authz.Admin),
+	"EndWorkspaceAnnouncement":    needs(authz.Admin),
+	"DeleteWorkspaceAnnouncement": needs(authz.Admin),
+	// Everyone's bell holds what they may see from every workspace they can
+	// enter, like the export center, so it needs no current workspace.
+	"GetNotificationSummary":   {},
+	"ListNotifications":        {},
+	"MarkNotificationRead":     {},
+	"MarkAllNotificationsRead": {},
 	// The server the organization sends email through, and its password.
 	"GetEmailSettings":  {orgAdmin: true},
 	"SetEmailSettings":  {orgAdmin: true},

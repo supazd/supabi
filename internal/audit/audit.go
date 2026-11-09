@@ -108,6 +108,10 @@ var actions = map[string]Category{
 	"ai_model.delete":    AI,
 	"ai_settings.update": AI,
 
+	"announcement.create": Content,
+	"announcement.update": Content,
+	"announcement.delete": Content,
+
 	"system_settings.update": System,
 	"email_settings.update":  System,
 	"email.test":             System,

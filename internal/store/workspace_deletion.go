@@ -128,6 +128,8 @@ func ExpiredWorkspaces(ctx context.Context, pool *pgxpool.Pool, orgID string, re
 var purgeStatements = []string{
 	// An export's job owns it: deleting the job deletes the export.
 	`DELETE FROM background_jobs j USING exports e WHERE e.id = j.id AND e.org_id = $1 AND e.workspace_id = $2`,
+	`DELETE FROM announcement_reads r USING announcements a WHERE a.id = r.announcement_id AND a.org_id = $1 AND a.workspace_id = $2`,
+	`DELETE FROM announcements WHERE org_id = $1 AND workspace_id = $2`,
 	`DELETE FROM dashboards WHERE org_id = $1 AND workspace_id = $2`,
 	`DELETE FROM charts WHERE org_id = $1 AND workspace_id = $2`,
 	`DELETE FROM datasets WHERE org_id = $1 AND workspace_id = $2`,

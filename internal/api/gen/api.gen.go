@@ -909,6 +909,39 @@ func (e MemberStatus) Valid() bool {
 	}
 }
 
+// Defines values for NotificationCategory.
+const (
+	NotificationCategorySystem    NotificationCategory = "system"
+	NotificationCategoryWorkspace NotificationCategory = "workspace"
+)
+
+// Valid indicates whether the value is a known member of the NotificationCategory enum.
+func (e NotificationCategory) Valid() bool {
+	switch e {
+	case NotificationCategorySystem:
+		return true
+	case NotificationCategoryWorkspace:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NotificationKind.
+const (
+	NotificationKindAnnouncement NotificationKind = "announcement"
+)
+
+// Valid indicates whether the value is a known member of the NotificationKind enum.
+func (e NotificationKind) Valid() bool {
+	switch e {
+	case NotificationKindAnnouncement:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for QueryRequestOptionsCache.
 const (
 	Bypass  QueryRequestOptionsCache = "bypass"
@@ -1101,6 +1134,24 @@ func (e WorkspaceRole) Valid() bool {
 	case Developer:
 		return true
 	case Viewer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListNotificationsParamsCategory.
+const (
+	ListNotificationsParamsCategorySystem    ListNotificationsParamsCategory = "system"
+	ListNotificationsParamsCategoryWorkspace ListNotificationsParamsCategory = "workspace"
+)
+
+// Valid indicates whether the value is a known member of the ListNotificationsParamsCategory enum.
+func (e ListNotificationsParamsCategory) Valid() bool {
+	switch e {
+	case ListNotificationsParamsCategorySystem:
+		return true
+	case ListNotificationsParamsCategoryWorkspace:
 		return true
 	default:
 		return false
@@ -1329,6 +1380,36 @@ type AIUsageReport struct {
 
 	// Total What some calls to models used. The four kinds of tokens do not overlap.
 	Total AIUsage `json:"total"`
+}
+
+// Announcement An announcement as administrators manage it. See .agents/design/announcements.md.
+type Announcement struct {
+	// Body Markdown
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	// CreatedBy Who published it
+	CreatedBy string    `json:"createdBy"`
+	EndsAt    time.Time `json:"endsAt"`
+	Id        string    `json:"id"`
+	StartsAt  time.Time `json:"startsAt"`
+	Title     string    `json:"title"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// AnnouncementInput defines model for AnnouncementInput.
+type AnnouncementInput struct {
+	// Body Markdown
+	Body *string `json:"body,omitempty"`
+
+	// EndsAt When it leaves the banner; after the start. A new or changed end cannot be in the past.
+	EndsAt time.Time `json:"endsAt"`
+
+	// StartsAt When it is first shown. Left out, now by the server's clock. A changed start cannot be in the past.
+	StartsAt *time.Time `json:"startsAt,omitempty"`
+
+	// Title One line
+	Title string `json:"title"`
 }
 
 // AnswerChart A chart the assistant drew from what its answer looked up, as it was
@@ -2771,6 +2852,56 @@ type MoveInput struct {
 	Kind FolderKind `json:"kind"`
 }
 
+// Notification Something in the caller's bell. Only announcements exist so far.
+type Notification struct {
+	// Body Markdown
+	Body string `json:"body"`
+
+	// Category A system announcement, or a workspace's.
+	Category NotificationCategory `json:"category"`
+	EndsAt   time.Time            `json:"endsAt"`
+	Id       string               `json:"id"`
+	Kind     NotificationKind     `json:"kind"`
+	StartsAt time.Time            `json:"startsAt"`
+	Title    string               `json:"title"`
+
+	// Unread In effect and not read yet. An ended one is history and never unread.
+	Unread bool `json:"unread"`
+
+	// WorkspaceId For a workspace's announcement
+	WorkspaceId *string `json:"workspaceId,omitempty"`
+
+	// WorkspaceName That workspace's current name
+	WorkspaceName *string `json:"workspaceName,omitempty"`
+}
+
+// NotificationCategory A system announcement, or a workspace's.
+type NotificationCategory string
+
+// NotificationKind defines model for Notification.Kind.
+type NotificationKind string
+
+// NotificationPage defines model for NotificationPage.
+type NotificationPage struct {
+	Items      []Notification `json:"items"`
+	NextBefore *time.Time     `json:"nextBefore,omitempty"`
+}
+
+// NotificationSummary defines model for NotificationSummary.
+type NotificationSummary struct {
+	// Banner The first unread announcements of the organization and of the current workspace, system ones first.
+	Banner []Notification `json:"banner"`
+
+	// BannerTotal How many unread announcements the banner could hold, beyond those it does.
+	BannerTotal int `json:"bannerTotal"`
+
+	// RefreshSeconds How soon to read this again; the system setting in force.
+	RefreshSeconds int `json:"refreshSeconds"`
+
+	// Unread Unread notifications in every workspace the caller can enter.
+	Unread int `json:"unread"`
+}
+
 // OAuthRedirect defines model for OAuthRedirect.
 type OAuthRedirect struct {
 	// RedirectTo The client's address, with the code or the refusal.
@@ -3137,20 +3268,21 @@ type Subject struct {
 
 // SystemSettingDefaults What each system setting is when left out.
 type SystemSettingDefaults struct {
-	AssistantCompressPercent int   `json:"assistantCompressPercent"`
-	AssistantMaxToolCalls    int   `json:"assistantMaxToolCalls"`
-	AuditRetentionDays       int   `json:"auditRetentionDays"`
-	ExportMaxRows            int64 `json:"exportMaxRows"`
-	ExportMaxSizeMb          int   `json:"exportMaxSizeMb"`
-	ExportRetentionHours     int   `json:"exportRetentionHours"`
-	ExportTimeoutMinutes     int   `json:"exportTimeoutMinutes"`
-	McpEnabled               bool  `json:"mcpEnabled"`
-	QueryCacheTtlMinutes     int   `json:"queryCacheTtlMinutes"`
-	QueryDefaultRows         int   `json:"queryDefaultRows"`
-	QueryMaxRows             int   `json:"queryMaxRows"`
-	QueryTimeoutSeconds      int   `json:"queryTimeoutSeconds"`
-	SessionLifetimeHours     int   `json:"sessionLifetimeHours"`
-	WorkspaceRetentionDays   int   `json:"workspaceRetentionDays"`
+	AssistantCompressPercent   int   `json:"assistantCompressPercent"`
+	AssistantMaxToolCalls      int   `json:"assistantMaxToolCalls"`
+	AuditRetentionDays         int   `json:"auditRetentionDays"`
+	ExportMaxRows              int64 `json:"exportMaxRows"`
+	ExportMaxSizeMb            int   `json:"exportMaxSizeMb"`
+	ExportRetentionHours       int   `json:"exportRetentionHours"`
+	ExportTimeoutMinutes       int   `json:"exportTimeoutMinutes"`
+	McpEnabled                 bool  `json:"mcpEnabled"`
+	NotificationRefreshSeconds int   `json:"notificationRefreshSeconds"`
+	QueryCacheTtlMinutes       int   `json:"queryCacheTtlMinutes"`
+	QueryDefaultRows           int   `json:"queryDefaultRows"`
+	QueryMaxRows               int   `json:"queryMaxRows"`
+	QueryTimeoutSeconds        int   `json:"queryTimeoutSeconds"`
+	SessionLifetimeHours       int   `json:"sessionLifetimeHours"`
+	WorkspaceRetentionDays     int   `json:"workspaceRetentionDays"`
 }
 
 // SystemSettingValues The system settings, in the units the settings page shows. A setting
@@ -3180,6 +3312,9 @@ type SystemSettingValues struct {
 
 	// McpEnabled Whether people may connect MCP clients to read their dashboards
 	McpEnabled *bool `json:"mcpEnabled,omitempty"`
+
+	// NotificationRefreshSeconds How often an open page reads the bell's badge and the banner
+	NotificationRefreshSeconds *int `json:"notificationRefreshSeconds,omitempty"`
 
 	// QueryCacheTtlMinutes How long query results are kept unless a data source says otherwise
 	QueryCacheTtlMinutes *int `json:"queryCacheTtlMinutes,omitempty"`
@@ -3407,6 +3542,15 @@ type ListExportsParams struct {
 	Before *time.Time `form:"before,omitempty" json:"before,omitempty"`
 }
 
+// ListNotificationsParams defines parameters for ListNotifications.
+type ListNotificationsParams struct {
+	Category *ListNotificationsParamsCategory `form:"category,omitempty" json:"category,omitempty"`
+	Before   *time.Time                       `form:"before,omitempty" json:"before,omitempty"`
+}
+
+// ListNotificationsParamsCategory defines parameters for ListNotifications.
+type ListNotificationsParamsCategory string
+
 // GetUsageParams defines parameters for GetUsage.
 type GetUsageParams struct {
 	Kind GetUsageParamsKind `form:"kind" json:"kind"`
@@ -3569,6 +3713,12 @@ type UpdateMemberJSONRequestBody = MemberChange
 // RunQueryJSONRequestBody defines body for RunQuery for application/json ContentType.
 type RunQueryJSONRequestBody = QueryRequest
 
+// CreateSystemAnnouncementJSONRequestBody defines body for CreateSystemAnnouncement for application/json ContentType.
+type CreateSystemAnnouncementJSONRequestBody = AnnouncementInput
+
+// UpdateSystemAnnouncementJSONRequestBody defines body for UpdateSystemAnnouncement for application/json ContentType.
+type UpdateSystemAnnouncementJSONRequestBody = AnnouncementInput
+
 // SetEmailSettingsJSONRequestBody defines body for SetEmailSettings for application/json ContentType.
 type SetEmailSettingsJSONRequestBody = EmailSettingsInput
 
@@ -3592,6 +3742,12 @@ type UpdateUserJSONRequestBody = UserChange
 
 // UpdateWorkspaceJSONRequestBody defines body for UpdateWorkspace for application/json ContentType.
 type UpdateWorkspaceJSONRequestBody = WorkspaceInput
+
+// CreateWorkspaceAnnouncementJSONRequestBody defines body for CreateWorkspaceAnnouncement for application/json ContentType.
+type CreateWorkspaceAnnouncementJSONRequestBody = AnnouncementInput
+
+// UpdateWorkspaceAnnouncementJSONRequestBody defines body for UpdateWorkspaceAnnouncement for application/json ContentType.
+type UpdateWorkspaceAnnouncementJSONRequestBody = AnnouncementInput
 
 // CreateWorkspaceJSONRequestBody defines body for CreateWorkspace for application/json ContentType.
 type CreateWorkspaceJSONRequestBody = WorkspaceInput
@@ -3910,6 +4066,18 @@ type ServerInterface interface {
 
 	// (PATCH /members/{userId})
 	UpdateMember(w http.ResponseWriter, r *http.Request, userId string)
+	// ListNotifications A page of the caller's bell, the latest start first, from every workspace they can enter
+	// (GET /notifications)
+	ListNotifications(w http.ResponseWriter, r *http.Request, params ListNotificationsParams)
+	// MarkAllNotificationsRead Mark every unread notification of the caller as read
+	// (POST /notifications/read)
+	MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request)
+	// GetNotificationSummary The bell's badge and the banner of the caller, and how soon to read them again. See .agents/design/announcements.md 4.
+	// (GET /notifications/summary)
+	GetNotificationSummary(w http.ResponseWriter, r *http.Request)
+	// MarkNotificationRead Mark one notification of the caller as read
+	// (POST /notifications/{id}/read)
+	MarkNotificationRead(w http.ResponseWriter, r *http.Request, id string)
 	// GetOAuthRequest What an MCP client asks for, for the consent page
 	// (GET /oauth/requests/{id})
 	GetOAuthRequest(w http.ResponseWriter, r *http.Request, id string)
@@ -3922,6 +4090,21 @@ type ServerInterface interface {
 	// RunQuery Run a query described in the query IR
 	// (POST /query)
 	RunQuery(w http.ResponseWriter, r *http.Request)
+	// ListSystemAnnouncements Every system announcement, scheduled and ended ones included, the latest start first. System administrators.
+	// (GET /system/announcements)
+	ListSystemAnnouncements(w http.ResponseWriter, r *http.Request)
+	// CreateSystemAnnouncement Publish a system announcement
+	// (POST /system/announcements)
+	CreateSystemAnnouncement(w http.ResponseWriter, r *http.Request)
+	// DeleteSystemAnnouncement Delete a system announcement from everyone's notifications
+	// (DELETE /system/announcements/{id})
+	DeleteSystemAnnouncement(w http.ResponseWriter, r *http.Request, id string)
+	// UpdateSystemAnnouncement Change the text and period of a system announcement; who has read it stays as it was
+	// (PUT /system/announcements/{id})
+	UpdateSystemAnnouncement(w http.ResponseWriter, r *http.Request, id string)
+	// EndSystemAnnouncement End a system announcement in effect now, by the server's clock
+	// (POST /system/announcements/{id}/end)
+	EndSystemAnnouncement(w http.ResponseWriter, r *http.Request, id string)
 	// GetEmailSettings The SMTP server the organization sends email through (system admins only)
 	// (GET /system/email)
 	GetEmailSettings(w http.ResponseWriter, r *http.Request)
@@ -3967,6 +4150,21 @@ type ServerInterface interface {
 	// UpdateWorkspace Change the settings of the current workspace
 	// (PUT /workspace)
 	UpdateWorkspace(w http.ResponseWriter, r *http.Request)
+	// ListWorkspaceAnnouncements Every workspace announcement, scheduled and ended ones included, the latest start first. Admins of the current workspace.
+	// (GET /workspace/announcements)
+	ListWorkspaceAnnouncements(w http.ResponseWriter, r *http.Request)
+	// CreateWorkspaceAnnouncement Publish a workspace announcement
+	// (POST /workspace/announcements)
+	CreateWorkspaceAnnouncement(w http.ResponseWriter, r *http.Request)
+	// DeleteWorkspaceAnnouncement Delete a workspace announcement from everyone's notifications
+	// (DELETE /workspace/announcements/{id})
+	DeleteWorkspaceAnnouncement(w http.ResponseWriter, r *http.Request, id string)
+	// UpdateWorkspaceAnnouncement Change the text and period of a workspace announcement; who has read it stays as it was
+	// (PUT /workspace/announcements/{id})
+	UpdateWorkspaceAnnouncement(w http.ResponseWriter, r *http.Request, id string)
+	// EndWorkspaceAnnouncement End a workspace announcement in effect now, by the server's clock
+	// (POST /workspace/announcements/{id}/end)
+	EndWorkspaceAnnouncement(w http.ResponseWriter, r *http.Request, id string)
 
 	// (GET /workspaces)
 	ListWorkspaces(w http.ResponseWriter, r *http.Request)
@@ -6621,6 +6819,106 @@ func (siw *ServerInterfaceWrapper) UpdateMember(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ListNotifications operation middleware
+func (siw *ServerInterfaceWrapper) ListNotifications(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListNotificationsParams
+
+	// ------------- Optional query parameter "category" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "category", r.URL.Query(), &params.Category, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "category"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "category", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "before" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "before", r.URL.Query(), &params.Before, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListNotifications(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MarkAllNotificationsRead operation middleware
+func (siw *ServerInterfaceWrapper) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MarkAllNotificationsRead(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetNotificationSummary operation middleware
+func (siw *ServerInterfaceWrapper) GetNotificationSummary(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetNotificationSummary(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MarkNotificationRead operation middleware
+func (siw *ServerInterfaceWrapper) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MarkNotificationRead(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetOAuthRequest operation middleware
 func (siw *ServerInterfaceWrapper) GetOAuthRequest(w http.ResponseWriter, r *http.Request) {
 
@@ -6704,6 +7002,112 @@ func (siw *ServerInterfaceWrapper) RunQuery(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RunQuery(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSystemAnnouncements operation middleware
+func (siw *ServerInterfaceWrapper) ListSystemAnnouncements(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSystemAnnouncements(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSystemAnnouncement operation middleware
+func (siw *ServerInterfaceWrapper) CreateSystemAnnouncement(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSystemAnnouncement(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteSystemAnnouncement operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSystemAnnouncement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSystemAnnouncement(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateSystemAnnouncement operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSystemAnnouncement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSystemAnnouncement(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EndSystemAnnouncement operation middleware
+func (siw *ServerInterfaceWrapper) EndSystemAnnouncement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EndSystemAnnouncement(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6991,6 +7395,112 @@ func (siw *ServerInterfaceWrapper) UpdateWorkspace(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// ListWorkspaceAnnouncements operation middleware
+func (siw *ServerInterfaceWrapper) ListWorkspaceAnnouncements(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWorkspaceAnnouncements(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateWorkspaceAnnouncement operation middleware
+func (siw *ServerInterfaceWrapper) CreateWorkspaceAnnouncement(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateWorkspaceAnnouncement(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteWorkspaceAnnouncement operation middleware
+func (siw *ServerInterfaceWrapper) DeleteWorkspaceAnnouncement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteWorkspaceAnnouncement(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateWorkspaceAnnouncement operation middleware
+func (siw *ServerInterfaceWrapper) UpdateWorkspaceAnnouncement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateWorkspaceAnnouncement(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EndWorkspaceAnnouncement operation middleware
+func (siw *ServerInterfaceWrapper) EndWorkspaceAnnouncement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EndWorkspaceAnnouncement(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListWorkspaces operation middleware
 func (siw *ServerInterfaceWrapper) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 
@@ -7254,6 +7764,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/exports/{id}/cancel", wrapper.CancelExport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/exports/{id}/file", wrapper.DownloadExport)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/exports/seen", wrapper.MarkExportsSeen)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/notifications/summary", wrapper.GetNotificationSummary)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/notifications", wrapper.ListNotifications)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/notifications/{id}/read", wrapper.MarkNotificationRead)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/notifications/read", wrapper.MarkAllNotificationsRead)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/session", wrapper.GetSession)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/setup", wrapper.Setup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/login", wrapper.Login)
@@ -7280,6 +7794,16 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces/{id}/restore", wrapper.RestoreWorkspace)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces/{id}/purge", wrapper.PurgeWorkspace)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/workspace", wrapper.UpdateWorkspace)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspace/announcements", wrapper.ListWorkspaceAnnouncements)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspace/announcements", wrapper.CreateWorkspaceAnnouncement)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/workspace/announcements/{id}", wrapper.DeleteWorkspaceAnnouncement)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/workspace/announcements/{id}", wrapper.UpdateWorkspaceAnnouncement)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspace/announcements/{id}/end", wrapper.EndWorkspaceAnnouncement)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/system/announcements", wrapper.ListSystemAnnouncements)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/system/announcements", wrapper.CreateSystemAnnouncement)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/system/announcements/{id}", wrapper.DeleteSystemAnnouncement)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/system/announcements/{id}", wrapper.UpdateSystemAnnouncement)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/system/announcements/{id}/end", wrapper.EndSystemAnnouncement)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/system/settings", wrapper.GetSystemSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/system/settings", wrapper.SetSystemSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/system/email", wrapper.GetEmailSettings)
@@ -12263,6 +12787,94 @@ func (response UpdateMember409JSONResponse) VisitUpdateMemberResponse(w http.Res
 	return err
 }
 
+type ListNotificationsRequestObject struct {
+	Params ListNotificationsParams
+}
+
+type ListNotificationsResponseObject interface {
+	VisitListNotificationsResponse(w http.ResponseWriter) error
+}
+
+type ListNotifications200JSONResponse NotificationPage
+
+func (response ListNotifications200JSONResponse) VisitListNotificationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkAllNotificationsReadRequestObject struct {
+}
+
+type MarkAllNotificationsReadResponseObject interface {
+	VisitMarkAllNotificationsReadResponse(w http.ResponseWriter) error
+}
+
+type MarkAllNotificationsRead204Response struct {
+}
+
+func (response MarkAllNotificationsRead204Response) VisitMarkAllNotificationsReadResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type GetNotificationSummaryRequestObject struct {
+}
+
+type GetNotificationSummaryResponseObject interface {
+	VisitGetNotificationSummaryResponse(w http.ResponseWriter) error
+}
+
+type GetNotificationSummary200JSONResponse NotificationSummary
+
+func (response GetNotificationSummary200JSONResponse) VisitGetNotificationSummaryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkNotificationReadRequestObject struct {
+	Id string `json:"id"`
+}
+
+type MarkNotificationReadResponseObject interface {
+	VisitMarkNotificationReadResponse(w http.ResponseWriter) error
+}
+
+type MarkNotificationRead204Response struct {
+}
+
+func (response MarkNotificationRead204Response) VisitMarkNotificationReadResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type MarkNotificationRead404JSONResponse struct{ ErrorJSONResponse }
+
+func (response MarkNotificationRead404JSONResponse) VisitMarkNotificationReadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetOAuthRequestRequestObject struct {
 	Id string `json:"id"`
 }
@@ -12445,6 +13057,194 @@ func (response RunQuery422JSONResponse) VisitRunQueryResponse(w http.ResponseWri
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSystemAnnouncementsRequestObject struct {
+}
+
+type ListSystemAnnouncementsResponseObject interface {
+	VisitListSystemAnnouncementsResponse(w http.ResponseWriter) error
+}
+
+type ListSystemAnnouncements200JSONResponse []Announcement
+
+func (response ListSystemAnnouncements200JSONResponse) VisitListSystemAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSystemAnnouncementRequestObject struct {
+	Body *CreateSystemAnnouncementJSONRequestBody
+}
+
+type CreateSystemAnnouncementResponseObject interface {
+	VisitCreateSystemAnnouncementResponse(w http.ResponseWriter) error
+}
+
+type CreateSystemAnnouncement201JSONResponse Announcement
+
+func (response CreateSystemAnnouncement201JSONResponse) VisitCreateSystemAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSystemAnnouncement400JSONResponse struct{ ErrorJSONResponse }
+
+func (response CreateSystemAnnouncement400JSONResponse) VisitCreateSystemAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSystemAnnouncementRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteSystemAnnouncementResponseObject interface {
+	VisitDeleteSystemAnnouncementResponse(w http.ResponseWriter) error
+}
+
+type DeleteSystemAnnouncement204Response struct {
+}
+
+func (response DeleteSystemAnnouncement204Response) VisitDeleteSystemAnnouncementResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteSystemAnnouncement404JSONResponse struct{ ErrorJSONResponse }
+
+func (response DeleteSystemAnnouncement404JSONResponse) VisitDeleteSystemAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSystemAnnouncementRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateSystemAnnouncementJSONRequestBody
+}
+
+type UpdateSystemAnnouncementResponseObject interface {
+	VisitUpdateSystemAnnouncementResponse(w http.ResponseWriter) error
+}
+
+type UpdateSystemAnnouncement200JSONResponse Announcement
+
+func (response UpdateSystemAnnouncement200JSONResponse) VisitUpdateSystemAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSystemAnnouncement400JSONResponse struct{ ErrorJSONResponse }
+
+func (response UpdateSystemAnnouncement400JSONResponse) VisitUpdateSystemAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSystemAnnouncement404JSONResponse Error
+
+func (response UpdateSystemAnnouncement404JSONResponse) VisitUpdateSystemAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EndSystemAnnouncementRequestObject struct {
+	Id string `json:"id"`
+}
+
+type EndSystemAnnouncementResponseObject interface {
+	VisitEndSystemAnnouncementResponse(w http.ResponseWriter) error
+}
+
+type EndSystemAnnouncement200JSONResponse Announcement
+
+func (response EndSystemAnnouncement200JSONResponse) VisitEndSystemAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EndSystemAnnouncement404JSONResponse struct{ ErrorJSONResponse }
+
+func (response EndSystemAnnouncement404JSONResponse) VisitEndSystemAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EndSystemAnnouncement409JSONResponse Error
+
+func (response EndSystemAnnouncement409JSONResponse) VisitEndSystemAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -12927,6 +13727,194 @@ func (response UpdateWorkspace400JSONResponse) VisitUpdateWorkspaceResponse(w ht
 type UpdateWorkspace409JSONResponse Error
 
 func (response UpdateWorkspace409JSONResponse) VisitUpdateWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListWorkspaceAnnouncementsRequestObject struct {
+}
+
+type ListWorkspaceAnnouncementsResponseObject interface {
+	VisitListWorkspaceAnnouncementsResponse(w http.ResponseWriter) error
+}
+
+type ListWorkspaceAnnouncements200JSONResponse []Announcement
+
+func (response ListWorkspaceAnnouncements200JSONResponse) VisitListWorkspaceAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateWorkspaceAnnouncementRequestObject struct {
+	Body *CreateWorkspaceAnnouncementJSONRequestBody
+}
+
+type CreateWorkspaceAnnouncementResponseObject interface {
+	VisitCreateWorkspaceAnnouncementResponse(w http.ResponseWriter) error
+}
+
+type CreateWorkspaceAnnouncement201JSONResponse Announcement
+
+func (response CreateWorkspaceAnnouncement201JSONResponse) VisitCreateWorkspaceAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateWorkspaceAnnouncement400JSONResponse struct{ ErrorJSONResponse }
+
+func (response CreateWorkspaceAnnouncement400JSONResponse) VisitCreateWorkspaceAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteWorkspaceAnnouncementRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteWorkspaceAnnouncementResponseObject interface {
+	VisitDeleteWorkspaceAnnouncementResponse(w http.ResponseWriter) error
+}
+
+type DeleteWorkspaceAnnouncement204Response struct {
+}
+
+func (response DeleteWorkspaceAnnouncement204Response) VisitDeleteWorkspaceAnnouncementResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteWorkspaceAnnouncement404JSONResponse struct{ ErrorJSONResponse }
+
+func (response DeleteWorkspaceAnnouncement404JSONResponse) VisitDeleteWorkspaceAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateWorkspaceAnnouncementRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateWorkspaceAnnouncementJSONRequestBody
+}
+
+type UpdateWorkspaceAnnouncementResponseObject interface {
+	VisitUpdateWorkspaceAnnouncementResponse(w http.ResponseWriter) error
+}
+
+type UpdateWorkspaceAnnouncement200JSONResponse Announcement
+
+func (response UpdateWorkspaceAnnouncement200JSONResponse) VisitUpdateWorkspaceAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateWorkspaceAnnouncement400JSONResponse struct{ ErrorJSONResponse }
+
+func (response UpdateWorkspaceAnnouncement400JSONResponse) VisitUpdateWorkspaceAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateWorkspaceAnnouncement404JSONResponse Error
+
+func (response UpdateWorkspaceAnnouncement404JSONResponse) VisitUpdateWorkspaceAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EndWorkspaceAnnouncementRequestObject struct {
+	Id string `json:"id"`
+}
+
+type EndWorkspaceAnnouncementResponseObject interface {
+	VisitEndWorkspaceAnnouncementResponse(w http.ResponseWriter) error
+}
+
+type EndWorkspaceAnnouncement200JSONResponse Announcement
+
+func (response EndWorkspaceAnnouncement200JSONResponse) VisitEndWorkspaceAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EndWorkspaceAnnouncement404JSONResponse struct{ ErrorJSONResponse }
+
+func (response EndWorkspaceAnnouncement404JSONResponse) VisitEndWorkspaceAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EndWorkspaceAnnouncement409JSONResponse Error
+
+func (response EndWorkspaceAnnouncement409JSONResponse) VisitEndWorkspaceAnnouncementResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -13467,6 +14455,18 @@ type StrictServerInterface interface {
 
 	// (PATCH /members/{userId})
 	UpdateMember(ctx context.Context, request UpdateMemberRequestObject) (UpdateMemberResponseObject, error)
+	// ListNotifications A page of the caller's bell, the latest start first, from every workspace they can enter
+	// (GET /notifications)
+	ListNotifications(ctx context.Context, request ListNotificationsRequestObject) (ListNotificationsResponseObject, error)
+	// MarkAllNotificationsRead Mark every unread notification of the caller as read
+	// (POST /notifications/read)
+	MarkAllNotificationsRead(ctx context.Context, request MarkAllNotificationsReadRequestObject) (MarkAllNotificationsReadResponseObject, error)
+	// GetNotificationSummary The bell's badge and the banner of the caller, and how soon to read them again. See .agents/design/announcements.md 4.
+	// (GET /notifications/summary)
+	GetNotificationSummary(ctx context.Context, request GetNotificationSummaryRequestObject) (GetNotificationSummaryResponseObject, error)
+	// MarkNotificationRead Mark one notification of the caller as read
+	// (POST /notifications/{id}/read)
+	MarkNotificationRead(ctx context.Context, request MarkNotificationReadRequestObject) (MarkNotificationReadResponseObject, error)
 	// GetOAuthRequest What an MCP client asks for, for the consent page
 	// (GET /oauth/requests/{id})
 	GetOAuthRequest(ctx context.Context, request GetOAuthRequestRequestObject) (GetOAuthRequestResponseObject, error)
@@ -13479,6 +14479,21 @@ type StrictServerInterface interface {
 	// RunQuery Run a query described in the query IR
 	// (POST /query)
 	RunQuery(ctx context.Context, request RunQueryRequestObject) (RunQueryResponseObject, error)
+	// ListSystemAnnouncements Every system announcement, scheduled and ended ones included, the latest start first. System administrators.
+	// (GET /system/announcements)
+	ListSystemAnnouncements(ctx context.Context, request ListSystemAnnouncementsRequestObject) (ListSystemAnnouncementsResponseObject, error)
+	// CreateSystemAnnouncement Publish a system announcement
+	// (POST /system/announcements)
+	CreateSystemAnnouncement(ctx context.Context, request CreateSystemAnnouncementRequestObject) (CreateSystemAnnouncementResponseObject, error)
+	// DeleteSystemAnnouncement Delete a system announcement from everyone's notifications
+	// (DELETE /system/announcements/{id})
+	DeleteSystemAnnouncement(ctx context.Context, request DeleteSystemAnnouncementRequestObject) (DeleteSystemAnnouncementResponseObject, error)
+	// UpdateSystemAnnouncement Change the text and period of a system announcement; who has read it stays as it was
+	// (PUT /system/announcements/{id})
+	UpdateSystemAnnouncement(ctx context.Context, request UpdateSystemAnnouncementRequestObject) (UpdateSystemAnnouncementResponseObject, error)
+	// EndSystemAnnouncement End a system announcement in effect now, by the server's clock
+	// (POST /system/announcements/{id}/end)
+	EndSystemAnnouncement(ctx context.Context, request EndSystemAnnouncementRequestObject) (EndSystemAnnouncementResponseObject, error)
 	// GetEmailSettings The SMTP server the organization sends email through (system admins only)
 	// (GET /system/email)
 	GetEmailSettings(ctx context.Context, request GetEmailSettingsRequestObject) (GetEmailSettingsResponseObject, error)
@@ -13524,6 +14539,21 @@ type StrictServerInterface interface {
 	// UpdateWorkspace Change the settings of the current workspace
 	// (PUT /workspace)
 	UpdateWorkspace(ctx context.Context, request UpdateWorkspaceRequestObject) (UpdateWorkspaceResponseObject, error)
+	// ListWorkspaceAnnouncements Every workspace announcement, scheduled and ended ones included, the latest start first. Admins of the current workspace.
+	// (GET /workspace/announcements)
+	ListWorkspaceAnnouncements(ctx context.Context, request ListWorkspaceAnnouncementsRequestObject) (ListWorkspaceAnnouncementsResponseObject, error)
+	// CreateWorkspaceAnnouncement Publish a workspace announcement
+	// (POST /workspace/announcements)
+	CreateWorkspaceAnnouncement(ctx context.Context, request CreateWorkspaceAnnouncementRequestObject) (CreateWorkspaceAnnouncementResponseObject, error)
+	// DeleteWorkspaceAnnouncement Delete a workspace announcement from everyone's notifications
+	// (DELETE /workspace/announcements/{id})
+	DeleteWorkspaceAnnouncement(ctx context.Context, request DeleteWorkspaceAnnouncementRequestObject) (DeleteWorkspaceAnnouncementResponseObject, error)
+	// UpdateWorkspaceAnnouncement Change the text and period of a workspace announcement; who has read it stays as it was
+	// (PUT /workspace/announcements/{id})
+	UpdateWorkspaceAnnouncement(ctx context.Context, request UpdateWorkspaceAnnouncementRequestObject) (UpdateWorkspaceAnnouncementResponseObject, error)
+	// EndWorkspaceAnnouncement End a workspace announcement in effect now, by the server's clock
+	// (POST /workspace/announcements/{id}/end)
+	EndWorkspaceAnnouncement(ctx context.Context, request EndWorkspaceAnnouncementRequestObject) (EndWorkspaceAnnouncementResponseObject, error)
 
 	// (GET /workspaces)
 	ListWorkspaces(ctx context.Context, request ListWorkspacesRequestObject) (ListWorkspacesResponseObject, error)
@@ -16587,6 +17617,106 @@ func (sh *strictHandler) UpdateMember(w http.ResponseWriter, r *http.Request, us
 	}
 }
 
+// ListNotifications operation middleware
+func (sh *strictHandler) ListNotifications(w http.ResponseWriter, r *http.Request, params ListNotificationsParams) {
+	var request ListNotificationsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListNotifications(ctx, request.(ListNotificationsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListNotifications")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListNotificationsResponseObject); ok {
+		if err := validResponse.VisitListNotificationsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// MarkAllNotificationsRead operation middleware
+func (sh *strictHandler) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
+	var request MarkAllNotificationsReadRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.MarkAllNotificationsRead(ctx, request.(MarkAllNotificationsReadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "MarkAllNotificationsRead")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(MarkAllNotificationsReadResponseObject); ok {
+		if err := validResponse.VisitMarkAllNotificationsReadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetNotificationSummary operation middleware
+func (sh *strictHandler) GetNotificationSummary(w http.ResponseWriter, r *http.Request) {
+	var request GetNotificationSummaryRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetNotificationSummary(ctx, request.(GetNotificationSummaryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetNotificationSummary")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetNotificationSummaryResponseObject); ok {
+		if err := validResponse.VisitGetNotificationSummaryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// MarkNotificationRead operation middleware
+func (sh *strictHandler) MarkNotificationRead(w http.ResponseWriter, r *http.Request, id string) {
+	var request MarkNotificationReadRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.MarkNotificationRead(ctx, request.(MarkNotificationReadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "MarkNotificationRead")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(MarkNotificationReadResponseObject); ok {
+		if err := validResponse.VisitMarkNotificationReadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetOAuthRequest operation middleware
 func (sh *strictHandler) GetOAuthRequest(w http.ResponseWriter, r *http.Request, id string) {
 	var request GetOAuthRequestRequestObject
@@ -16689,6 +17819,146 @@ func (sh *strictHandler) RunQuery(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RunQueryResponseObject); ok {
 		if err := validResponse.VisitRunQueryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSystemAnnouncements operation middleware
+func (sh *strictHandler) ListSystemAnnouncements(w http.ResponseWriter, r *http.Request) {
+	var request ListSystemAnnouncementsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSystemAnnouncements(ctx, request.(ListSystemAnnouncementsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSystemAnnouncements")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSystemAnnouncementsResponseObject); ok {
+		if err := validResponse.VisitListSystemAnnouncementsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateSystemAnnouncement operation middleware
+func (sh *strictHandler) CreateSystemAnnouncement(w http.ResponseWriter, r *http.Request) {
+	var request CreateSystemAnnouncementRequestObject
+
+	var body CreateSystemAnnouncementJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateSystemAnnouncement(ctx, request.(CreateSystemAnnouncementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateSystemAnnouncement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateSystemAnnouncementResponseObject); ok {
+		if err := validResponse.VisitCreateSystemAnnouncementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteSystemAnnouncement operation middleware
+func (sh *strictHandler) DeleteSystemAnnouncement(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteSystemAnnouncementRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteSystemAnnouncement(ctx, request.(DeleteSystemAnnouncementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteSystemAnnouncement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteSystemAnnouncementResponseObject); ok {
+		if err := validResponse.VisitDeleteSystemAnnouncementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateSystemAnnouncement operation middleware
+func (sh *strictHandler) UpdateSystemAnnouncement(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateSystemAnnouncementRequestObject
+
+	request.Id = id
+
+	var body UpdateSystemAnnouncementJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateSystemAnnouncement(ctx, request.(UpdateSystemAnnouncementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateSystemAnnouncement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateSystemAnnouncementResponseObject); ok {
+		if err := validResponse.VisitUpdateSystemAnnouncementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EndSystemAnnouncement operation middleware
+func (sh *strictHandler) EndSystemAnnouncement(w http.ResponseWriter, r *http.Request, id string) {
+	var request EndSystemAnnouncementRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EndSystemAnnouncement(ctx, request.(EndSystemAnnouncementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EndSystemAnnouncement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EndSystemAnnouncementResponseObject); ok {
+		if err := validResponse.VisitEndSystemAnnouncementResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -17113,6 +18383,146 @@ func (sh *strictHandler) UpdateWorkspace(w http.ResponseWriter, r *http.Request)
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateWorkspaceResponseObject); ok {
 		if err := validResponse.VisitUpdateWorkspaceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListWorkspaceAnnouncements operation middleware
+func (sh *strictHandler) ListWorkspaceAnnouncements(w http.ResponseWriter, r *http.Request) {
+	var request ListWorkspaceAnnouncementsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListWorkspaceAnnouncements(ctx, request.(ListWorkspaceAnnouncementsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListWorkspaceAnnouncements")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListWorkspaceAnnouncementsResponseObject); ok {
+		if err := validResponse.VisitListWorkspaceAnnouncementsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateWorkspaceAnnouncement operation middleware
+func (sh *strictHandler) CreateWorkspaceAnnouncement(w http.ResponseWriter, r *http.Request) {
+	var request CreateWorkspaceAnnouncementRequestObject
+
+	var body CreateWorkspaceAnnouncementJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateWorkspaceAnnouncement(ctx, request.(CreateWorkspaceAnnouncementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateWorkspaceAnnouncement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateWorkspaceAnnouncementResponseObject); ok {
+		if err := validResponse.VisitCreateWorkspaceAnnouncementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteWorkspaceAnnouncement operation middleware
+func (sh *strictHandler) DeleteWorkspaceAnnouncement(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteWorkspaceAnnouncementRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteWorkspaceAnnouncement(ctx, request.(DeleteWorkspaceAnnouncementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteWorkspaceAnnouncement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteWorkspaceAnnouncementResponseObject); ok {
+		if err := validResponse.VisitDeleteWorkspaceAnnouncementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateWorkspaceAnnouncement operation middleware
+func (sh *strictHandler) UpdateWorkspaceAnnouncement(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateWorkspaceAnnouncementRequestObject
+
+	request.Id = id
+
+	var body UpdateWorkspaceAnnouncementJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateWorkspaceAnnouncement(ctx, request.(UpdateWorkspaceAnnouncementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateWorkspaceAnnouncement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateWorkspaceAnnouncementResponseObject); ok {
+		if err := validResponse.VisitUpdateWorkspaceAnnouncementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EndWorkspaceAnnouncement operation middleware
+func (sh *strictHandler) EndWorkspaceAnnouncement(w http.ResponseWriter, r *http.Request, id string) {
+	var request EndWorkspaceAnnouncementRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EndWorkspaceAnnouncement(ctx, request.(EndWorkspaceAnnouncementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EndWorkspaceAnnouncement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EndWorkspaceAnnouncementResponseObject); ok {
+		if err := validResponse.VisitEndWorkspaceAnnouncementResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

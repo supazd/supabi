@@ -149,6 +149,8 @@ const shapes = {
     </>
   ),
   mail: <path d="M2.5 3.5h11v9h-11zM2.5 4l5.5 4.5L13.5 4" />,
+  bell: <path d="M4 11V7.25a4 4 0 0 1 8 0V11l1.25 1.5H2.75L4 11ZM6.5 13.5a1.6 1.6 0 0 0 3 0" />,
+  megaphone: <path d="M2.5 6.25v3.5h2.25l5.25 3V3.25l-5.25 3H2.5ZM12 6a2.4 2.4 0 0 1 0 4M4.75 9.75l.85 3.25" />,
 } satisfies Record<string, ReactNode>
 
 export type IconName = keyof typeof shapes

@@ -590,6 +590,48 @@ paths:
       responses:
         "204": { description: Seen }
 
+  /notifications/summary:
+    get:
+      operationId: getNotificationSummary
+      summary: The bell's badge and the banner of the caller, and how soon to read them again. See .agents/design/announcements.md 4.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotificationSummary" }
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      summary: A page of the caller's bell, the latest start first, from every workspace they can enter
+      parameters:
+        - { name: category, in: query, schema: { type: string, enum: [system, workspace] } }
+        - { name: before, in: query, schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotificationPage" }
+
+  /notifications/{id}/read:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: markNotificationRead
+      summary: Mark one notification of the caller as read
+      responses:
+        "204": { description: Read }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /notifications/read:
+    post:
+      operationId: markAllNotificationsRead
+      summary: Mark every unread notification of the caller as read
+      responses:
+        "204": { description: Read }
+
   /auth/session:
     get:
       operationId: getSession
@@ -961,6 +1003,144 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Workspace" }
         "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /workspace/announcements:
+    get:
+      operationId: listWorkspaceAnnouncements
+      summary: Every workspace announcement, scheduled and ended ones included, the latest start first. Admins of the current workspace.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Announcement" }
+    post:
+      operationId: createWorkspaceAnnouncement
+      summary: Publish a workspace announcement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnnouncementInput" }
+      responses:
+        "201":
+          description: Published
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Announcement" }
+        "400": { $ref: "#/components/responses/Error" }
+
+  /workspace/announcements/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    put:
+      operationId: updateWorkspaceAnnouncement
+      summary: Change the text and period of a workspace announcement; who has read it stays as it was
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnnouncementInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Announcement" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteWorkspaceAnnouncement
+      summary: Delete a workspace announcement from everyone's notifications
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /workspace/announcements/{id}/end:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: endWorkspaceAnnouncement
+      summary: End a workspace announcement in effect now, by the server's clock
+      responses:
+        "200":
+          description: Ended
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Announcement" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /system/announcements:
+    get:
+      operationId: listSystemAnnouncements
+      summary: Every system announcement, scheduled and ended ones included, the latest start first. System administrators.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Announcement" }
+    post:
+      operationId: createSystemAnnouncement
+      summary: Publish a system announcement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnnouncementInput" }
+      responses:
+        "201":
+          description: Published
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Announcement" }
+        "400": { $ref: "#/components/responses/Error" }
+
+  /system/announcements/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    put:
+      operationId: updateSystemAnnouncement
+      summary: Change the text and period of a system announcement; who has read it stays as it was
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnnouncementInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Announcement" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteSystemAnnouncement
+      summary: Delete a system announcement from everyone's notifications
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /system/announcements/{id}/end:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: endSystemAnnouncement
+      summary: End a system announcement in effect now, by the server's clock
+      responses:
+        "200":
+          description: Ended
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Announcement" }
+        "404": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
 
   /system/settings:
@@ -2173,6 +2353,78 @@ components:
         retentionSeconds: { type: integer, format: int64 }
         timeoutSeconds: { type: integer, format: int64 }
 
+    Announcement:
+      description: An announcement as administrators manage it. See .agents/design/announcements.md.
+      type: object
+      required: [id, title, body, startsAt, endsAt, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        body: { description: Markdown, type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        createdBy: { description: Who published it, as they are named now, type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AnnouncementInput:
+      type: object
+      additionalProperties: false
+      required: [title, endsAt]
+      properties:
+        title: { description: One line, type: string, minLength: 1, maxLength: 120 }
+        body: { description: Markdown, type: string, maxLength: 10000 }
+        startsAt:
+          description: When it is first shown. Left out, now by the server's clock. A changed start cannot be in the past.
+          type: string
+          format: date-time
+        endsAt:
+          description: When it leaves the banner; after the start. A new or changed end cannot be in the past.
+          type: string
+          format: date-time
+    Notification:
+      description: Something in the caller's bell. Only announcements exist so far.
+      type: object
+      required: [id, kind, category, title, body, startsAt, endsAt, unread]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [announcement] }
+        category:
+          description: A system announcement, or a workspace's.
+          type: string
+          enum: [system, workspace]
+        workspaceId: { description: For a workspace's announcement, type: string }
+        workspaceName: { description: That workspace's current name, type: string }
+        title: { type: string }
+        body: { description: Markdown, type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        unread:
+          description: In effect and not read yet. An ended one is history and never unread.
+          type: boolean
+    NotificationPage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Notification" } }
+        nextBefore: { type: string, format: date-time }
+    NotificationSummary:
+      type: object
+      required: [unread, banner, bannerTotal, refreshSeconds]
+      properties:
+        unread:
+          description: Unread notifications in every workspace the caller can enter.
+          type: integer
+        banner:
+          description: The first unread announcements of the organization and of the current workspace, system ones first.
+          type: array
+          items: { $ref: "#/components/schemas/Notification" }
+        bannerTotal:
+          description: How many unread announcements the banner could hold, beyond those it does.
+          type: integer
+        refreshSeconds:
+          description: How soon to read this again; the system setting in force.
+          type: integer
+
     SystemSettingValues:
       description: |
         The system settings, in the units the settings page shows. A setting
@@ -2195,10 +2447,11 @@ components:
         mcpEnabled: { description: Whether people may connect MCP clients to read their dashboards, type: boolean }
         assistantCompressPercent: { description: Share of a model's usable context past which the AI assistant summarizes the earlier conversation and an answer stops calling tools, in percent, type: integer, minimum: 50, maximum: 95 }
         assistantMaxToolCalls: { description: The most tools one answer of the AI assistant may call; 0 sets no limit, type: integer, minimum: 0, maximum: 1000 }
+        notificationRefreshSeconds: { description: How often an open page reads the bell's badge and the banner, in seconds, type: integer, minimum: 10, maximum: 3600 }
     SystemSettingDefaults:
       description: What each system setting is when left out.
       type: object
-      required: [exportRetentionHours, exportTimeoutMinutes, exportMaxRows, exportMaxSizeMb, auditRetentionDays, queryCacheTtlMinutes, queryTimeoutSeconds, queryDefaultRows, queryMaxRows, sessionLifetimeHours, workspaceRetentionDays, mcpEnabled, assistantCompressPercent, assistantMaxToolCalls]
+      required: [exportRetentionHours, exportTimeoutMinutes, exportMaxRows, exportMaxSizeMb, auditRetentionDays, queryCacheTtlMinutes, queryTimeoutSeconds, queryDefaultRows, queryMaxRows, sessionLifetimeHours, workspaceRetentionDays, mcpEnabled, assistantCompressPercent, assistantMaxToolCalls, notificationRefreshSeconds]
       properties:
         exportRetentionHours: { type: integer }
         exportTimeoutMinutes: { type: integer }
@@ -2214,6 +2467,7 @@ components:
         mcpEnabled: { type: boolean }
         assistantCompressPercent: { type: integer }
         assistantMaxToolCalls: { type: integer }
+        notificationRefreshSeconds: { type: integer }
     SystemSettings:
       type: object
       required: [values, defaults]

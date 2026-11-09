@@ -5,6 +5,7 @@ import { useSession } from '../../auth/session'
 import { Icon, type IconName } from '../../components/Icon'
 import { NotFound } from '../NotFound'
 import { Account } from './Account'
+import { Announcements } from './Announcements'
 import { AIModels } from './AIModels'
 import { AIUsage } from './AIUsage'
 import { EmailSettingsPage } from './EmailSettings'
@@ -82,12 +83,14 @@ export function Settings({ onManageWorkspace, onCurrentWorkspaceDeleted, busy = 
         { path: 'ai', label: t('settings.ai'), icon: 'assistant', element: <AIModels /> },
         { path: 'ai-usage', label: t('settings.aiUsage'), icon: 'chart', element: <AIUsage /> },
         { path: 'email', label: t('settings.email'), icon: 'mail', element: <EmailSettingsPage /> },
+        { path: 'announcements', label: t('settings.announcements'), icon: 'megaphone', element: <Announcements scope="system" /> },
         { path: 'audit', label: t('settings.audit'), icon: 'clock', element: <Audit /> },
         { path: 'general', label: t('settings.systemGeneral'), icon: 'settings', element: <SystemGeneral /> },
       ]} />} />
       <Route path="workspace/*" element={<SettingsArea key={workspace?.id} base="/settings/workspace" title={t('settings.workspaceTitle', { name: workspace?.name ?? '' })} allowed={Boolean(workspace) && session.atLeast('developer')} unavailable={!workspace ? t(choosable ? 'auth.chooseWorkspace' : 'auth.noWorkspace') : undefined} sections={[
         { path: 'general', label: t('settings.general'), icon: 'settings', allowed: admin, element: <Workspace /> },
         { path: 'members', label: t('member.title'), icon: 'users', allowed: admin, element: <Members /> },
+        { path: 'announcements', label: t('settings.announcements'), icon: 'megaphone', allowed: admin, element: <Announcements scope="workspace" /> },
         { path: 'attributes', label: t('attribute.title'), icon: 'format', element: <UserAttributes /> },
       ]} />} />
       <Route path="*" element={<NotFound />} />

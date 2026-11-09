@@ -34,6 +34,7 @@ func (s *Server) SetSystemSettings(ctx context.Context, req gen.SetSystemSetting
 		QueryTimeoutSeconds: in.QueryTimeoutSeconds, QueryDefaultRows: in.QueryDefaultRows, QueryMaxRows: in.QueryMaxRows,
 		SessionLifetimeHours: in.SessionLifetimeHours, WorkspaceRetentionDays: in.WorkspaceRetentionDays, MCPEnabled: in.McpEnabled,
 		AssistantCompressPercent: in.AssistantCompressPercent, AssistantMaxToolCalls: in.AssistantMaxToolCalls,
+		NotificationRefreshSeconds: in.NotificationRefreshSeconds,
 	}
 	for _, r := range []struct {
 		setting string
@@ -53,6 +54,7 @@ func (s *Server) SetSystemSettings(ctx context.Context, req gen.SetSystemSetting
 		{"workspaceRetentionDays", widen(v.WorkspaceRetentionDays), 1, 3650},
 		{"assistantCompressPercent", widen(v.AssistantCompressPercent), 50, 95},
 		{"assistantMaxToolCalls", widen(v.AssistantMaxToolCalls), 0, 1000},
+		{"notificationRefreshSeconds", widen(v.NotificationRefreshSeconds), 10, 3600},
 	} {
 		if r.value != nil && (*r.value < r.lo || *r.value > r.hi) {
 			lo, hi := strconv.FormatInt(r.lo, 10), strconv.FormatInt(r.hi, 10)
@@ -106,6 +108,7 @@ func settingValues(v store.SystemSettingValues) map[string]any {
 		"queryTimeoutSeconds": value(v.QueryTimeoutSeconds), "queryDefaultRows": value(v.QueryDefaultRows), "queryMaxRows": value(v.QueryMaxRows),
 		"sessionLifetimeHours": value(v.SessionLifetimeHours), "workspaceRetentionDays": value(v.WorkspaceRetentionDays), "mcpEnabled": mcp,
 		"assistantCompressPercent": value(v.AssistantCompressPercent), "assistantMaxToolCalls": value(v.AssistantMaxToolCalls),
+		"notificationRefreshSeconds": value(v.NotificationRefreshSeconds),
 	}
 }
 
@@ -118,6 +121,7 @@ func systemSettingsResponse(v store.SystemSettingValues) gen.SystemSettings {
 			QueryTimeoutSeconds: v.QueryTimeoutSeconds, QueryDefaultRows: v.QueryDefaultRows, QueryMaxRows: v.QueryMaxRows,
 			SessionLifetimeHours: v.SessionLifetimeHours, WorkspaceRetentionDays: v.WorkspaceRetentionDays, McpEnabled: v.MCPEnabled,
 			AssistantCompressPercent: v.AssistantCompressPercent, AssistantMaxToolCalls: v.AssistantMaxToolCalls,
+			NotificationRefreshSeconds: v.NotificationRefreshSeconds,
 		},
 		Defaults: gen.SystemSettingDefaults{
 			ExportRetentionHours: int(d.ExportRetention / time.Hour), ExportTimeoutMinutes: int(d.ExportTimeout / time.Minute), ExportMaxRows: d.ExportMaxRows,
@@ -125,6 +129,7 @@ func systemSettingsResponse(v store.SystemSettingValues) gen.SystemSettings {
 			QueryTimeoutSeconds: int(d.QueryTimeout / time.Second), QueryDefaultRows: d.QueryDefaultRows, QueryMaxRows: d.QueryMaxRows,
 			SessionLifetimeHours: int(d.SessionLifetime / time.Hour), WorkspaceRetentionDays: int(d.WorkspaceRetention / (24 * time.Hour)), McpEnabled: d.MCPEnabled,
 			AssistantCompressPercent: d.AssistantCompressPercent, AssistantMaxToolCalls: d.AssistantMaxToolCalls,
+			NotificationRefreshSeconds: int(d.NotificationRefresh / time.Second),
 		},
 	}
 }

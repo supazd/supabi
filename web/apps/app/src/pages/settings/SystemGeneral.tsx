@@ -14,8 +14,8 @@ type Values = Schemas['SystemSettingValues']
 /** The settings typed as numbers; the MCP switch is drawn apart. */
 type Setting = Exclude<keyof Schemas['SystemSettingDefaults'], 'mcpEnabled'>
 
-/** The settings in their groups, with what each may be: .agents/design/configuration.md 10.1, 10.7, 10.9. */
-const groups: { name: 'exports' | 'audit' | 'query' | 'workspaces' | 'signIn' | 'assistant'; settings: { key: Setting; min: number; max: number }[] }[] = [
+/** The settings in their groups, with what each may be: .agents/design/configuration.md 10.1, 10.7, 10.9, 10.10. */
+const groups: { name: 'exports' | 'audit' | 'query' | 'workspaces' | 'signIn' | 'notifications' | 'assistant'; settings: { key: Setting; min: number; max: number }[] }[] = [
   {
     name: 'exports',
     settings: [
@@ -37,6 +37,7 @@ const groups: { name: 'exports' | 'audit' | 'query' | 'workspaces' | 'signIn' | 
   },
   { name: 'workspaces', settings: [{ key: 'workspaceRetentionDays', min: 1, max: 3650 }] },
   { name: 'signIn', settings: [{ key: 'sessionLifetimeHours', min: 1, max: 8760 }] },
+  { name: 'notifications', settings: [{ key: 'notificationRefreshSeconds', min: 10, max: 3600 }] },
   {
     name: 'assistant',
     settings: [

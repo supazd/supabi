@@ -1,0 +1,10 @@
+/* Managing announcements: .agents/design/announcements.md 5. */
+.status-mark.active { --status: var(--lb-color-success); }
+.status-mark.scheduled { --status: var(--lb-color-primary); }
+.status-mark.ended { --status: var(--lb-color-text-secondary); }
+.announcement-row-actions { justify-content: flex-end; gap: 2px; }
+.announcement-body { display: grid; gap: 6px; }
+.announcement-preview { min-height: 172px; max-height: 320px; overflow: auto; padding: 8px 12px; border: 1px solid var(--lb-color-border); border-radius: 8px; }
+.announcement-when { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.announcement-moment { display: inline-flex; gap: 6px; }
+.announcement-moment .lb-input, .announcement-moment input[type='time'] { width: 120px; }

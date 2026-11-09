@@ -9,6 +9,7 @@ import { Async } from './components/Async'
 import { ErrorAlert } from './components/ErrorAlert'
 import { Icon } from './components/Icon'
 import { lazyPage, PageFrame } from './components/LazyPage'
+import { AnnouncementBanner, NotificationsProvider } from './components/Notifications'
 import { Topbar } from './components/Topbar'
 import { UnsavedChangesProvider, useUnsavedActions } from './components/UnsavedChanges'
 import { saveLocale } from './i18n'
@@ -74,6 +75,8 @@ function Frame() {
   const fills = first === 'workbench' || first === 'dashboards' || first === 'assistant' || exploring || settings
 
   return (
+    // The bell and the banner share what is read for the signed-in person.
+    <NotificationsProvider key={info.user?.id}>
     <div className={fills ? 'frame fill' : 'frame'}>
       <Topbar
         info={info}
@@ -84,6 +87,7 @@ function Frame() {
         busy={actions.busy}
         pending={actions.pending}
       />
+      <AnnouncementBanner />
       {actions.error && (
         <div className="session-error stack">
           <ErrorAlert error={actions.error} />
@@ -134,6 +138,7 @@ function Frame() {
         </main>
       ))}
     </div>
+    </NotificationsProvider>
   )
 }
 

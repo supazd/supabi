@@ -177,6 +177,19 @@ var auditRules = map[string]auditRule{
 
 	"GetSystemSettings": {},
 	"SetSystemSettings": {action: "system_settings.update", handler: true},
+
+	// The workspace of an announcement's events is the current one, or none
+	// for a system announcement. Reading one's notifications records nothing.
+	"ListSystemAnnouncements": {}, "ListWorkspaceAnnouncements": {},
+	"CreateSystemAnnouncement":    withBody("announcement.create", "announcement", created("Id")),
+	"CreateWorkspaceAnnouncement": withBody("announcement.create", "announcement", created("Id")),
+	"UpdateSystemAnnouncement":    withBody("announcement.update", "announcement", byID),
+	"UpdateWorkspaceAnnouncement": withBody("announcement.update", "announcement", byID),
+	"EndSystemAnnouncement":       change("announcement.update", "announcement", byID),
+	"EndWorkspaceAnnouncement":    change("announcement.update", "announcement", byID),
+	"DeleteSystemAnnouncement":    change("announcement.delete", "announcement", byID),
+	"DeleteWorkspaceAnnouncement": change("announcement.delete", "announcement", byID),
+	"GetNotificationSummary":      {}, "ListNotifications": {}, "MarkNotificationRead": {}, "MarkAllNotificationsRead": {},
 	// The request has the email password; a test sends a message out.
 	"GetEmailSettings":  {},
 	"SetEmailSettings":  {action: "email_settings.update", handler: true},

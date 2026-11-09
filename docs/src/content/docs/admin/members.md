@@ -35,6 +35,8 @@ Under **General**:
 
 **User attributes** are used by data permission rules, see [Data permissions](/admin/data-permissions/#user-attributes).
 
+**Announcements**, for Admins, publishes announcements to everyone who can enter the workspace. See [Announcements](/admin/announcements/).
+
 ## Switch workspace
 
 If you belong to several workspaces, switch at the top left. Unsaved changes ask for confirmation first. Query drafts in Data exploration and AI conversations are kept per workspace.

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router'
 import { useSession, type SessionInfo } from '../auth/session'
 import { ExportCenter } from './Exports'
+import { NotificationBell } from './Notifications'
 import { BrandMark } from './BrandMark'
 import { Icon, type IconName } from './Icon'
 
@@ -115,6 +116,7 @@ export function Topbar({ info, colorScheme, locale, onLocaleChange, onColorSchem
         {info.workspace && session.atLeast('developer') && <NavLink to="/settings/workspace" aria-disabled={busy || undefined} tabIndex={busy ? -1 : undefined} onClick={preventBusyNavigation} onAuxClick={preventBusyNavigation}><Icon name="settings" />{t('topbar.workspaceSettings')}</NavLink>}
       </nav>
       <div className="topbar-account">
+        {info.user && <NotificationBell disabled={busy} />}
         {info.user && <ExportCenter key={info.user.id} disabled={busy} showWorkspace={(info.workspaces?.length ?? 0) > 1} />}
         {pending && <span className="topbar-spinner" role="status" aria-label={t('common.loading')} />}
         <Tooltip title={colorScheme === 'dark' ? t('theme.toLight') : t('theme.toDark')}>
