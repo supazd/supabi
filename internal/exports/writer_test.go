@@ -245,3 +245,27 @@ func TestExportEmptyAndLimits(t *testing.T) {
 		t.Fatal("file limit not enforced")
 	}
 }
+
+// A float is written as the number reads on the dashboard, not with an exponent.
+func TestCSVWritesFloatsInFull(t *testing.T) {
+	var out bytes.Buffer
+	w, err := NewWriter(&out, "csv", 10, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Start([]datasource.Column{{Name: "v", Type: datasource.Float}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range []float64{1234567.89, 25000000, 0.00001234, -1e21, 0.5, 3} {
+		if err := w.WriteRow([]any{v}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	want := "\xef\xbb\xbfv\n1234567.89\n25000000\n0.00001234\n-1000000000000000000000\n0.5\n3\n"
+	if got := strings.ReplaceAll(out.String(), "\r\n", "\n"); got != want {
+		t.Errorf("got %q\nwant %q", got, want)
+	}
+}

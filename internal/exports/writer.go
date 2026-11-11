@@ -102,7 +102,14 @@ func (w *Writer) WriteRow(row []any) error {
 			if v == nil {
 				continue
 			}
-			values[i] = fmt.Sprint(v)
+			if f, ok := v.(float64); ok {
+				// Written out in full: Go's own way turns to an exponent from
+				// a million up and below a ten-thousandth, which reads badly
+				// and which not every program that takes the file understands.
+				values[i] = strconv.FormatFloat(f, 'f', -1, 64)
+			} else {
+				values[i] = fmt.Sprint(v)
+			}
 			if !w.columns[i].Type.Numeric() || !number.MatchString(values[i]) {
 				values[i] = safeCSV(values[i])
 			}
