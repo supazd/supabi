@@ -593,7 +593,8 @@ function Widget({
   if (visible && heldAsk.some((key, index) => key !== asked[index])) holdAsk(asked)
   const data = useAsync(async (signal) => {
     if (!chart) return undefined
-    const refreshing = freshData(refreshKey, loadKey)
+    // A timed refresh repeats the load as it was, which is not the refresh by hand repeated.
+    const refreshing = freshData(refreshKey, `${tickKey}:${loadKey}`)
     const timed = timedData(tickKey, loadKey) && Boolean(autoRefresh?.maxAge)
     const fresh = refreshing ? { refresh: true } : timed ? { maxAge: autoRefresh!.maxAge } : {}
     const result = await (preview
