@@ -1931,6 +1931,20 @@ describe('full screen and timed refresh', () => {
     expect(saves()).toHaveLength(0)
   })
 
+  it('goes back to a max age for the timed refreshes after one by hand', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    Object.assign(server.dashboard.spec, { autoRefresh: 60 })
+    openViewer()
+    await screen.findByText('Chart result')
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh data' }))
+    await waitFor(() => expect(dataRequests().at(-1)!.body).toMatchObject({ refresh: true }))
+    const asked = dataRequests().length
+    await act(() => vi.advanceTimersByTimeAsync(60_000))
+    await waitFor(() => expect(dataRequests()).toHaveLength(asked + 1))
+    expect(dataRequests().at(-1)!.body).toMatchObject({ maxAge: 54 })
+    expect(dataRequests().at(-1)!.body.refresh).toBeUndefined()
+  })
+
   it('saves the interval chosen in page settings, and leaves it out when off', async () => {
     openEditor()
     await screen.findByRole('main', { name: 'Canvas' })
