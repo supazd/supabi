@@ -21,8 +21,9 @@ type DashboardView struct {
 }
 
 // SaveDashboardView keeps the conditions a dashboard is shared with for
-// validFor. The same conditions shared again keep their ID, and the later of
-// the two expiries, so that a link already sent never expires sooner.
+// validFor. hash tells apart both the conditions and how long they are kept:
+// what was shared the same way before keeps its ID, and the later of the two
+// expiries, so that a link already sent never expires sooner.
 func SaveDashboardView(ctx context.Context, pool *pgxpool.Pool, s Scope, dashboardID string, state []byte, hash string, validFor time.Duration) (DashboardView, error) {
 	v := DashboardView{DashboardID: dashboardID, State: state}
 	err := pool.QueryRow(ctx, `INSERT INTO dashboard_views AS v (id, org_id, workspace_id, dashboard_id, state, state_hash, created_by, expires_at)

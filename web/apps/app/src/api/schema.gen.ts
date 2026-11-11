@@ -1323,8 +1323,9 @@ export interface paths {
         /**
          * Keep the conditions a dashboard is shared with, for a share link to name by a short id
          * @description Anyone who can open the dashboard can share it; the link grants no
-         *     access. The same conditions shared again keep their id and the later
-         *     expiry. See .agents/design/chart-dashboard.md 3.10.
+         *     access. The same conditions shared again for as long keep their id
+         *     and the later expiry; for another length of time they get an id of
+         *     their own. See .agents/design/chart-dashboard.md 3.10.
          */
         post: operations["createDashboardView"];
         delete?: never;

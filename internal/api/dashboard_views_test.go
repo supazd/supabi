@@ -43,13 +43,25 @@ func TestDashboardViews(t *testing.T) {
 	if days := time.Until(expiry(first)).Hours() / 24; days < 29.9 || days > 30.1 {
 		t.Errorf("valid for %.2f days, want 30", days)
 	}
-	same := share(map[string]any{"useChartFilters": []any{"wa", "wb"}, "filters": map[string]any{"g": []any{"华东"}}}, 90)
-	if same["id"] != id || !expiry(same).After(expiry(first)) {
-		t.Errorf("the same conditions for longer: %v, first %v", same, first)
+	valid := func(view map[string]any) float64 { return time.Until(expiry(view)).Hours() / 24 }
+	// Shared again the same way, they keep their link, which lasts from now.
+	same := share(map[string]any{"useChartFilters": []any{"wa", "wb"}, "filters": map[string]any{"g": []any{"华东"}}}, 30)
+	if same["id"] != id || expiry(same).Before(expiry(first)) {
+		t.Errorf("the same conditions again: %v, first %v", same, first)
 	}
-	// Sharing them again for less does not cut short the link already sent.
-	if shorter := share(map[string]any{"filters": map[string]any{"g": []any{"华东"}}, "useChartFilters": []any{"wa", "wb"}}, 1); !expiry(shorter).Equal(expiry(same)) {
-		t.Errorf("shared again for a day: %v, before %v", shorter, same)
+	// For another length of time they get a link of their own, which lasts
+	// as long as was asked: a day is a day, whatever was shared before.
+	longer := share(map[string]any{"useChartFilters": []any{"wa", "wb"}, "filters": map[string]any{"g": []any{"华东"}}}, 90)
+	if longer["id"] == id || valid(longer) < 89.9 || valid(longer) > 90.1 {
+		t.Errorf("the same conditions for 90 days: %v, first %v", longer, first)
+	}
+	shorter := share(map[string]any{"filters": map[string]any{"g": []any{"华东"}}, "useChartFilters": []any{"wa", "wb"}}, 1)
+	if shorter["id"] == id || shorter["id"] == longer["id"] || valid(shorter) < 0.9 || valid(shorter) > 1.1 {
+		t.Errorf("the same conditions for a day: %v", shorter)
+	}
+	// Nor does that cut short the link already sent.
+	if kept := f.viewer.expect("GET", "/dashboards/"+board+"/views/"+id, nil, 200, ""); !expiry(kept).Equal(expiry(same)) {
+		t.Errorf("the first link now expires at %v, was %v", kept["expiresAt"], same["expiresAt"])
 	}
 	// The tab a tab container shows is carried too, and the page of a split dashboard.
 	other := share(map[string]any{"filters": map[string]any{"g": []any{"华南"}}, "tabs": map[string]any{"wt": "wb"}, "page": "p2"}, 7)
@@ -63,8 +75,8 @@ func TestDashboardViews(t *testing.T) {
 	if carried["page"] != "p2" {
 		t.Errorf("page: %v", carried["page"])
 	}
-	if n := count(`SELECT count(*) FROM dashboard_views WHERE dashboard_id = $1`, board); n != 2 {
-		t.Errorf("%d rows, want 2", n)
+	if n := count(`SELECT count(*) FROM dashboard_views WHERE dashboard_id = $1`, board); n != 4 {
+		t.Errorf("%d rows, want 4", n)
 	}
 
 	got := f.viewer.expect("GET", "/dashboards/"+board+"/views/"+id, nil, 200, "")
@@ -81,8 +93,8 @@ func TestDashboardViews(t *testing.T) {
 	f.viewer.expect("POST", "/dashboards/"+hidden+"/views", map[string]any{"state": map[string]any{}, "validDays": 1}, 404, "")
 	f.viewer.expect("GET", "/dashboards/"+hidden+"/views/"+id, nil, 404, "")
 	f.viewer.expect("GET", "/dashboards/"+board+"/views/dv_nope", nil, 404, "view_not_found")
-	if n := count(`SELECT count(*) FROM audit_events WHERE action = 'dashboard.share' AND object_id = $1`, board); n != 4 {
-		t.Errorf("%d share events, want 4", n)
+	if n := count(`SELECT count(*) FROM audit_events WHERE action = 'dashboard.share' AND object_id = $1`, board); n != 5 {
+		t.Errorf("%d share events, want 5", n)
 	}
 
 	// Expired conditions are not carried, and maintenance deletes them.
