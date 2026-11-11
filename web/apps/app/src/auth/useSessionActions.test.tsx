@@ -160,7 +160,7 @@ describe.each(actions)('$name with unsaved editors', ({ name, path, args }) => {
       expect(server.setSession).not.toHaveBeenCalled()
       expect(refreshIsBlocked()).toBe(false)
     } else {
-      expect(server.setSession).toHaveBeenCalledExactlyOnceWith({ authenticated: false, setupRequired: false })
+      expect(server.setSession).toHaveBeenCalledExactlyOnceWith({ authenticated: false, setupRequired: false }, true)
       expect(reload).not.toHaveBeenCalled()
     }
     // Completion keeps actions locked until the actual reload or signed-out shell unmount.

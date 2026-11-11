@@ -79,7 +79,8 @@ export function useSessionActions(reloadWorkspace: (destination?: string, worksp
   }
   const signOut = () => run(
     () => unwrap(api.POST('/auth/logout')),
-    () => session.set({ authenticated: false, setupRequired: false }),
+    // Signed out, not cut off: the sign-in page does not lead back here.
+    () => session.set({ authenticated: false, setupRequired: false }, true),
   )
 
   const retryRecovery = () => { void recovery.current?.() }
