@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"time"
 
@@ -39,8 +40,10 @@ func (s *Server) CreateDashboardView(ctx context.Context, req gen.CreateDashboar
 }
 
 // saveView keeps conditions to open a dashboard with, for a link to name
-// them by an ID, which the same conditions keep. The caller has checked that
-// the dashboard can be opened.
+// them by an ID, which the same conditions kept for as long keep: asked for
+// a shorter time, they get a link of their own, since one already sent must
+// not expire sooner (.agents/design/chart-dashboard.md 3.10). The caller has
+// checked that the dashboard can be opened.
 func (s *Server) saveView(ctx context.Context, dashboardID string, state gen.DashboardViewState, validFor time.Duration) (store.DashboardView, gen.DashboardViewState, error) {
 	state = canonicalViewState(state)
 	encoded, err := json.Marshal(state)
@@ -50,7 +53,7 @@ func (s *Server) saveView(ctx context.Context, dashboardID string, state gen.Das
 	if len(encoded) > maxViewState {
 		return store.DashboardView{}, state, badRequest("view_too_large", "the shared conditions are too large")
 	}
-	sum := sha256.Sum256(encoded)
+	sum := sha256.Sum256(fmt.Appendf(slices.Clone(encoded), "\nvalid for %d s", int64(validFor.Seconds())))
 	view, err := store.SaveDashboardView(ctx, s.Pool, s.scope(ctx), dashboardID, encoded, hex.EncodeToString(sum[:]), validFor)
 	return view, state, err
 }

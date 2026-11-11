@@ -115,7 +115,7 @@ export function ShareDashboardDialog({ dashboardId, workspaceId, state, spec, ch
   const described = describeParts(state, spec, charts, t, linkText, zone)
   const [days, setDays] = useState<(typeof validities)[number]>(30)
   const { status: copied, copy: write, reset: forgetCopy } = useClipboard()
-  // Kept only once asked for: a link without conditions is just the dashboard's address. The same conditions keep the same link.
+  // Kept only once asked for: a link without conditions is just the dashboard's address. The same conditions for as long keep the same link.
   const view = useAsync(
     () => (carrying ? unwrap(api.POST('/dashboards/{id}/views', { params: { path: { id: dashboardId } }, body: { state: carried, validDays: days } })) : Promise.resolve(undefined)),
     [carrying, days, JSON.stringify(carried)],
