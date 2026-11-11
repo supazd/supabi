@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -34,6 +35,13 @@ func testExportWorkerWith(c *client, files blob.Store) *worker.Worker {
 	service.Charts = s
 	s.Exports = service
 	return &worker.Worker{Pool: s.Pool, Exports: service, Logger: s.Logger, Concurrency: 2, Audit: s.Audit}
+}
+
+// noStorage is a file storage that cannot be written to.
+type noStorage struct{ blob.Store }
+
+func (noStorage) Create(context.Context, string, int64) (blob.Writer, error) {
+	return nil, errors.New("the bucket is gone")
 }
 
 // setExportLimits sets the system settings as an administrator would.
@@ -475,10 +483,32 @@ func TestExportCancellationLimitsAndFailure(t *testing.T) {
 	}
 	setExportLimits(t, c, store.SystemSettingValues{})
 	c.expect("GET", "/exports/"+id+"/file", nil, 409, "export_not_ready")
+	// What the database said is for operators to read in the log: the
+	// record keeps only the code.
+	var logged bytes.Buffer
+	quiet := w.Logger
+	w.Logger = slog.New(slog.NewTextHandler(&logged, nil))
 	id = queueExport(c, sourceID, "csv", "SELECT * FROM no_such_export_table")
 	processExport(t, w)
+	w.Logger = quiet
 	if c.expect("GET", "/exports/"+id, nil, 200, "")["errorCode"] != "export_query_failed" {
 		t.Fatal("SQL failure not reported")
+	}
+	if text := logged.String(); !strings.Contains(text, "level=WARN") || !strings.Contains(text, "no_such_export_table") {
+		t.Errorf("the log does not say why the export failed: %s", text)
+	}
+	// A fault of the storage is one for operators to act on.
+	logged.Reset()
+	broken := testExportWorkerWith(c, noStorage{blob.NewLocal(filepath.Join(c.dataDir, "exports"))})
+	broken.Logger = slog.New(slog.NewTextHandler(&logged, nil))
+	id = queueExport(c, sourceID, "csv", "SELECT 1 AS n")
+	processExport(t, broken)
+	w = testExportWorker(c)
+	if c.expect("GET", "/exports/"+id, nil, 200, "")["errorCode"] != "export_failed" {
+		t.Fatal("storage failure not reported")
+	}
+	if text := logged.String(); !strings.Contains(text, "level=ERROR") || !strings.Contains(text, "the bucket is gone") {
+		t.Errorf("the log does not say why the export failed: %s", text)
 	}
 	for range 5 {
 		queueExport(c, sourceID, "csv", "SELECT 1")

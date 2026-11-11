@@ -105,9 +105,16 @@ func (w *Worker) Process(parent context.Context, j store.Job) {
 	if status != "succeeded" {
 		w.discard(finishCtx, j, file.Key)
 	}
-	if err != nil && j.Kind != "export" {
-		// Housekeeping has no owner to show a code to; the error is for operators.
-		w.Logger.ErrorContext(finishCtx, "background job failed", "job", j.ID, "kind", j.Kind, "error", err)
+	// The record keeps only a code for the owner to read; what went wrong is
+	// for operators, here. A fault of the service or its storage is an error,
+	// and what the request or the data source brought on a warning. See
+	// .agents/design/exports.md §3.
+	if err != nil && status == "failed" {
+		level := slog.LevelWarn
+		if j.Kind != "export" || exports.FailureCode(err) == "export_failed" {
+			level = slog.LevelError
+		}
+		w.Logger.Log(finishCtx, level, "background job failed", "job", j.ID, "kind", j.Kind, "error", err)
 	}
 	w.Logger.InfoContext(finishCtx, "background job finished", "job", j.ID, "kind", j.Kind, "status", status, "code", exports.FailureCode(err), "rows", file.Rows, "bytes", file.Bytes)
 	if j.Kind == "export" && status != "cancelled" {
