@@ -79,3 +79,45 @@ func TestReadOnlyAndDescribe(t *testing.T) {
 		t.Errorf("Describe of invalid SQL: err = %v, want a QueryError", err)
 	}
 }
+
+// Types with no closer match are given as the text PostgreSQL shows for them,
+// not as Go prints the value the driver decoded.
+func TestValuesReadAsText(t *testing.T) {
+	tg := setup(t)
+	result, err := tg.Conn.Query(context.Background(), `SELECT
+		'550e8400-e29b-41d4-a716-446655440000'::uuid,
+		'{"a":1,"b":["x","y"]}'::jsonb,
+		'["x",2]'::json,
+		'09:30:00'::time,
+		ARRAY['a b','c'],
+		ARRAY['550e8400-e29b-41d4-a716-446655440000'::uuid],
+		ARRAY[1.50, 2],
+		'NaN'::numeric,
+		NULL::uuid`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []any{
+		"550e8400-e29b-41d4-a716-446655440000",
+		`{"a":1,"b":["x","y"]}`,
+		`["x",2]`,
+		"09:30:00",
+		`["a b","c"]`,
+		`["550e8400-e29b-41d4-a716-446655440000"]`,
+		`["1.50","2"]`,
+		nil,
+		nil,
+	}
+	for i, got := range result.Rows[0] {
+		if got != want[i] {
+			t.Errorf("column %d: got %#v, want %#v", i, got, want[i])
+		}
+	}
+	interval, err := tg.Conn.Query(context.Background(), `SELECT '1 day 02:00:00'::interval`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := interval.Rows[0][0].(string); !ok || !strings.Contains(got, "02:00:00") {
+		t.Errorf("interval: got %#v, want text with 02:00:00", interval.Rows[0][0])
+	}
+}
