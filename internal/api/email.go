@@ -175,6 +175,11 @@ func (s *Server) emailInput(in *gen.EmailSettingsInput, stored store.EmailSettin
 	if v.Username != "" && len(v.Password) == 0 && !(keepPassword && len(stored.Password) > 0) {
 		return v, false, badRequest("email_password_required", "a password is required with a username")
 	}
+	// The stored password goes only to the server it was stored for, so that
+	// it cannot be had by naming another server.
+	if keepPassword && (v.Host != stored.Host || v.Port != stored.Port || v.Security != stored.Security || v.Username != stored.Username) {
+		return v, false, badRequest("email_password_again", "the password is needed again when the server, the port, the encryption or the username changes")
+	}
 	return v, keepPassword, nil
 }
 

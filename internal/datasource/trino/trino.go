@@ -43,8 +43,8 @@ func (trinoDriver) Settings() []datasource.SettingField {
 		{Name: "port", Default: "8080"},
 		{Name: "user", Required: true},
 		{Name: "secure", Default: "false", Options: []string{"false", "true"}},
-		{Name: "catalog"},
-		{Name: "schema"},
+		{Name: "catalog", Inside: true},
+		{Name: "schema", Inside: true},
 	}
 }
 

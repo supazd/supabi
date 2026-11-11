@@ -300,6 +300,21 @@ func TestDatasources(t *testing.T) {
 	if r := c.expect("POST", "/datasources/"+id+"/test", nil, 200, ""); r["ok"] != true {
 		t.Errorf("test as saved = %v", r)
 	}
+	// The saved password goes only where it was saved for: sent to another
+	// server, as another user or with other protection, it has to be typed
+	// again. It could otherwise be had by pointing the data source at a
+	// server of one's own.
+	for setting, value := range map[string]string{"host": "198.51.100.7", "port": "6543", "user": "someone_else", "sslmode": "verify-full"} {
+		moved := c.datasourceInput("生产库（只读）")
+		delete(moved, "password")
+		settings := map[string]any{}
+		raw, _ := json.Marshal(moved["settings"])
+		_ = json.Unmarshal(raw, &settings)
+		settings[setting] = value
+		moved["settings"] = settings
+		c.expect("POST", "/datasources/"+id+"/test", moved, 400, "datasource_password_required")
+		c.expect("PUT", "/datasources/"+id, moved, 400, "datasource_password_required")
+	}
 	change["password"] = "not-the-password"
 	if r := c.expect("POST", "/datasources/"+id+"/test", change, 200, ""); r["ok"] != false || r["message"] == "" {
 		t.Errorf("test of a change to a wrong password = %v", r)
