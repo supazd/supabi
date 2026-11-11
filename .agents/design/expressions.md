@@ -23,7 +23,7 @@ A field's `syntax` says which language `expr` uses:
 | `syntax` | Meaning |
 |---|---|
 | `"standard"` | Standard expression |
-| Omitted | Native expression: spliced into the SQL as is, with only `${internal ID}` replaced by the SQL of the referenced field |
+| Omitted | Native expression: spliced into the SQL as is, with only `${internal ID}` replaced by the SQL of the referenced field. The whole expression is put in brackets, so an `OR` at its top cannot take in a condition the field is compared with or ANDed to, the row filter included |
 
 A calculated field created in the UI uses a standard expression by default. Fields created before standard expressions were introduced have no `syntax` and are treated as native; they are not converted automatically.
 

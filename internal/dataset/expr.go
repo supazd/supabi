@@ -63,7 +63,10 @@ func (s *Spec) FieldSQL(key string, w Writer) (string, error) {
 		sql := refPattern.ReplaceAllStringFunc(f.Expr, func(written string) string {
 			return "(" + ref(strings.TrimSpace(written[2:len(written)-1])) + ")"
 		})
-		return sql, failed
+		// Written by hand, so its outermost operator is not known: without the
+		// brackets an OR at the top would take in whatever the field is
+		// compared with or ANDed to, a row filter included.
+		return "(" + sql + ")", failed
 	}
 	checked, err := s.checkExpr(f)
 	if err != nil {

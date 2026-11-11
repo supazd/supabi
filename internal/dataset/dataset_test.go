@@ -138,11 +138,12 @@ func TestFieldSQL(t *testing.T) {
 	s := validSpec()
 	quote := Writer{Quote: func(name string) string { return `t."` + name + `"` }}
 	tests := map[string]string{
-		"tier": `CASE WHEN (t."amount") >= 100 THEN 'high' ELSE 'low' END`,
+		// Written in the database's own SQL, so bracketed as one value.
+		"tier": `(CASE WHEN (t."amount") >= 100 THEN 'high' ELSE 'low' END)`,
 		// A reference to a measure is its row-level value, not its default aggregation.
-		"arpu": `SUM((t."amount")) / NULLIF(COUNT(DISTINCT (t."user_id")), 0)`,
+		"arpu": `(SUM((t."amount")) / NULLIF(COUNT(DISTINCT (t."user_id")), 0))`,
 		// A reference to an aggregated field is its whole expression.
-		"arpu_pct": `(SUM((t."amount")) / NULLIF(COUNT(DISTINCT (t."user_id")), 0)) * 100`,
+		"arpu_pct": `(((SUM((t."amount")) / NULLIF(COUNT(DISTINCT (t."user_id")), 0))) * 100)`,
 	}
 	for key, want := range tests {
 		if got, _ := s.FieldSQL(key, quote); got != want {
@@ -151,8 +152,8 @@ func TestFieldSQL(t *testing.T) {
 	}
 
 	// A column is a name and nothing else: it is handed to the database's own
-	// quoting whatever is in it. An expression is left as it was written, even
-	// one that is only a name.
+	// quoting whatever is in it. An expression is left as it was written, in
+	// brackets, even one that is only a name.
 	for column, want := range map[string]string{
 		"订单id":          `t."订单id"`,
 		"订单 id":         `t."订单 id"`,
@@ -166,7 +167,7 @@ func TestFieldSQL(t *testing.T) {
 		}
 	}
 	s.Fields[0].Column, s.Fields[0].Expr = "", "amount"
-	if got, _ := s.FieldSQL(s.Fields[0].Key, quote); got != "amount" {
+	if got, _ := s.FieldSQL(s.Fields[0].Key, quote); got != "(amount)" {
 		t.Errorf("FieldSQL of an expression that is a name = %s", got)
 	}
 }
