@@ -36,7 +36,6 @@
 .lb-chat-markdown table { display: block; max-width: 100%; overflow: auto; border-collapse: collapse; font-size: 13px; }
 .lb-chat-markdown th, .lb-chat-markdown td { padding: 6px 10px; border: 1px solid var(--lb-color-border); text-align: left; }
 .lb-chat-markdown th { background: color-mix(in srgb, var(--lb-color-text) 4%, transparent); font-weight: 600; }
-.lb-chat-markdown img { max-width: 100%; border-radius: 8px; }
 .lb-chat-markdown hr { margin: 16px 0; border: 0; border-top: 1px solid var(--lb-color-border); }
 
 /* A citation: a small number after a figure, which goes to its source. */

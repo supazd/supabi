@@ -145,6 +145,7 @@ export interface ChatMarkdownProps {
  * An answer in Markdown, with GitHub's tables and strikethrough. While it is
  * written, what is left open at its end (bold, code, a link) is closed, so
  * that it does not jump about as the rest arrives. HTML in it is not rendered.
+ * An image is shown as a link to it and is not loaded.
  * Citations of its sources, [1] and the like, are small numbered buttons.
  */
 export const ChatMarkdown = memo(function ChatMarkdown({ text, streaming, sources = 0, onCite }: ChatMarkdownProps) {
@@ -159,6 +160,18 @@ export const ChatMarkdown = memo(function ChatMarkdown({ text, streaming, source
           </a>
         ) : (
           <span>{children}</span>
+        )
+      },
+      // An image is not loaded: the browser would ask for an address the answer chose, and what the answer says can be
+      // steered by text in the data it read, so the address could carry what was read out. It is a link to follow by choice.
+      img: ({ src, alt }) => {
+        const address = typeof src === 'string' ? src : ''
+        return address ? (
+          <a href={address} target="_blank" rel="noopener noreferrer">
+            {alt || address}
+          </a>
+        ) : (
+          <span>{alt}</span>
         )
       },
     }),

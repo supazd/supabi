@@ -8,6 +8,18 @@ import { LocaleContext } from './locale'
 afterEach(cleanup)
 
 describe('ChatMarkdown', () => {
+  it('shows an image as a link, and loads nothing', () => {
+    // The address is the answer's to choose, and could carry what the answer read to wherever it points.
+    const { container } = render(<ChatMarkdown text={'![季度图](https://example.com/q.png?d=42) ![](https://example.com/bare.png) ![坏](javascript:alert(1))'} />)
+    expect(container.querySelector('img')).toBeNull()
+    const links = [...container.querySelectorAll('a')]
+    expect(links.map((link) => [link.textContent, link.getAttribute('href'), link.target, link.rel])).toEqual([
+      ['季度图', 'https://example.com/q.png?d=42', '_blank', 'noopener noreferrer'],
+      ['https://example.com/bare.png', 'https://example.com/bare.png', '_blank', 'noopener noreferrer'],
+    ])
+    expect(container.textContent).toContain('坏')
+  })
+
   it('makes citations of the sources there are buttons, but not in code', () => {
     const onCite = vi.fn()
     const { container } = render(<ChatMarkdown text={'华东 100 [1]，华南 [3]，`rows[1]`\n\n```\nx[2]\n```'} sources={2} onCite={onCite} />)
