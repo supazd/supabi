@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useImperativeHandle, useState, type ReactNode } from 'react'
 import { MemoryRouter, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -547,6 +547,55 @@ describe('data exploration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close Query 2' }))
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.queryByRole('tab', { name: 'Query 2' })).toBeNull()
+  })
+
+  describe('with data exploration open in two browser windows', () => {
+    const tabsKey = 'supabi.explore.tabs.user.ws'
+    const stored = () => JSON.parse(localStorage.getItem(tabsKey)!) as { open: { key: string; n?: number }[]; active: string }
+    /** What the other window does to the list of queries, which this one hears of unless told not to. */
+    const elsewhere = (change: (tabs: ReturnType<typeof stored>) => ReturnType<typeof stored>, heard = true) => {
+      localStorage.setItem(tabsKey, JSON.stringify(change(stored())))
+      if (heard) act(() => { window.dispatchEvent(new StorageEvent('storage', { key: tabsKey })) })
+    }
+    const opensAnother = (tabs: ReturnType<typeof stored>) => {
+      localStorage.setItem('supabi.explore.draft.user.ws.other', JSON.stringify({ sql: 'SELECT elsewhere', datasourceId: 'src', params: [] }))
+      return { open: [...tabs.open, { key: 'other', n: 2 }], active: 'other' }
+    }
+
+    it('shows a query opened in the other window, and stays on its own', async () => {
+      render(open('/explore'))
+      fireEvent.change(await ready(), { target: { value: 'SELECT here' } })
+      elsewhere(opensAnother)
+      expect(await screen.findByRole('tab', { name: 'Query 2' })).toBeTruthy()
+      expect(screen.getByRole('tab', { name: 'Query 1' }).getAttribute('aria-selected')).toBe('true')
+      expect((await ready()).value).toBe('SELECT here')
+      fireEvent.click(screen.getByRole('tab', { name: 'Query 2' }))
+      expect((await ready()).value).toBe('SELECT elsewhere')
+    })
+
+    it('keeps a query opened in the other window when it opens one of its own', async () => {
+      render(open('/explore'))
+      fireEvent.change(await ready(), { target: { value: 'SELECT here' } })
+      // Even when it was not told: what it writes starts from what is kept, not from what it last knew.
+      elsewhere(opensAnother, false)
+      fireEvent.click(screen.getByRole('button', { name: 'New query' }))
+      await ready()
+      expect(stored().open.map((tab) => tab.n)).toEqual([1, 2, 3])
+      expect(stored().open[1]!.key).toBe('other')
+      expect(within(screen.getByRole('tablist', { name: i18n.t('workbench.openQueries') })).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Query 1', 'Query 2', 'Query 3'])
+    })
+
+    it('goes to the query beside the one it shows when the other window closes that', async () => {
+      render(open('/explore'))
+      fireEvent.change(await ready(), { target: { value: 'SELECT first' } })
+      fireEvent.click(screen.getByRole('button', { name: 'New query' }))
+      fireEvent.change(await ready(), { target: { value: 'SELECT second' } })
+      const showing = stored().active
+      elsewhere((tabs) => ({ open: tabs.open.filter((tab) => tab.key !== showing), active: tabs.open[0]!.key }))
+      await waitFor(() => expect(screen.queryByRole('tab', { name: 'Query 2' })).toBeNull())
+      expect(screen.getByRole('tab', { name: 'Query 1' }).getAttribute('aria-selected')).toBe('true')
+      expect((await ready()).value).toBe('SELECT first')
+    })
   })
 
   it('keeps SQL when the original dataset editor is gone and does not create another dataset', async () => {
