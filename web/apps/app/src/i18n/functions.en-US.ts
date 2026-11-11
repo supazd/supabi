@@ -65,6 +65,8 @@ export const functionsEnUS: FunctionMessages = {
 
 export const exprErrorsEnUS: ExprErrorMessages = {
   expr_empty: 'The expression is empty',
+  expr_too_long: 'The expression is too long: at most {{max}} bytes',
+  expr_too_deep: 'The expression is nested too deeply',
   expr_incomplete: 'The expression ends too soon',
   expr_expected: '{{expected}} is missing here',
   expr_unexpected: '{{found}} does not belong here',

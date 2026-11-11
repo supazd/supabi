@@ -54,6 +54,8 @@ CASE WHEN ${Status} = 'paid' AND ${Note} IS NOT NULL THEN 1 ELSE 0 END
 
 Keywords and function names are case-insensitive. There are no double quotes or backticks: text uses only single quotes, and fields use only `${}`. A bare word is not a valid expression, so the mistake of writing a column name straight into an expression can be pointed out at parse time.
 
+An expression is at most 20,000 bytes long, and brackets, function calls, `NOT` and minus signs nest at most 200 deep; beyond that it is refused with `expr_too_long` or `expr_too_deep`. The parser reads nesting by calling itself, and a Go stack that runs out ends the whole process rather than failing the one request.
+
 ### 3.1 Types
 
 The type of a value is one of the field's seven logical types. During checking:

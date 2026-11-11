@@ -201,3 +201,27 @@ func TestAvailability(t *testing.T) {
 		}
 	}
 }
+
+// Nesting is read by the parser calling itself, and a stack that runs out
+// ends the process rather than failing the request.
+func TestParseLimits(t *testing.T) {
+	tests := []struct{ name, expr, want string }{
+		{"brackets", strings.Repeat("(", maxDepth+1) + "1" + strings.Repeat(")", maxDepth+1), "expr_too_deep"},
+		{"minus signs", strings.Repeat("-", maxDepth+1) + "1", "expr_too_deep"},
+		{"NOT", strings.Repeat("NOT ", maxDepth+1) + "TRUE", "expr_too_deep"},
+		{"calls", strings.Repeat("ABS(", maxDepth+1) + "1" + strings.Repeat(")", maxDepth+1), "expr_too_deep"},
+		{"length", "1" + strings.Repeat(" + 1", maxLength/4), "expr_too_long"},
+		{"brackets a person writes", strings.Repeat("(", 20) + "1" + strings.Repeat(")", 20), ""},
+		{"a long sum", "1" + strings.Repeat(" + 1", 1000), ""},
+	}
+	for _, tt := range tests {
+		_, err := Parse(tt.expr)
+		got := ""
+		if err != nil {
+			got = err.Code
+		}
+		if got != tt.want {
+			t.Errorf("%s: code = %q, want %q", tt.name, got, tt.want)
+		}
+	}
+}
