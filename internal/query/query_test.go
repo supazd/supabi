@@ -181,7 +181,7 @@ func TestTimeMeasuresInQueryZone(t *testing.T) {
 	const (
 		latest   = `((MAX(t."created_at"))::timestamptz AT TIME ZONE 'UTC') AS "latest"`
 		earliest = `((MIN(t."created_at"))::timestamptz AT TIME ZONE 'UTC') AS "earliest"`
-		metric   = `((MAX((t."created_at")))::timestamptz AT TIME ZONE 'UTC') AS "last_seen"`
+		metric   = `(((MAX((t."created_at"))))::timestamptz AT TIME ZONE 'UTC') AS "last_seen"`
 		count    = `COUNT(t."created_at") AS "n"`
 	)
 	measures := `"measures":[{"field":"created","agg":"max","alias":"latest"},{"field":"created","agg":"min","alias":"earliest"},{"field":"last_seen"},{"field":"created","agg":"count","alias":"n"}]`

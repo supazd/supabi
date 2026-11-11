@@ -230,8 +230,8 @@ func TestAggregateControlsForEveryResultType(t *testing.T) {
 	}{
 		{"first_region", "contains", Control{Type: ControlText}, "east", "LIKE"},
 		{"last_created", "time", Control{Type: ControlDateRange}, map[string]any{"start": "2026-10-01", "end": "2026-10-02"}, "::timestamptz"},
-		{"has_orders", "in", Control{Type: ControlSelect}, []any{true}, " > 0) IN"},
-		{"has_orders", "in", Control{Type: ControlSearchSelect, Multi: true}, []any{true, false}, " > 0) IN"},
+		{"has_orders", "in", Control{Type: ControlSelect}, []any{true}, " > 0)) IN"},
+		{"has_orders", "in", Control{Type: ControlSearchSelect, Multi: true}, []any{true, false}, " > 0)) IN"},
 	} {
 		t.Run(tt.field+tt.control.Type, func(t *testing.T) {
 			chart := chartSpec(t, `{"specVersion":1,"query":{"version":1,"dataset":"d","dimensions":[{"field":"region"}],"measures":[{"field":"revenue","agg":"sum"}]},"viz":{"type":"table"}}`)
