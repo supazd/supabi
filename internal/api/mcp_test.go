@@ -369,6 +369,16 @@ func TestMCPAuthorization(t *testing.T) {
 	if strings.Join(reasons, ",") != "user_disabled,password_reset,,refresh_token_reused,code_reused" {
 		t.Errorf("revocations: %v", reasons)
 	}
+	// The change to the account that revoked them is there as well.
+	updates := 0
+	for _, e := range auditEvents(t, f.admin, "") {
+		if object, _ := e["object"].(map[string]any); e["action"] == "user.update" && object["id"] == viewerID {
+			updates++
+		}
+	}
+	if updates != 2 {
+		t.Errorf("user.update events for the account: %d, want 2", updates)
+	}
 }
 
 // boardIn makes a dashboard in another workspace, as its administrator,
