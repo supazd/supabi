@@ -270,12 +270,12 @@ type mcpSourceInfo struct {
 }
 
 func (s *Server) mcpSource(c *caller, source *store.AnswerSource) mcpSourceInfo {
-	q := url.Values{"ws": {c.principal.WorkspaceID}}
+	// The address names the workspace: .agents/design/access-control.md §2.4.
+	link := origin(c.r) + "/w/" + url.PathEscape(c.principal.WorkspaceID) + "/dashboards/" + url.PathEscape(source.DashboardID)
 	if source.ViewID != "" {
-		q.Set("view", source.ViewID)
+		link += "?" + url.Values{"view": {source.ViewID}}.Encode()
 	}
-	out := mcpSourceInfo{Dashboard: source.DashboardName, Chart: source.ChartName, LinkExpiresAt: source.ExpiresAt,
-		Link: origin(c.r) + "/dashboards/" + url.PathEscape(source.DashboardID) + "?" + q.Encode()}
+	out := mcpSourceInfo{Dashboard: source.DashboardName, Chart: source.ChartName, LinkExpiresAt: source.ExpiresAt, Link: link}
 	out.Revisions.Dashboard, out.Revisions.Chart, out.Revisions.Dataset = source.DashboardRevision, source.ChartRevision, source.DatasetRevision
 	return out
 }

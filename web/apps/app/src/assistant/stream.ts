@@ -1,4 +1,5 @@
 import { ApiError, unauthenticatedEvent, type Schemas } from '../api/client'
+import { addressWorkspace, workspaceHeader } from '../lib/workspaceAddress'
 
 export type AssistantEvent = Schemas['AssistantEvent']
 export type AssistantMessage = Schemas['AssistantMessage']
@@ -19,7 +20,7 @@ export async function streamEvents(path: string, body: unknown, onEvent: (event:
   try {
     response = await fetch(`/api/v1${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', ...(addressWorkspace ? { [workspaceHeader]: addressWorkspace } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal,
     })

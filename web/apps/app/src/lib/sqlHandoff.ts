@@ -1,5 +1,6 @@
 import { ApiError } from '../api/client'
 import type { SqlParam } from './params'
+import { workspaceBase } from './workspaceAddress'
 
 /** SQL travels independently of the dataset editor's unsaved field changes. */
 export interface SqlHandoff {
@@ -139,5 +140,5 @@ export function openSqlDataset(handoff: SqlHandoff, options: { folderId?: string
   write(token, { handoff })
   const search = new URLSearchParams({ handoff: token })
   if (options.folderId) search.set('folder', options.folderId)
-  tab.location.replace(`/workbench/datasets/new?${search}`)
+  tab.location.replace(`${workspaceBase}/workbench/datasets/new?${search}`)
 }

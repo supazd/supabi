@@ -7,7 +7,6 @@ import { ApiError, api, unwrap, type Chart, type ChartSummary, type Dashboard } 
 import type { DatasetSpec } from '../api/spec'
 import { toApiError, useAsync, type AsyncState } from '../api/useAsync'
 import { useFirstWeekDays, useSession } from '../auth/session'
-import { useSessionActions } from '../auth/useSessionActions'
 import { Async } from '../components/Async'
 import { ChartView, namedColumns } from '../components/ChartView'
 import { ChartExportDialog } from '../components/Exports'
@@ -2190,15 +2189,10 @@ function Editor({ dashboard, available, colorScheme, onCreated }: { dashboard?: 
 export function DashboardView({ colorScheme }: { colorScheme: ColorScheme }) {
   const { t } = useTranslation()
   const { id } = useParams()
-  const session = useSession()
   const [search] = useSearchParams()
   // Read once: the view leaves the address when the viewer changes the conditions, and must not be read again then.
-  const [link] = useState(() => ({ workspace: search.get('ws') ?? undefined, view: search.get('view') ?? undefined }))
-  const info = session.state.status === 'ok' ? session.state.data : undefined
-  // A share link from another workspace: one the viewer can enter, or null for one they cannot.
-  const elsewhere = link.workspace && info?.workspace?.id !== link.workspace ? info?.workspaces?.find((workspace) => workspace.id === link.workspace) ?? null : undefined
+  const [link] = useState(() => ({ view: search.get('view') ?? undefined }))
   const loaded = useAsync(async () => {
-    if (elsewhere !== undefined) return undefined
     const [dashboard, view] = await Promise.all([
       unwrap(api.GET('/dashboards/{id}', { params: { path: { id: id! } } })),
       link.view
@@ -2210,10 +2204,9 @@ export function DashboardView({ colorScheme }: { colorScheme: ColorScheme }) {
         : Promise.resolve(undefined),
     ])
     return { dashboard, view }
-  }, [id, elsewhere === undefined])
+  }, [id])
 
-  if (elsewhere === null || (loaded.status === 'error' && loaded.error.code === 'not_found')) return <Alert tone="warning" title={t('dashboard.unavailable')} />
-  if (elsewhere) return <OtherWorkspace name={elsewhere.name} current={info?.workspace?.name ?? ''} workspaceId={elsewhere.id} />
+  if (loaded.status === 'error' && loaded.error.code === 'not_found') return <Alert tone="warning" title={t('dashboard.unavailable')} />
   return (
     <Async state={loaded} reload={loaded.reload}>
       {(result) => {
@@ -2224,25 +2217,6 @@ export function DashboardView({ colorScheme }: { colorScheme: ColorScheme }) {
         return <View key={`${dashboard.id}:${dashboard.updatedAt}`} dashboard={dashboard} colorScheme={colorScheme} shared={applied?.state} notice={notice} />
       }}
     </Async>
-  )
-}
-
-/**
- * Offers to move to the workspace a share link's dashboard is in. The session,
- * and with it every tab of the browser, moves too, so it waits for a click.
- */
-function OtherWorkspace({ name, current, workspaceId }: { name: string; current: string; workspaceId: string }) {
-  const { t } = useTranslation()
-  const actions = useSessionActions((destination = '/') => window.location.assign(destination))
-  return (
-    <section className="card stack">
-      <p>{t('dashboard.otherWorkspace', { name, current })}</p>
-      <p className="note small">{t('dashboard.switchWorkspaceHint')}</p>
-      <div>
-        <Button variant="primary" loading={actions.pending} onClick={() => actions.switchWorkspace(workspaceId, window.location.pathname + window.location.search)}>{t('dashboard.switchWorkspace', { name })}</Button>
-      </div>
-      {actions.error && <ErrorAlert error={actions.error} />}
-    </section>
   )
 }
 

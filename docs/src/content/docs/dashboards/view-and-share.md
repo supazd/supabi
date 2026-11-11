@@ -48,7 +48,7 @@ While the page is in the foreground, it fetches data again at that interval. If 
 
 ## Share
 
-**Share** gives the link to the dashboard. The link grants no access: someone who cannot see the dashboard gets a notice that says so. If the dashboard is in another workspace, the page offers to switch.
+**Share** gives the link to the dashboard. The link grants no access: someone who cannot see the dashboard gets a notice that says so. The link names the dashboard's workspace, so it opens there, whichever workspace your other tabs are in.
 
 When the filters, chart links or dynamic selections differ from the defaults, you can tick **Include the current conditions**, and set **Conditions valid for**: 1, 7, 30 or 90 days, 30 by default. Each validity period has its own link, so a link copied earlier keeps the period it was copied with. **Conditions to include** can cover global filters, chart filters, chart links, dimensions and measures, drill-down, and the page and tabs shown.
 

@@ -304,7 +304,7 @@ describe('workspace changes', () => {
     fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Manage workspace' }))
     expect(server.post).not.toHaveBeenCalled()
     confirm()
-    await waitFor(() => expect(reload).toHaveBeenCalledExactlyOnceWith('/settings/workspace/general'))
+    await waitFor(() => expect(reload).toHaveBeenCalledExactlyOnceWith('/settings/workspace/general', 'next'))
     expect(server.post).toHaveBeenCalledExactlyOnceWith('/auth/workspace', { body: { workspaceId: 'next' } })
   })
 
@@ -313,7 +313,7 @@ describe('workspace changes', () => {
     server.get.mockResolvedValueOnce(response(200, { ...server.session, workspace: { id: 'next' } }))
     const reload = open()
     fireEvent.click(screen.getByRole('button', { hidden: true, name: 'Manage workspace' }))
-    await waitFor(() => expect(reload).toHaveBeenCalledExactlyOnceWith('/settings/workspace/general'))
+    await waitFor(() => expect(reload).toHaveBeenCalledExactlyOnceWith('/settings/workspace/general', 'next'))
   })
 
   it('does nothing when the current workspace is chosen, even with unsaved changes', () => {

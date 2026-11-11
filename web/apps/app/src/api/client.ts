@@ -1,4 +1,5 @@
 import createClient from 'openapi-fetch'
+import { addressWorkspace, workspaceHeader } from '../lib/workspaceAddress'
 import type { components, paths } from './schema.gen'
 
 export type Schemas = components['schemas']
@@ -59,7 +60,8 @@ export function indexOfCharacter(text: string, n: number): number {
   return index
 }
 
-export const api = createClient<paths>({ baseUrl: '/api/v1' })
+// Every call says which workspace its page is in; a page at an address that names none goes by the session.
+export const api = createClient<paths>({ baseUrl: '/api/v1', headers: addressWorkspace ? { [workspaceHeader]: addressWorkspace } : undefined })
 
 /** Fired on window when a call is refused because the session has ended. */
 export const unauthenticatedEvent = 'supabi:unauthenticated'

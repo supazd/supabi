@@ -186,7 +186,7 @@ describe('Assistant', () => {
     expect(screen.getByRole('button', { name: '1' }).closest('sup')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Open' }))
-    await waitFor(() => expect(tab.location.href).toBe(`${window.location.origin}/dashboards/db1?ws=ws1&view=dv1`))
+    await waitFor(() => expect(tab.location.href).toBe(`${window.location.origin}/w/ws1/dashboards/db1?view=dv1`))
     expect(server.post).toHaveBeenCalledWith('/dashboards/{id}/views', { params: { path: { id: 'db1' } }, body: { state: source.state, validDays: 30 } })
   })
 

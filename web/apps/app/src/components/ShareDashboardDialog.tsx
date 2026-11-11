@@ -17,6 +17,7 @@ import { useClipboard } from '../lib/useClipboard'
 import { dynamicOptionLabel } from './DynamicControls'
 import { ErrorAlert } from './ErrorAlert'
 import { filterCaption } from './FilterControl'
+import { withinWorkspace } from '../lib/workspaceAddress'
 
 const validities = [1, 7, 30, 90] as const
 
@@ -77,11 +78,9 @@ function describeParts(state: ViewState, spec: ChoiceSpec, charts: Chart[], t: T
 
 /** The address of a dashboard, in the workspace it belongs to, with the conditions of a share link if any. */
 export function dashboardLink(dashboardId: string, workspaceId: string | undefined, viewId?: string): string {
-  const query = new URLSearchParams()
-  if (workspaceId) query.set('ws', workspaceId)
-  if (viewId) query.set('view', viewId)
-  const search = query.toString()
-  return `${window.location.origin}/dashboards/${encodeURIComponent(dashboardId)}${search ? `?${search}` : ''}`
+  const path = `/dashboards/${encodeURIComponent(dashboardId)}`
+  const search = viewId ? `?${new URLSearchParams({ view: viewId })}` : ''
+  return `${window.location.origin}${workspaceId ? withinWorkspace(workspaceId, path) : path}${search}`
 }
 
 /**

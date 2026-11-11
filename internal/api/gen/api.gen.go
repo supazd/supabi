@@ -3826,7 +3826,7 @@ type ServerInterface interface {
 	// Setup Create the first administrator. Only works while there are no accounts.
 	// (POST /auth/setup)
 	Setup(w http.ResponseWriter, r *http.Request)
-	// SwitchWorkspace Move the session to another workspace the caller can enter
+	// SwitchWorkspace Choose the workspace the session goes by where a call or an address names none
 	// (POST /auth/workspace)
 	SwitchWorkspace(w http.ResponseWriter, r *http.Request)
 
@@ -14215,7 +14215,7 @@ type StrictServerInterface interface {
 	// Setup Create the first administrator. Only works while there are no accounts.
 	// (POST /auth/setup)
 	Setup(ctx context.Context, request SetupRequestObject) (SetupResponseObject, error)
-	// SwitchWorkspace Move the session to another workspace the caller can enter
+	// SwitchWorkspace Choose the workspace the session goes by where a call or an address names none
 	// (POST /auth/workspace)
 	SwitchWorkspace(ctx context.Context, request SwitchWorkspaceRequestObject) (SwitchWorkspaceResponseObject, error)
 
