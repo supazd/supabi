@@ -42,7 +42,7 @@ function Definition({ revision }: { revision: Revision }) {
       {params.length ? <div className="revision-entries">{params.map((param) => <details key={String(param.name)}><summary>{String(param.label || param.name)}</summary><Value revision={revision} value={param} /></details>)}</div> : <p className="note small">{t('dataset.history.noParameters')}</p>}
     </section>
     <section><h3>{t('dataset.history.fields', { count: spec.fields.length })}</h3>
-      <DataTable rows={spec.fields} rowKey={(f) => f.key} pageSize={20} columns={[
+      <DataTable rows={spec.fields} rowKey={(f) => f.key} pageSize={20} pageKey={revision} columns={[
         { key: 'name', title: t('dataset.label'), render: (f) => f.label },
         { key: 'source', title: t('dataset.history.source'), render: (f) => f.column ?? <Value revision={revision} property="expr" value={f.expr} /> },
         { key: 'type', title: t('dataset.type'), render: (f) => <Value revision={revision} property="type" value={f.type} /> },

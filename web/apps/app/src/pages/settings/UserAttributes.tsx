@@ -56,7 +56,7 @@ function AttributeManager({ attributes, directory, reload, definition, onDefinit
       {admin && <Button disabled={!custom.length} onClick={() => setAssignment({ key: custom[0]!.key, ids: [], text: '', remove: false, one: false })}>{t('attribute.bulk')}</Button>}
     </div>
     {action.error && !definition && !assignment && <ErrorAlert error={action.error} />}
-    <DataTable aria-label={t('attribute.title')} rows={rows} rowKey={(r) => r.id} pageSize={20} empty={t('common.none')} columns={[
+    <DataTable aria-label={t('attribute.title')} rows={rows} rowKey={(r) => r.id} pageSize={20} pageKey={`${kind}:${search}`} empty={t('common.none')} columns={[
       { key: 'name', title: t('common.name'), render: (r) => <Person name={r.name} email={r.email || undefined} /> },
       ...custom.map((a) => ({
         key: a.key,

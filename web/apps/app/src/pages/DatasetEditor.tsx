@@ -810,6 +810,7 @@ function Editor({ datasources, existing, handed }: { datasources: Datasource[]; 
           rows={preview.result.rows.map((cells) => ({ cells }))}
           rowKey={(_, index) => String(index)}
           pageSize={20}
+          pageKey={preview.result}
           columns={preview.result.columns.map((column, index) => ({
             key: column.name,
             // A heading is tinted by what its field is used as, so a number that is a dimension is not taken for a measure.

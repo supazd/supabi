@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-table'
 import { cn } from 'cn'
 import { ArrowDownIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsUpDownIcon, Loader2Icon } from 'lucide-react'
-import { useMemo, type ReactNode } from 'react'
+import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useStrings } from './locale'
 import { Button as BaseButton } from './shadcn/button.tsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './shadcn/table.tsx'
@@ -38,6 +38,12 @@ export interface DataTableProps<Row> {
   loading?: boolean
   /** Rows per page; omit to show every row. */
   pageSize?: number
+  /**
+   * What the rows are of, such as the result of a query. The page is kept while the rows change,
+   * since they may be the same ones in a new array; when this changes they are others, and the
+   * table starts from the first page.
+   */
+  pageKey?: unknown
   /** Called with the text of a cell that was double-clicked, to be copied. */
   onCopy?: (text: string) => void
   'aria-label'?: string
@@ -57,7 +63,7 @@ function pagesAround(current: number, count: number): (number | 'gap')[] {
 }
 
 /** Read-only table. */
-export function DataTable<Row extends object>({ columns, rows, rowKey, empty, loading, pageSize, onCopy, 'aria-label': ariaLabel }: DataTableProps<Row>) {
+export function DataTable<Row extends object>({ columns, rows, rowKey, empty, loading, pageSize, pageKey, onCopy, 'aria-label': ariaLabel }: DataTableProps<Row>) {
   const t = useStrings()
   const paged = pageSize !== undefined && rows.length > pageSize
   const columnDefs = useMemo(
@@ -81,11 +87,23 @@ export function DataTable<Row extends object>({ columns, rows, rowKey, empty, lo
     data: rows,
     getRowId: (row, index) => rowKey(row, index),
     initialState: { pagination: { pageIndex: 0, pageSize: pageSize ?? 10 } },
+    // Left on, a new array of rows goes back to the first page, and a page that filters or maps
+    // its rows as it renders gives a new one every time. The page is kept here instead.
+    autoResetPageIndex: false,
   })
   const byKey = new Map(columns.map((column) => [column.key, column]))
   const visible = paged ? table.getRowModel().rows : table.getSortedRowModel().rows
   const { pageIndex } = table.state.pagination
   const pageCount = paged ? table.getPageCount() : 1
+  // With rows taken away, the page it was on may be past the last there is.
+  const lastPage = pageCount - 1
+  const shownKey = useRef(pageKey)
+  useLayoutEffect(() => {
+    if (shownKey.current !== pageKey) {
+      shownKey.current = pageKey
+      table.setPageIndex(0)
+    } else if (pageIndex > lastPage) table.setPageIndex(lastPage)
+  }, [table, pageKey, pageIndex, lastPage])
 
   return (
     <div className="lb-table tw:relative tw:min-w-0" aria-busy={loading || undefined}>
@@ -104,7 +122,15 @@ export function DataTable<Row extends object>({ columns, rows, rowKey, empty, lo
                     className={cn('tw:h-9 tw:bg-muted/70 tw:px-2.5 tw:text-xs tw:font-semibold tw:text-muted-foreground', column.sort && 'tw:cursor-pointer tw:select-none', column.align === 'right' && 'tw:text-right', column.className)}
                     style={column.width ? { width: column.width } : undefined}
                     // The whole heading sorts; the button inside is what the keyboard reaches, and its click comes up here.
-                    onClick={column.sort ? header.column.getToggleSortingHandler() : undefined}
+                    // In another order the page it was on holds other rows, so it starts from the first.
+                    onClick={
+                      column.sort
+                        ? (event) => {
+                            header.column.getToggleSortingHandler()?.(event)
+                            table.setPageIndex(0)
+                          }
+                        : undefined
+                    }
                   >
                     {column.sort ? (
                       <button

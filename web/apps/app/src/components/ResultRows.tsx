@@ -26,6 +26,7 @@ export function ResultRows({ result, formats, hidden, label }: {
       rows={result.rows.map((cells) => ({ cells }))}
       rowKey={(_, index) => String(index)}
       pageSize={100}
+      pageKey={result}
       empty={t('common.none')}
       columns={columns.map(({ column, index }) => ({
         key: column.name,

@@ -115,7 +115,7 @@ function AccessManager({ users, groups, members, grants, reload, tab, onTabChang
         <SearchBox value={search} onChange={setSearch} />
         <Button variant="primary" onClick={() => setAdding(true)}>{t('member.addUsers')}</Button>
       </div>
-      <DataTable aria-label={t('member.users')} rows={rows.filter((row) => found(search, row.displayName, row.email))} rowKey={(row) => row.id} pageSize={20} empty={t('common.none')} columns={[
+      <DataTable aria-label={t('member.users')} rows={rows.filter((row) => found(search, row.displayName, row.email))} rowKey={(row) => row.id} pageSize={20} pageKey={search} empty={t('common.none')} columns={[
         { key: 'user', title: t('member.users'), render: (row) => <Person name={row.displayName} email={row.email} marks={<>
           {row.status === 'disabled' && <span className="chip warning">{t('member.statuses.disabled')}</span>}
           {row.id === me && <span className="note small">{t('member.you')}</span>}

@@ -751,6 +751,7 @@ function Console({ tabKey, shown, datasources, datasetName, folderId, returnTo, 
                     rows={outcome.result.rows.map((cells) => ({ cells }))}
                     rowKey={(_, index) => String(index)}
                     pageSize={100}
+                    pageKey={outcome.result}
                     empty={t('common.none')}
                     onCopy={copy}
                     columns={outcome.result.columns.map((column, index) => {
