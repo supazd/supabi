@@ -128,7 +128,14 @@ func TestDateComparisonUsesCalendarDatesAcrossTimezoneTransitions(t *testing.T) 
 	for _, tc := range []struct{ zone, start, end, previousStart, previousEnd string }{
 		{"America/Sao_Paulo", "2018-11-04", "2018-11-05", "2018-10-04", "2018-10-05"},
 		{"Pacific/Apia", "2011-12-30", "2012-01-01", "2011-11-30", "2011-12-01"},
-		{"Pacific/Apia", "2011-12-30", "2011-12-31", "2011-11-30", "2011-11-30"},
+		// The end is not part of the period, so it follows the last day that
+		// is: December 30 alone is compared with November 30, as it is when
+		// it is one of several days.
+		{"Pacific/Apia", "2011-12-30", "2011-12-31", "2011-11-30", "2011-12-01"},
+		// An end on the 31st does not cost the shorter month its last day.
+		{"Asia/Shanghai", "2026-05-01", "2026-05-31", "2026-04-01", "2026-05-01"},
+		{"Asia/Shanghai", "2026-05-01", "2026-06-01", "2026-04-01", "2026-05-01"},
+		{"Asia/Shanghai", "2026-03-31", "2026-04-01", "2026-02-28", "2026-03-01"},
 	} {
 		t.Run(tc.zone, func(t *testing.T) {
 			q := parse(t, `{"version":1,"dataset":"d","timezone":"`+tc.zone+`","measures":[{"field":"qty","agg":"sum","compute":{"type":"compare","timeField":"day","offset":{"n":1,"unit":"month"},"output":"value"}}],"filter":{"field":"day","op":"time","value":{"start":"`+tc.start+`","end":"`+tc.end+`"}}}`)

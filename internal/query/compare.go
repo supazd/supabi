@@ -82,6 +82,18 @@ func calendarShift(at time.Time, offset Duration) time.Time {
 	return time.Date(first.Year(), first.Month(), min(day, last), at.Hour(), at.Minute(), at.Second(), at.Nanosecond(), at.Location())
 }
 
+// shiftEnd shifts the end of a period, which the period does not include. An
+// end at midnight follows the last day that is included: shifted itself, an
+// end on the 31st would be clamped to the 30th of a shorter month and leave
+// that 30th out, though the days compared with it are matched to it one by
+// one. An end within a day is a moment, and is shifted as one.
+func shiftEnd(end time.Time, offset Duration) time.Time {
+	if end.IsZero() || end.Hour() != 0 || end.Minute() != 0 || end.Second() != 0 || end.Nanosecond() != 0 {
+		return calendarShift(end, offset)
+	}
+	return calendarShift(end.AddDate(0, 0, -1), offset).AddDate(0, 0, 1)
+}
+
 // comparisonFilter shifts only the chosen time field in the user's filter.
 // Access restrictions and source SQL/parameters are deliberately not shifted.
 // A finite, conjunctive interval defines the current period even for scalar
@@ -130,14 +142,15 @@ func (c *compiler) comparisonFilter(compute *Compute) (*dataset.Filter, error) {
 			return out, err
 		}
 		bounded = bounded || !start.IsZero() && !end.IsZero()
-		start, end = calendarShift(start, *compute.Offset), calendarShift(end, *compute.Offset)
+		start, end = calendarShift(start, *compute.Offset), shiftEnd(end, *compute.Offset)
 		for _, at := range []time.Time{start, end} {
 			if !at.IsZero() && (at.Year() < 1 || at.Year() > 9999) {
 				return out, bad("invalid_compare", nil, "comparison period is outside the supported calendar")
 			}
 		}
-		// Two dates may clamp to the same month end. That comparison period
-		// is empty, represented as contradictory conditions, never widened.
+		// Two moments within a day may clamp to the same one. That comparison
+		// period is empty, represented as contradictory conditions, never
+		// widened. Whole days cannot: see shiftEnd.
 		if !start.IsZero() && !end.IsZero() && !start.Before(end) {
 			out = dataset.Filter{Op: "and", Args: []dataset.Filter{
 				{Field: f.Field, Op: "gte", Value: start.Format("2006-01-02T15:04:05.999999999")},
