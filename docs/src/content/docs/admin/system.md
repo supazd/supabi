@@ -39,7 +39,7 @@ Accounts and groups belong to the organization and are not deleted. Audit events
 | **SMTP server** | A host name or IP address, such as `smtp.example.com`. Email is on once this and the **Sender address** are set; leave it empty to turn email off, and the other settings are kept |
 | **Encryption** | **STARTTLS** (port 587) connects, then has the server encrypt, and is an error if it cannot. **SSL/TLS** (port 465) encrypts from the start. **No encryption** (port 25) is for a relay inside your network, and never signs in |
 | **Port** | Empty takes the usual port of the encryption |
-| **Username**, **Password** | Leave the username empty if the server takes mail without signing in. A saved password is never shown; leave the field empty to keep it, or tick **Remove the saved password** |
+| **Username**, **Password** | Leave the username empty if the server takes mail without signing in. A saved password is never shown; leave the field empty to keep it, or tick **Remove the saved password**. After changing the server, the port, the encryption or the username, enter the password again: a saved password is only sent to the server it was saved for |
 | **Sender address** | The address messages come from. The server may only accept addresses it is allowed to send as |
 | **Sender name** | Shown with the sender address. Empty takes `SupaBI` |
 

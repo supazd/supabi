@@ -158,7 +158,9 @@ func failedTest(err error) gen.ConnectionTest {
 
 // changed is a stored data source as the input would leave it, with the
 // config to connect that way. The type stays, and so does the password when
-// the input has none: it is never sent back to be sent in again.
+// the input has none: it is never sent back to be sent in again. It stays
+// only while the connection goes to the same server in the same way, so that
+// it cannot be had by pointing the data source somewhere else.
 func (s *Server) changed(existing store.Datasource, in *gen.DatasourceInput) (store.Datasource, datasource.Config, error) {
 	d, cfg, err := s.checkDatasourceInput(in)
 	if err != nil {
@@ -171,6 +173,11 @@ func (s *Server) changed(existing store.Datasource, in *gen.DatasourceInput) (st
 	if cfg.Password != "" {
 		d.Secret = s.Secrets.Seal(cfg.Password)
 	} else if len(existing.Secret) > 0 {
+		// The stored password goes only where it was stored for. The driver
+		// is known: checkDatasourceInput has looked it up.
+		if driver, _ := datasource.Lookup(d.Type); !datasource.SameTarget(driver, existing.Settings, d.Settings) {
+			return existing, cfg, badRequest("datasource_password_required", "the password is needed again when the server, the user or the encryption changes")
+		}
 		if cfg.Password, err = s.Secrets.Open(existing.Secret); err != nil {
 			return existing, cfg, err
 		}

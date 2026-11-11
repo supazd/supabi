@@ -64,7 +64,7 @@ func (v variant) Settings() []datasource.SettingField {
 	return []datasource.SettingField{
 		{Name: "host", Required: true},
 		{Name: "port", Default: v.port},
-		{Name: "database", Required: true},
+		{Name: "database", Required: true, Inside: true},
 		{Name: "user", Required: true},
 		{Name: "tls", Default: "preferred", Options: []string{"false", "preferred", "true", "skip-verify"}},
 	}

@@ -63,10 +63,20 @@ func TestEmailSettings(t *testing.T) {
 	if saved["host"] != "10.0.0.5" || saved["port"] != float64(2525) || saved["username"] != "bi" || saved["hasPassword"] != true || saved["password"] != nil {
 		t.Errorf("saved: %v", saved)
 	}
-	// Left out, the password stays; a username alone is then enough.
-	kept := admin.expect("PUT", "/system/email", with(map[string]any{"username": "bi2"}), 200, "")
-	if kept["hasPassword"] != true || kept["port"] != nil || kept["fromName"] != nil {
+	// Left out, the password stays while it goes to the same server in the
+	// same way; a username alone is then enough.
+	target := map[string]any{"host": "10.0.0.5", "port": 2525, "username": "bi"}
+	kept := admin.expect("PUT", "/system/email", with(target), 200, "")
+	if kept["hasPassword"] != true || kept["port"] != float64(2525) || kept["fromName"] != nil {
 		t.Errorf("kept: %v", kept)
+	}
+	// Sent anywhere else, or as anyone else, it has to be typed again: it
+	// could otherwise be had by naming a server of one's own.
+	for setting, value := range map[string]any{"host": "10.0.0.6", "port": 2526, "username": "bi2", "security": "starttls"} {
+		moved := with(target)
+		moved[setting] = value
+		admin.expect("PUT", "/system/email", moved, 400, "email_password_again")
+		admin.expect("POST", "/system/email/test", map[string]any{"settings": moved, "to": "ann@example.com", "locale": "en-US"}, 400, "email_password_again")
 	}
 	// An empty password removes it, which a username cannot do without.
 	admin.expect("PUT", "/system/email", with(map[string]any{"username": "bi2", "password": ""}), 400, "email_password_required")
@@ -91,7 +101,7 @@ func TestEmailSettings(t *testing.T) {
 	if len(updates) != 4 || changed(updates[0]) != true || changed(updates[1]) != false || changed(updates[2]) != true || changed(updates[3]) != false {
 		t.Fatalf("updates: %v", updates)
 	}
-	if before, after := detailOf(updates[1])["before"].(map[string]any), detailOf(updates[1])["after"].(map[string]any); before["username"] != "bi" || after["username"] != "bi2" || after["hasPassword"] != true {
+	if before, after := detailOf(updates[1])["before"].(map[string]any), detailOf(updates[1])["after"].(map[string]any); before["fromName"] != "Reports" || after["fromName"] != "" || after["username"] != "bi" || after["hasPassword"] != true {
 		t.Errorf("detail: %v", detailOf(updates[1]))
 	}
 
@@ -142,7 +152,7 @@ func TestTestEmail(t *testing.T) {
 	// gets as far as the certificate, which no system trusts.
 	encrypted := &mailtest.Server{ImplicitTLS: true}
 	encrypted.Start(t)
-	admin.expect("PUT", "/system/email", map[string]any{"host": "127.0.0.1", "security": "tls", "username": "bi", "password": "pw", "fromAddress": "bi@example.com"}, 200, "")
+	admin.expect("PUT", "/system/email", map[string]any{"host": "127.0.0.1", "port": encrypted.Port, "security": "tls", "username": "bi", "password": "pw", "fromAddress": "bi@example.com"}, 200, "")
 	got = admin.expect("POST", "/system/email/test", map[string]any{"settings": map[string]any{"host": "127.0.0.1", "port": encrypted.Port, "security": "tls", "username": "bi", "fromAddress": "bi@example.com"},
 		"to": "ann@example.com", "locale": "en-US"}, 200, "")
 	if got["ok"] != false || got["stage"] != "tls" {

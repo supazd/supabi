@@ -34,7 +34,7 @@ func (driver) Settings() []datasource.SettingField {
 	return []datasource.SettingField{
 		{Name: "host", Required: true},
 		{Name: "port", Default: "5432"},
-		{Name: "database", Required: true},
+		{Name: "database", Required: true, Inside: true},
 		{Name: "user", Required: true},
 		{Name: "sslmode", Default: "prefer", Options: []string{"disable", "prefer", "require", "verify-ca", "verify-full"}},
 	}

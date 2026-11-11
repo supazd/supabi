@@ -34,7 +34,7 @@ func (clickhouseDriver) Settings() []datasource.SettingField {
 	return []datasource.SettingField{
 		{Name: "host", Required: true},
 		{Name: "port", Default: "9000"},
-		{Name: "database", Default: "default"},
+		{Name: "database", Default: "default", Inside: true},
 		{Name: "user", Default: "default"},
 		{Name: "secure", Default: "false", Options: []string{"false", "true"}},
 	}

@@ -28,7 +28,7 @@ A data source is a connection to one database. It belongs to one workspace, and 
 | **Host**, **Port** | All | Where the database listens. Left empty, the port is the usual one for that database |
 | **Database** | All but Trino | The database to connect to. Optional on ClickHouse |
 | **Default catalog**, **Default schema** | Trino | Where unqualified table names are looked up |
-| **User**, **Password** | All | The account SupaBI connects with. The password is stored encrypted and never shown again; when you edit the data source, leave it empty to keep it |
+| **User**, **Password** | All | The account SupaBI connects with. The password is stored encrypted and never shown again; when you edit the data source, leave it empty to keep it. After changing the host, the port, the user or the encryption setting, enter the password again: a saved password is only sent to the server it was saved for |
 | **SSL mode** | PostgreSQL | `disable`, `prefer`, `require`, `verify-ca` or `verify-full` |
 | **TLS** | MySQL, Doris, StarRocks | Whether the connection is encrypted |
 | **Encrypted connection** | ClickHouse, Trino | Whether the connection is encrypted |

@@ -73,6 +73,25 @@ type SettingField struct {
 	Default  string
 	// Options lists the allowed values when the setting is a choice.
 	Options []string
+	// Inside is set for a setting that only chooses something within the
+	// server, such as a database or a schema. Every other setting says where
+	// the password is sent, as whom, or how it is protected on the way, and a
+	// stored password is not reused once one of those changes: see
+	// SameTarget.
+	Inside bool
+}
+
+// SameTarget reports whether two sets of checked settings send the password
+// to the same server, as the same user, with the same protection. A stored
+// password may be reused only then: whoever can point a data source at a
+// server of their own would otherwise be sent a password they do not know.
+func SameTarget(d Driver, a, b map[string]string) bool {
+	for _, f := range d.Settings() {
+		if !f.Inside && a[f.Name] != b[f.Name] {
+			return false
+		}
+	}
+	return true
 }
 
 // Category is what a kind of database is built for. The kinds are grouped by
