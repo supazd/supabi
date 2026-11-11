@@ -1502,7 +1502,7 @@ describe('chart editor row order and limit', () => {
     server.state.query = async () => server.answer({ columns: [{ name: 'region', type: 'string', role: 'dimension' }, { name: 'amount', type: 'decimal', role: 'measure' }], rows: [['North', 3]], meta: { durationMs: 2, truncated: true } })
     open('/workbench/charts/ranked')
     await waitFor(() => expect(calls('POST', '/query')).toHaveLength(1))
-    expect(screen.getByText(/only the first 1 are shown/)).toBeTruthy()
+    expect(await screen.findByText(/only the first 1 are shown/)).toBeTruthy()
 
     await sortBy('SUM(Amount)', 'Descending')
     await waitFor(() => expect(lastQuery().sort).toEqual([{ by: 'amount', desc: true }]))
@@ -1538,7 +1538,7 @@ describe('chart editor row order and limit', () => {
     server.state.query = async () => server.answer({ columns: [{ name: 'region', type: 'string', role: 'dimension' }, { name: 'amount', type: 'decimal', role: 'measure' }], rows: [['North', 3]], meta: { durationMs: 2, truncated: true } })
     open('/workbench/charts/ranked')
     await waitFor(() => expect(calls('POST', '/query')).toHaveLength(1))
-    expect(screen.getByText(/only the first 1 are shown/)).toBeTruthy()
+    expect(await screen.findByText(/only the first 1 are shown/)).toBeTruthy()
     expect(screen.getByText('Enter a whole number from 1 to 5000')).toBeTruthy()
     fireEvent.change(limit(), { target: { value: '' } })
     expect(limit().placeholder).toBe('Default 100')
