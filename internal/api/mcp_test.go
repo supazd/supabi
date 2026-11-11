@@ -469,13 +469,13 @@ func TestMCPTools(t *testing.T) {
 	}
 	link, _ := url.Parse(data.Source.Link)
 	if data.Source.Dashboard != "销售看板" || len(data.Rows) != 2 || data.Source.Revisions.Dashboard != 1 ||
-		link.Scheme+"://"+link.Host != f.viewer.server.URL || link.Path != "/dashboards/"+board || link.Query().Get("ws") != store.DefaultWorkspaceID || link.Query().Get("view") == "" {
+		link.Scheme+"://"+link.Host != f.viewer.server.URL || link.Path != "/w/"+store.DefaultWorkspaceID+"/dashboards/"+board || link.Query().Get("view") == "" {
 		t.Errorf("query_chart: %s", text)
 	}
-	if !strings.Contains(text, "&ws="+store.DefaultWorkspaceID+`"`) {
-		t.Errorf("the link is escaped: %s", text)
+	if !strings.Contains(text, "/w/"+store.DefaultWorkspaceID+"/dashboards/"+board+"?view=") {
+		t.Errorf("the link is not written whole: %s", text)
 	}
-	if text, failed := call(t, session, "query_chart", map[string]any{"dashboard": financeBoard, "widget": "wa"}); failed || !strings.Contains(text, "ws="+finance) {
+	if text, failed := call(t, session, "query_chart", map[string]any{"dashboard": financeBoard, "widget": "wa"}); failed || !strings.Contains(text, "/w/"+finance+"/dashboards/") {
 		t.Errorf("another workspace: %s", text)
 	}
 	for _, id := range []string{hidden, elsewhere, "db_nope"} {

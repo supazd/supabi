@@ -693,7 +693,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Move the session to another workspace the caller can enter */
+        /**
+         * Choose the workspace the session goes by where a call or an address names none
+         * @description The app calls it when a workspace is chosen in the top bar, then
+         *     loads the address of that workspace. Pages at other addresses stay in
+         *     theirs. See .agents/design/access-control.md §2.4.
+         */
         post: operations["switchWorkspace"];
         delete?: never;
         options?: never;

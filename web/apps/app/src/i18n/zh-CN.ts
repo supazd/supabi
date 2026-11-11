@@ -253,6 +253,7 @@ export const zhCN = {
     forbidden: '你的角色没有访问这个页面的权限。',
     noWorkspace: '你的账号还没有加入任何工作空间，请联系管理员。',
     chooseWorkspace: '当前没有选择工作空间，请在顶栏选择一个。',
+    workspaceUnavailable: '这个工作空间不存在，或者你无权进入。请在顶栏选择其他工作空间，或联系管理员把你加进来。',
   },
   member: {
     title: '成员与访问',
@@ -1548,9 +1549,6 @@ export const zhCN = {
       partial: '分享的部分条件已失效，其余条件已应用。',
     },
     unavailable: '这个仪表盘不存在，或者你没有访问权限。可以联系它的作者或管理员。',
-    otherWorkspace: '这个仪表盘在工作空间「{{name}}」中，你当前在「{{current}}」。',
-    switchWorkspace: '切换到「{{name}}」',
-    switchWorkspaceHint: '切换后，这个浏览器里其他标签页也会切换到这个工作空间。',
     loadingData: '正在取数…',
     dataAsOf: '数据更新于 {{time}}',
     nextRefresh: '下次刷新：{{time}}',

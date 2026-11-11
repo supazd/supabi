@@ -14,6 +14,7 @@ import { Topbar } from './components/Topbar'
 import { UnsavedChangesProvider, useUnsavedActions } from './components/UnsavedChanges'
 import { saveLocale } from './i18n'
 import { showTitle } from './lib/documentTitle'
+import { addressIn, addressWorkspace, withinWorkspace, workspaceBase } from './lib/workspaceAddress'
 import { Home } from './pages/Home'
 import { NotFound } from './pages/NotFound'
 import { OAuthConsent } from './pages/OAuthConsent'
@@ -56,14 +57,16 @@ function Frame() {
   const { t } = useTranslation()
   // All mounted editors belong to this workspace; a successful switch starts a fresh shell.
   const navigate = useNavigate()
-  const actions = useSessionActions((destination = '/') => window.location.assign(destination))
+  // A workspace is entered by loading its address; with none to enter, the address that names none says where to go.
+  const actions = useSessionActions((destination = '/', workspaceId) => window.location.assign(workspaceId ? withinWorkspace(workspaceId, destination) : destination))
   const manageWorkspace = (id: string) => {
     if (actions.busy) return
     if (id === info.workspace?.id) void navigate('/settings/workspace/general')
     else actions.switchWorkspace(id, '/settings/workspace/general')
   }
-  // Deleting the current workspace has moved the session to another, as a
-  // switch does. Editors keep their drafts in the browser for the new shell.
+  // Deleting the current workspace has moved the session to another, which
+  // the address that names none leads to. Editors keep their drafts in the
+  // browser for the new shell.
   const { leaveDocument } = useUnsavedActions()
   const currentWorkspaceDeleted = () => leaveDocument(() => window.location.assign('/settings/system/workspaces'))
   // The workbench, the dashboards, the assistant and the settings fill the window and scroll inside themselves; other pages are documents.
@@ -123,7 +126,8 @@ function Frame() {
           {!info.workspace && (
             <section className="card">
               {/* A session can be left without a workspace while its user still has some: when the one it was in is deleted. */}
-              <p>{t(info.workspaces?.length ? 'auth.chooseWorkspace' : 'auth.noWorkspace')}</p>
+              {/* Or its page is at the address of a workspace it cannot enter, or that is not there. */}
+              <p>{t(addressWorkspace ? 'auth.workspaceUnavailable' : info.workspaces?.length ? 'auth.chooseWorkspace' : 'auth.noWorkspace')}</p>
             </section>
           )}
           <Routes>
@@ -142,8 +146,10 @@ function Frame() {
   )
 }
 
-// A data router, which is what lets a page ask before it is left with unsaved work.
-const router = createBrowserRouter([{ path: '*', element: <Frame /> }])
+// A data router, which is what lets a page ask before it is left with unsaved
+// work. The app's paths follow the workspace in the address, so every link
+// and navigation stays in it (.agents/design/access-control.md §2.4).
+const router = createBrowserRouter([{ path: '*', element: <Frame /> }], { basename: workspaceBase || undefined })
 
 function Shell(props: ShellProps) {
   return (
@@ -208,6 +214,15 @@ function Gate({ controls, ...preferences }: Omit<ShellProps, 'info'> & { control
   const session = useSession()
   // An MCP client's consent page stands alone, after signing in if need be.
   const consent = window.location.pathname.startsWith('/oauth/consent')
+  // An address that names no workspace, such as `/`, an old bookmark or an
+  // old share link, is replaced with the same page in one: the workspace the
+  // link carries, or the one the session last chose.
+  const signedIn = session.state.status === 'ok' && session.state.data.authenticated ? session.state.data : undefined
+  const destination = signedIn && !consent && !addressWorkspace ? addressIn(window.location, signedIn.workspace?.id) : undefined
+  useEffect(() => {
+    if (destination) window.location.replace(destination)
+  }, [destination])
+  if (destination) return null
   return (
     <Async state={session.state} reload={session.reload}>
       {(info) =>

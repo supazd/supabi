@@ -33,6 +33,17 @@ type client struct {
 	http   *http.Client
 	// dataDir is the test's own data directory, for local export files.
 	dataDir string
+	// workspace is the workspace of the address the browser's page is at,
+	// which its calls name; a page with none goes by the session.
+	workspace string
+}
+
+// at returns another page of the same browser, the same session, at an
+// address in the workspace.
+func (c *client) at(workspace string) *client {
+	page := *c
+	page.workspace = workspace
+	return &page
 }
 
 const adminEmail, adminPassword = "admin@example.com", "admin-password"
@@ -123,6 +134,9 @@ func (c *client) do(method, path string, body any) (int, any) {
 		c.t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if c.workspace != "" {
+		req.Header.Set(workspaceHeader, c.workspace)
+	}
 	resp, err := c.http.Do(req)
 	if err != nil {
 		c.t.Fatal(err)

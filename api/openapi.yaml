@@ -13,6 +13,12 @@ info:
     from the /auth endpoints, a call without a session is answered with 401
     `unauthenticated`, and one the caller's role does not allow with 403
     `forbidden`.
+
+    A call is served in the workspace its `X-SupaBI-Workspace` header names,
+    which the app sets to the workspace in the address of its page. Without
+    the header it is the workspace the session last chose. A workspace the
+    caller cannot enter is none: what needs one is answered with 403
+    `no_workspace`. See .agents/design/access-control.md §2.4.
 servers:
   - url: /api/v1
 paths:
@@ -700,7 +706,11 @@ paths:
   /auth/workspace:
     post:
       operationId: switchWorkspace
-      summary: Move the session to another workspace the caller can enter
+      summary: Choose the workspace the session goes by where a call or an address names none
+      description: |
+        The app calls it when a workspace is chosen in the top bar, then
+        loads the address of that workspace. Pages at other addresses stay in
+        theirs. See .agents/design/access-control.md §2.4.
       requestBody:
         required: true
         content:

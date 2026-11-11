@@ -255,6 +255,7 @@ export const enUS: Messages = {
     forbidden: 'Your role does not allow access to this page.',
     noWorkspace: 'Your account does not belong to a workspace yet. Ask an administrator.',
     chooseWorkspace: 'No workspace is chosen. Choose one in the top bar.',
+    workspaceUnavailable: 'This workspace does not exist, or you cannot enter it. Choose another in the top bar, or ask an administrator to add you.',
   },
   member: {
     title: 'Members and access',
@@ -1550,9 +1551,6 @@ export const enUS: Messages = {
       partial: 'Some of the shared conditions no longer apply; the rest are applied.',
     },
     unavailable: 'This dashboard does not exist, or you do not have access to it. Its author or an administrator can help.',
-    otherWorkspace: 'This dashboard is in the workspace “{{name}}”; you are in “{{current}}”.',
-    switchWorkspace: 'Switch to “{{name}}”',
-    switchWorkspaceHint: 'Other tabs of this browser switch to that workspace too.',
     loadingData: 'Loading data…',
     dataAsOf: 'Data as of {{time}}',
     nextRefresh: 'Next refresh at {{time}}',

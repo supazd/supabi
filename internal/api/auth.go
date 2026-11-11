@@ -72,6 +72,10 @@ func (s *Server) signIn(ctx context.Context, u store.User) (gen.SessionInfo, err
 	if err != nil {
 		return gen.SessionInfo{}, err
 	}
+	// The page signed in on is in the workspace of its address.
+	if err := s.enterAddressed(ctx, &principal, c.r); err != nil {
+		return gen.SessionInfo{}, err
+	}
 	return s.sessionInfo(ctx, &principal)
 }
 

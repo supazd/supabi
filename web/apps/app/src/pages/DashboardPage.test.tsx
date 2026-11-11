@@ -2056,14 +2056,14 @@ describe('share links', () => {
     render(<UnsavedChangesProvider><RouterProvider router={router} /></UnsavedChangesProvider>)
     return router
   }
-  const link = (search: string) => `${window.location.origin}/dashboards/board?${search}`
+  const link = (search = '') => `${window.location.origin}/w/ws_main/dashboards/board${search ? `?${search}` : ''}`
 
   it('gives the dashboard’s address when nothing differs from its defaults', async () => {
     openLink('/dashboards/board')
     await screen.findByText('Chart result')
     fireEvent.click(screen.getByRole('button', { name: 'Share' }))
     const dialog = within(await screen.findByRole('dialog', { name: 'Share dashboard' }))
-    expect(dialog.getByRole<HTMLInputElement>('textbox', { name: 'Share link' }).value).toBe(link('ws=ws_main'))
+    expect(dialog.getByRole<HTMLInputElement>('textbox', { name: 'Share link' }).value).toBe(link())
     expect(dialog.queryByRole('checkbox', { name: 'Include the current conditions' })).toBeNull()
     expect(viewRequests()).toHaveLength(0)
   })
@@ -2078,9 +2078,9 @@ describe('share links', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Share' }))
     const dialog = within(await screen.findByRole('dialog', { name: 'Share dashboard' }))
     const address = dialog.getByRole<HTMLInputElement>('textbox', { name: 'Share link' })
-    expect(address.value).toBe(link('ws=ws_main'))
+    expect(address.value).toBe(link())
     fireEvent.click(dialog.getByRole('checkbox', { name: 'Include the current conditions' }))
-    await waitFor(() => expect(address.value).toBe(link('ws=ws_main&view=dv_new')))
+    await waitFor(() => expect(address.value).toBe(link('view=dv_new')))
     // Only what differs from the dashboard's own is carried, and said in words, a kind to a row.
     expect(viewRequests()[0]!.body).toEqual({ state: { chartFilters: { w1: { name_local: 'Bob' } }, useChartFilters: ['w1'] }, validDays: 30 })
     const parts = within(dialog.getByRole('list', { name: 'Conditions to include' }))
@@ -2091,21 +2091,21 @@ describe('share links', () => {
     await waitFor(() => expect(viewRequests().at(-1)!.body.validDays).toBe(7))
     // With every kind unticked, nothing is carried: the link is the dashboard's address again.
     fireEvent.click(parts.getByRole('checkbox', { name: 'Chart filters' }))
-    await waitFor(() => expect(address.value).toBe(link('ws=ws_main')))
+    await waitFor(() => expect(address.value).toBe(link()))
     expect(dialog.getByText('Nothing is ticked, so the link is the dashboard’s address.')).toBeTruthy()
     expect(dialog.queryByText('Whoever opens the link sees these filter values, even without access to the data they select.')).toBeNull()
   })
 
   it('opens with the shared conditions the dashboard can still take, and forgets the link once they change', async () => {
     server.behavior.views.set('dv_shared', { filters: { amount_global: 500 }, chartFilters: { w1: { name_local: 'Carol', gone: 1 } }, links: { nope: 'East' } })
-    const router = openLink('/dashboards/board?ws=ws_main&view=dv_shared')
+    const router = openLink('/dashboards/board?view=dv_shared')
     const card = within(await screen.findByRole('article', { name: 'Orders' }))
     await card.findByText('Chart result')
     expect(dataRequests()[0]!.body).toMatchObject({ filters: { amount_global: 500 }, chartFilters: { name_local: 'Carol' } })
     expect(screen.getByText('Some of the shared conditions no longer apply; the rest are applied.')).toBeTruthy()
-    expect(router.state.location.search).toBe('?ws=ws_main&view=dv_shared')
+    expect(router.state.location.search).toBe('?view=dv_shared')
     fireEvent.change(card.getByRole('textbox', { name: 'Chart name' }), { target: { value: 'Dave' } })
-    await waitFor(() => expect(router.state.location.search).toBe('?ws=ws_main'))
+    await waitFor(() => expect(router.state.location.search).toBe(''))
   })
 
   it('carries the tab each tab container shows, and opens on it', async () => {
@@ -2129,14 +2129,14 @@ describe('share links', () => {
     // Opened from the link, the container shows that tab, and only that tab's chart is asked for.
     server.requests.length = 0
     server.behavior.views.set('dv_shared', { tabs: { w5: 'w2', gone: 'w1' } })
-    const router = openLink('/dashboards/board?ws=ws_main&view=dv_shared')
+    const router = openLink('/dashboards/board?view=dv_shared')
     await screen.findByText('Chart result')
     expect(screen.getByRole('tab', { name: 'Revenue' }).getAttribute('aria-selected')).toBe('true')
     expect(dataRequests().map((request) => request.params?.itemId)).toEqual(['w2'])
     expect(screen.getByText('Some of the shared conditions no longer apply; the rest are applied.')).toBeTruthy()
     // Going to another tab changes the conditions, so the address no longer names the shared ones.
     fireEvent.click(screen.getByRole('tab', { name: 'Orders' }))
-    await waitFor(() => expect(router.state.location.search).toBe('?ws=ws_main'))
+    await waitFor(() => expect(router.state.location.search).toBe(''))
   })
 
   it('carries only the kinds of condition left ticked', async () => {
@@ -2160,22 +2160,14 @@ describe('share links', () => {
   })
 
   it('opens with the dashboard’s defaults once the shared conditions have expired', async () => {
-    openLink('/dashboards/board?ws=ws_main&view=dv_gone')
+    openLink('/dashboards/board?view=dv_gone')
     await screen.findByText('Chart result')
     expect(screen.getByText('The shared conditions have expired; the dashboard shows its defaults.')).toBeTruthy()
     expect(dataRequests()[0]!.body).toMatchObject({ filters: {}, chartFilters: {} })
   })
 
-  it('offers to move to the workspace of the link, and does not move by itself', async () => {
-    openLink('/dashboards/board?ws=ws_other')
-    expect(await screen.findByText('This dashboard is in the workspace “Other”; you are in “Main”.')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Switch to “Other”' })).toBeTruthy()
-    expect(server.gets).not.toContain('/dashboards/{id}')
-    expect(server.requests.some(({ path }) => path === '/auth/workspace')).toBe(false)
-  })
-
-  it.each([['a workspace the viewer cannot enter', '/dashboards/board?ws=ws_elsewhere'], ['a dashboard that cannot be seen', '/dashboards/missing']])('says the dashboard is unavailable for %s', async (_, path) => {
-    openLink(path)
+  it('says the dashboard is unavailable for a dashboard that cannot be seen', async () => {
+    openLink('/dashboards/missing')
     expect(await screen.findByText('This dashboard does not exist, or you do not have access to it. Its author or an administrator can help.')).toBeTruthy()
   })
 })
@@ -3138,12 +3130,12 @@ describe('dashboard pages', () => {
     // Opened from the link, the dashboard shows that page; a page it no longer has is dropped.
     server.requests.length = 0
     server.behavior.views.set('dv_shared', { page: 'p2' })
-    openAt('/dashboards/board?ws=ws_main&view=dv_shared')
+    openAt('/dashboards/board?view=dv_shared')
     await screen.findByText('Chart result')
     expect(page('Channels').getAttribute('aria-selected')).toBe('true')
     cleanup()
     server.behavior.views.set('dv_shared', { page: 'gone' })
-    openAt('/dashboards/board?ws=ws_main&view=dv_shared')
+    openAt('/dashboards/board?view=dv_shared')
     await screen.findByText('Chart result')
     expect(page('Overview').getAttribute('aria-selected')).toBe('true')
     expect(screen.getByText('Some of the shared conditions no longer apply; the rest are applied.')).toBeTruthy()

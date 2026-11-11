@@ -477,6 +477,19 @@ func UpdateWorkspace(ctx context.Context, pool *pgxpool.Pool, s Scope, w Workspa
 	return w, nil
 }
 
+// CanEnterWorkspace says whether the user can enter the workspace: it is one
+// of their org's, not deleted, and they are a member of it or an
+// administrator of the org.
+func CanEnterWorkspace(ctx context.Context, pool *pgxpool.Pool, orgID, userID, workspaceID string) (bool, error) {
+	var can bool
+	err := pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT FROM workspaces w JOIN users u ON u.org_id = w.org_id AND u.id = $2
+			WHERE w.org_id = $1 AND w.id = $3 AND w.deleted_at IS NULL AND `+workspaceAccess+`)`,
+		orgID, userID, workspaceID).Scan(&can)
+	return can, err
+}
+
 // SwitchWorkspace moves a session to another workspace, if its user can enter
 // it; otherwise it returns ErrNotFound, without saying whether the workspace exists.
 func SwitchWorkspace(ctx context.Context, pool *pgxpool.Pool, tokenHash []byte, workspaceID string) error {

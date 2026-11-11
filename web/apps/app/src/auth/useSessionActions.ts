@@ -5,7 +5,7 @@ import { useUnsavedActions } from '../components/UnsavedChanges'
 import { useSession } from './session'
 
 /** Keeps the current editors intact until the server has accepted a session change. */
-export function useSessionActions(reloadWorkspace: (destination?: string) => void) {
+export function useSessionActions(reloadWorkspace: (destination?: string, workspaceId?: string) => void) {
   const session = useSession()
   const { confirmDiscard, confirming, leaveDocument, beginSessionChange } = useUnsavedActions()
   const running = useRef(false)
@@ -73,8 +73,8 @@ export function useSessionActions(reloadWorkspace: (destination?: string) => voi
     if (session.state.status !== 'ok' || workspaceId === session.state.data.workspace?.id) return
     run(
       () => unwrap(api.POST('/auth/workspace', { body: { workspaceId } })),
-      () => leaveDocument(() => reloadWorkspace(destination)),
-      () => reloadWorkspace(destination),
+      () => leaveDocument(() => reloadWorkspace(destination, workspaceId)),
+      () => reloadWorkspace(destination, workspaceId),
     )
   }
   const signOut = () => run(

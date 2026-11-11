@@ -269,6 +269,9 @@ func (s *Server) authenticate(next gen.StrictHandlerFunc, operationID string) ge
 			principal, err := store.GetPrincipal(ctx, s.Pool, hash)
 			switch {
 			case err == nil:
+				if err := s.enterAddressed(ctx, &principal, r); err != nil {
+					return nil, err
+				}
 				c.principal, c.tokenHash = &principal, hash
 			case !errors.Is(err, store.ErrNotFound):
 				return nil, err
@@ -367,6 +370,29 @@ func setSessionCookie(w http.ResponseWriter, r *http.Request, token string, life
 		cookie.Value, cookie.MaxAge = "", -1
 	}
 	http.SetCookie(w, cookie)
+}
+
+// workspaceHeader names the workspace a request is for: the one in the
+// address of the page that made it. See .agents/design/access-control.md §2.4.
+const workspaceHeader = "X-SupaBI-Workspace"
+
+// enterAddressed puts the principal in the workspace the request names, in
+// place of the one its session last chose. One it cannot enter leaves it in
+// none, so that nothing meant for one workspace is done in another.
+func (s *Server) enterAddressed(ctx context.Context, p *store.Principal, r *http.Request) error {
+	addressed := r.Header.Get(workspaceHeader)
+	if addressed == "" || addressed == p.WorkspaceID {
+		return nil
+	}
+	can, err := store.CanEnterWorkspace(ctx, s.Pool, p.OrgID, p.UserID, addressed)
+	if err != nil {
+		return err
+	}
+	p.WorkspaceID = ""
+	if can {
+		p.WorkspaceID = addressed
+	}
+	return nil
 }
 
 // scope returns the tenant and user of an authenticated request. WorkspaceID

@@ -39,7 +39,7 @@ Under **General**:
 
 ## Switch workspace
 
-If you belong to several workspaces, switch at the top left. Unsaved changes ask for confirmation first. Query drafts in Data exploration and AI conversations are kept per workspace.
+If you belong to several workspaces, switch at the top left. Unsaved changes ask for confirmation first. The address of every page names its workspace (`/w/…`), and switching changes only the browser tab you switch in: other tabs stay in theirs, so two tabs can be in two workspaces. An address without a workspace, such as the site's root, opens in the workspace you last switched to. Query drafts in Data exploration and AI conversations are kept per workspace.
 
 ## Personal settings
 
