@@ -54,6 +54,13 @@ interface Options {
 const faded = 0.3
 const percentText = (share: number) => `${(share * 100).toFixed(share >= 0.1 || share === 0 ? 0 : 1)}%`
 
+/**
+ * Text as it may be put in a tooltip written by a formatter here. ECharts sets what such a formatter returns as HTML,
+ * and the names and values come from the user's data.
+ */
+const escapes: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+const html = (text: unknown) => String(text ?? '').replace(/[&<>"']/g, (char) => escapes[char]!)
+
 function tooltipBox(ink: Ink) {
   return { backgroundColor: ink.surface, borderColor: ink.axis, textStyle: { color: ink.text } }
 }
@@ -248,10 +255,10 @@ export function scatterOption(data: ScatterData, options: Options): EChartsCoreO
       ...tooltipBox(ink),
       formatter: (p: { data: { name: string; value: number[] }; marker: string }) =>
         [
-          `${p.marker}${p.data.name}`,
-          `${name(x)}: ${options.formatValue(p.data.value[0]!, x)}`,
-          `${name(y)}: ${options.formatValue(p.data.value[1]!, y)}`,
-          ...(size ? [`${name(size)}: ${options.formatValue(p.data.value[2]!, size)}`] : []),
+          `${p.marker}${html(p.data.name)}`,
+          `${html(name(x))}: ${html(options.formatValue(p.data.value[0]!, x))}`,
+          `${html(name(y))}: ${html(options.formatValue(p.data.value[1]!, y))}`,
+          ...(size ? [`${html(name(size))}: ${html(options.formatValue(p.data.value[2]!, size))}`] : []),
         ].join('<br/>'),
     },
     // Both axes are values, so each is named by its measure unless the chart names it.
@@ -317,7 +324,7 @@ export function funnelOption(name: string, stages: Stage[], column: ResultColumn
     tooltip: {
       trigger: 'item',
       ...tooltipBox(ink),
-      formatter: (p: { name: string; value: number; dataIndex: number; marker: string }) => `${p.marker}${p.name}<br/>${options.formatValue(p.value, column)}（${percentText(stages[p.dataIndex]?.share ?? 0)}）`,
+      formatter: (p: { name: string; value: number; dataIndex: number; marker: string }) => `${p.marker}${html(p.name)}<br/>${html(options.formatValue(p.value, column))}（${percentText(stages[p.dataIndex]?.share ?? 0)}）`,
     },
     series: [
       {
@@ -360,7 +367,7 @@ export function treemapOption(name: string, tiles: TreemapNode[], column: Result
     ...option,
     // The legend of a treemap names its groups; the series are not separate, so it is drawn by hand.
     legend: option.legend ? { ...option.legend, data: tiles.map((tile) => tile.name), selectedMode: false } : undefined,
-    tooltip: { trigger: 'item', ...tooltipBox(ink), formatter: (p: { name: string; value: number; marker: string }) => `${p.marker}${p.name}<br/>${options.formatValue(p.value, column)}` },
+    tooltip: { trigger: 'item', ...tooltipBox(ink), formatter: (p: { name: string; value: number; marker: string }) => `${p.marker}${html(p.name)}<br/>${html(options.formatValue(p.value, column))}` },
     series: [
       {
         name,
@@ -397,7 +404,7 @@ export function heatmapOption(data: HeatmapData, options: Options): EChartsCoreO
     tooltip: {
       trigger: 'item',
       ...tooltipBox(ink),
-      formatter: (p: { value: [number, number, number] }) => `${data.rows[p.value[1]]} · ${data.columns[p.value[0]]}<br/>${options.formatValue(p.value[2], data.column)}`,
+      formatter: (p: { value: [number, number, number] }) => `${html(data.rows[p.value[1]])} · ${html(data.columns[p.value[0]])}<br/>${html(options.formatValue(p.value[2], data.column))}`,
     },
     xAxis: { ...axisOf('category', style.xAxis, ink, 'x'), data: data.columns, splitArea: { show: false } },
     yAxis: { ...axisOf('category', style.yAxis, ink, 'y'), data: data.rows, inverse: true, splitArea: { show: false } },
@@ -496,8 +503,8 @@ export function sankeyOption(data: SankeyData, options: Options): EChartsCoreOpt
       ...tooltipBox(ink),
       formatter: (p: { dataType: 'node' | 'edge'; data: { name?: string; source?: string; target?: string; value: number } }) =>
         p.dataType === 'edge'
-          ? `${byId.get(p.data.source!)?.name} → ${byId.get(p.data.target!)?.name}<br/>${amount(p.data.value)}（${share(p.data.value)}）`
-          : `${byId.get(p.data.name!)?.name}<br/>${amount(p.data.value)}（${share(p.data.value)}）`,
+          ? `${html(byId.get(p.data.source!)?.name)} → ${html(byId.get(p.data.target!)?.name)}<br/>${html(amount(p.data.value))}（${share(p.data.value)}）`
+          : `${html(byId.get(p.data.name!)?.name)}<br/>${html(amount(p.data.value))}（${share(p.data.value)}）`,
     },
     series: [
       {
