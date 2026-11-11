@@ -3,6 +3,8 @@ package postgres
 
 import (
 	"context"
+	sqldriver "database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -251,6 +253,9 @@ func normalize(v any, t datasource.Type) any {
 		if !x.Valid {
 			return nil
 		}
+		if x.NaN || x.InfinityModifier != pgtype.Finite {
+			return nil // as finite does for a float
+		}
 		if b, err := x.MarshalJSON(); err == nil {
 			return string(b) // digits only: numeric marshals as a bare JSON number
 		}
@@ -262,8 +267,74 @@ func normalize(v any, t datasource.Type) any {
 		return x.Format("2006-01-02T15:04:05")
 	case []byte:
 		return string(x)
+	case [16]byte:
+		return uuidText(x)
+	case pgtype.Time:
+		if !x.Valid {
+			return nil
+		}
+		// As psql shows it: fractions of a second only when there are any.
+		clock := time.Duration(x.Microseconds) * time.Microsecond
+		text := time.Time{}.Add(clock).Format("15:04:05.999999")
+		if x.Microseconds == 24*3600*1e6 {
+			text = "24:00:00"
+		}
+		return text
+	case map[string]any, []any:
+		// json and jsonb, and arrays: written as JSON, which tells the
+		// elements apart where Go's own formatting would not.
+		if b, err := json.Marshal(plain(x)); err == nil {
+			return string(b)
+		}
+	case sqldriver.Valuer:
+		// time, interval, ranges and the like: as PostgreSQL writes them.
+		if text, err := x.Value(); err == nil {
+			if text == nil {
+				return nil
+			}
+			if s, ok := text.(string); ok {
+				return s
+			}
+		}
 	}
 	return fmt.Sprint(v)
+}
+
+func uuidText(b [16]byte) string {
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
+// plain makes the elements of an array or a JSON value ones that marshal as
+// they read: a uuid inside an array is still sixteen bytes.
+func plain(v any) any {
+	switch x := v.(type) {
+	case []any:
+		out := make([]any, len(x))
+		for i, item := range x {
+			out[i] = plain(item)
+		}
+		return out
+	case map[string]any:
+		out := make(map[string]any, len(x))
+		for k, item := range x {
+			out[k] = plain(item)
+		}
+		return out
+	case nil, bool, string, int64, json.Number:
+		return x
+	case float64:
+		return finite(x)
+	case float32:
+		return finite(float64(x))
+	case pgtype.Numeric:
+		return normalize(x, datasource.Decimal)
+	case time.Time:
+		return x.Format(time.RFC3339Nano)
+	}
+	if _, isJSON := v.(json.Marshaler); isJSON {
+		return v
+	}
+	return normalize(v, datasource.String)
 }
 
 // JSON has no NaN or Infinity.
