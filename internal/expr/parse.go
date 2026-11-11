@@ -6,6 +6,7 @@ package expr
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -210,10 +211,34 @@ var keywords = map[string]bool{
 type parser struct {
 	tokens []token
 	at     int
+	depth  int
+}
+
+// maxDepth is how deeply brackets, NOT and minus signs may nest. The parser
+// calls itself for each, and a stack that runs out ends the whole process:
+// that cannot be recovered from. No expression written by a person is close.
+const maxDepth = 200
+
+// maxLength is how long an expression may be, in bytes.
+const maxLength = 20000
+
+// enter counts one more level of nesting, begun at t. Each call that
+// succeeds is matched by a p.depth-- when the level has been read.
+func (p *parser) enter(t token) *Error {
+	if p.depth >= maxDepth {
+		return errorAt(t.from, t.to, "expr_too_deep", nil, "the expression is nested too deeply")
+	}
+	p.depth++
+	return nil
 }
 
 // Parse reads an expression.
 func Parse(text string) (Node, *Error) {
+	// A chain of operators nests as deeply as it is long once it is a tree,
+	// which checking and writing it out then walk by calling themselves.
+	if len(text) > maxLength {
+		return nil, errorAt(0, len(text), "expr_too_long", []string{"max", strconv.Itoa(maxLength)}, "the expression is longer than %d bytes", maxLength)
+	}
 	tokens, err := lex(text)
 	if err != nil {
 		return nil, err
@@ -283,7 +308,13 @@ func between(a, b Node) span {
 	return span{from, to}
 }
 
+// or is where every nested expression starts: one in brackets, an argument
+// of a function, a part of CASE or IN.
 func (p *parser) or() (Node, *Error) {
+	if err := p.enter(p.peek()); err != nil {
+		return nil, err
+	}
+	defer func() { p.depth-- }()
 	left, err := p.and()
 	for err == nil && p.accept(tokWord, "OR") {
 		var right Node
@@ -307,7 +338,11 @@ func (p *parser) and() (Node, *Error) {
 
 func (p *parser) not() (Node, *Error) {
 	if t := p.peek(); p.accept(tokWord, "NOT") {
+		if err := p.enter(t); err != nil {
+			return nil, err
+		}
 		x, err := p.not()
+		p.depth--
 		if err != nil {
 			return nil, err
 		}
@@ -418,7 +453,11 @@ func (p *parser) product() (Node, *Error) {
 
 func (p *parser) unary() (Node, *Error) {
 	if t := p.peek(); p.accept(tokSymbol, "-") {
+		if err := p.enter(t); err != nil {
+			return nil, err
+		}
 		x, err := p.unary()
+		p.depth--
 		if err != nil {
 			return nil, err
 		}

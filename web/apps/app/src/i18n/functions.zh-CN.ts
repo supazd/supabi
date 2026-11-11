@@ -69,6 +69,8 @@ export type FunctionMessages = typeof functionsZhCN
 /** What is wrong with an expression in the platform's language, by the code the server gives. */
 export const exprErrorsZhCN = {
   expr_empty: '表达式是空的',
+  expr_too_long: '表达式太长：最多 {{max}} 字节',
+  expr_too_deep: '表达式嵌套的层数太多',
   expr_incomplete: '表达式没有写完',
   expr_expected: '这里缺少 {{expected}}',
   expr_unexpected: '这里不应该出现 {{found}}',
