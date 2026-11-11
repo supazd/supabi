@@ -23,7 +23,7 @@ The panel below the editor has four tabs:
 **Format** tidies the SQL, and **New query** opens another tab.
 
 :::note
-Query tabs, drafts and history stay in the current browser, separated by account and workspace. They do not follow you to another browser. To keep a query for good, save it as a dataset.
+Query tabs, drafts and history stay in the current browser, separated by account and workspace. They do not follow you to another browser. With data exploration open in two windows of the same browser, both show the same queries; write each query in one window only, because what is kept of a query is whatever was written last. To keep a query for good, save it as a dataset.
 :::
 
 ## Create a dataset

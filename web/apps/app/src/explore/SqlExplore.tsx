@@ -55,6 +55,16 @@ interface Meta {
   running: boolean
 }
 
+/** The list of queries as it is kept in the browser, or nothing when none is, or it cannot be read. */
+function keptTabs(key: string): Tabs | null {
+  try {
+    const kept = JSON.parse(localStorage.getItem(key) ?? 'null') as Tabs | null
+    return kept && Array.isArray(kept.open) ? kept : null
+  } catch {
+    return null
+  }
+}
+
 function forget(key: string) {
   try {
     localStorage.removeItem(key)
@@ -911,21 +921,42 @@ export function SqlExplore({ active }: { active: boolean }) {
     }
   })
   const tabsKey = `supabi.explore.tabs.${scope}${browserNamespace ? `.${browserNamespace}` : ''}`
-  const [tabs, setStoredTabs] = useStored<Tabs>(tabsKey, { open: [], active: '' })
+  const [tabs, setShownTabs] = useState<Tabs>(() => keptTabs(tabsKey) ?? { open: [], active: '' })
   // Changes are worked out from what the tabs are now, which a render may not have caught up with.
   const latest = useRef(tabs)
+  // Set while the list this window has could not be written, when it is the only copy of it.
+  const unwritten = useRef(false)
+  // Windows of the same workspace share the list of queries, and each shows its own one of them.
+  // Every change starts from the list as it is kept, so that a query another window opened or
+  // closed since is not undone by what this window last knew.
+  const shared = useCallback((): Tabs => {
+    const mine = latest.current
+    const kept = unwritten.current ? null : keptTabs(tabsKey)
+    if (!kept || JSON.stringify(kept.open) === JSON.stringify(mine.open)) return mine
+    // The query it shows was closed elsewhere: the one in its place shows, as when it is closed here.
+    const place = Math.max(mine.open.findIndex((tab) => tab.key === mine.active), 0)
+    const active = kept.open.some((tab) => tab.key === mine.active) ? mine.active : (kept.open[Math.min(place, kept.open.length - 1)]?.key ?? '')
+    return { open: kept.open, active }
+  }, [tabsKey])
   const setTabs = useCallback(
     (change: (current: Tabs) => Tabs) => {
-      latest.current = change(latest.current)
-      setStoredTabs(latest.current)
+      latest.current = change(shared())
+      setShownTabs(latest.current)
+      try {
+        localStorage.setItem(tabsKey, JSON.stringify(latest.current))
+        unwritten.current = false
+      } catch {
+        // storage can be unavailable (private mode, embedded frames)
+        unwritten.current = true
+      }
     },
-    [setStoredTabs],
+    [shared, tabsKey],
   )
   const ensureTabStored = useCallback((key: string) => {
-    const stored = JSON.parse(localStorage.getItem(tabsKey) ?? 'null') as Tabs | null
-    if (stored?.open.some((tab) => tab.key === key)) return
+    if (keptTabs(tabsKey)?.open.some((tab) => tab.key === key)) return
     // A failed tab-list write must recover too, or a saved draft is unreachable after reload.
     localStorage.setItem(tabsKey, JSON.stringify(latest.current))
+    unwritten.current = false
   }, [tabsKey])
   // Visit tabs lazily and keep their running queries and results when switching.
   const [visited, setVisited] = useState<string[]>([])
@@ -962,6 +993,25 @@ export function SqlExplore({ active }: { active: boolean }) {
   const pathOf = (tab: Tab | undefined) => `/explore${tab?.handoff ? `?handoff=${tab.handoff}` : ''}`
   /** The handoff remains in the address so a reload retains its return destination. */
   const show = (tab: Tab, replace = false) => void navigate(pathOf(tab), { replace, state: { tab: tab.key } })
+
+  // Another window opened or closed a query: this one follows, and keeps showing its own.
+  const follow = useRef<() => void>(() => undefined)
+  follow.current = () => {
+    const next = shared()
+    if (next === latest.current) return
+    const moved = next.active !== latest.current.active
+    latest.current = next
+    setShownTabs(next)
+    const shown = next.open.find((tab) => tab.key === next.active)
+    if (active && moved) void navigate(pathOf(shown), { replace: true, state: shown ? { tab: shown.key } : undefined })
+  }
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.key === tabsKey) follow.current()
+    }
+    window.addEventListener('storage', sync)
+    return () => window.removeEventListener('storage', sync)
+  }, [tabsKey])
 
   // Incoming SQL starts a tab; returning through navigation restores the active one.
   const handled = useRef('')
