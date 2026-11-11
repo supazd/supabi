@@ -209,7 +209,10 @@ type trail struct {
 	mu         sync.Mutex
 	object     *audit.Object
 	statements []audit.Statement
-	// recorded is set once the handler has recorded the event itself.
+	// recorded is set once the handler has recorded an event. Where the
+	// handler is the one to record the operation, that event is taken to be
+	// it; anywhere else it is one beside the operation's own, such as an MCP
+	// authorization revoked by disabling its account.
 	recorded bool
 }
 
@@ -294,7 +297,7 @@ func (s *Server) recordAudit(next gen.StrictHandlerFunc, operationID string) gen
 			before = s.objectName(ctx, audit.Object{Type: rule.object, ID: rule.from(c, nil)})
 		}
 		response, err := next(ctx, w, r, request)
-		if !t.recorded {
+		if !(rule.handler && t.recorded) {
 			s.recordOperation(ctx, operationID, rule, t, request, response, err, before)
 		}
 		return response, err
