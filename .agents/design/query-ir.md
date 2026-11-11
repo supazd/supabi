@@ -342,6 +342,8 @@ Result:
 
 `meta.durationMs` includes the time of the totals queries.
 
+A value in `rows` is `null`, a boolean, a number or text. A decimal is text, so that it keeps its digits. So is an integer beyond ±(2^53 − 1): a browser reading JSON would round it, and an identifier of nineteen digits would be shown with its last digits changed and match nothing when sent back. The column's `type` is still `integer`. A filter takes an integer value as a number or as such text, so a value picked from a result can be sent back as it came. This is done where a result is shaped (`query.Shape`); the cache and exports keep the integer.
+
 `label` and `format` come from the dataset definition and can be used directly when the frontend renders. For the structure of `format`, see [Dataset model](dataset.md) section 5.5: dimension columns, metric columns and measure columns aggregated by `sum`, `avg`, `min` or `max` carry the format of the field. Columns aggregated by `count` or `count_distinct` do not, because a count has nothing to do with the unit of the original field. A column produced by aggregation also carries `agg` (such as `"agg": "avg"`). The column of a metric and a column given a `label` in the query do not. Its `label` is still the name of the field, and the frontend writes the aggregation into the name according to the UI language, for example "Average (Order amount)".
 
 A dimension column grouped by a grain carries `grain`, and so does a dimension column in totals, and the frontend uses it to decide to which level a date is written ([Dataset model](dataset.md) section 5.5). A column without a grain does not carry it, including a date truncated by an expression.

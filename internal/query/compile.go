@@ -966,8 +966,15 @@ func (c *compiler) literal(v any, t datasource.Type, asInstant bool) (any, error
 			return b, nil
 		}
 	case datasource.Integer:
-		if f, ok := v.(float64); ok && f == math.Trunc(f) && math.Abs(f) < 1<<53 {
-			return int64(f), nil
+		switch x := v.(type) {
+		case float64:
+			if x == math.Trunc(x) && math.Abs(x) < 1<<53 {
+				return int64(x), nil
+			}
+		case string: // an integer too large for a JSON number, as results give it
+			if n, err := strconv.ParseInt(x, 10, 64); err == nil {
+				return n, nil
+			}
 		}
 	case datasource.Decimal, datasource.Float:
 		switch x := v.(type) {
