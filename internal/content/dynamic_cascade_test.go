@@ -353,3 +353,58 @@ func TestDynamicRunningTotal(t *testing.T) {
 		t.Fatal("resolving changed the chart")
 	}
 }
+
+// What a table says about a column by its alias holds while the column is
+// there: a dynamic dimension left empty takes its width, alignment, format,
+// rules, sort and place in a group out of what is shown, and the chart keeps
+// them for when the dimension is back. See .agents/design/chart-dashboard.md 2.4.
+func TestAnEmptiedDynamicDimensionTakesItsColumnSettingsAlong(t *testing.T) {
+	dynamics := func(option string) string {
+		return `"dynamics":[{"id":"group","kind":"dimension","label":"Group","alias":"category","allowEmpty":true,"options":[` + option + `]}]`
+	}
+	const month, amount = `{"id":"month","field":"created","grain":"month"}`, `{"id":"amount","field":"amount"}`
+	chart := chartSpec(t, `{"specVersion":1,"query":{"version":1,"dataset":"d","dimensions":[{"field":"region"},{"field":"created","grain":"month","alias":"category"}],"measures":[{"field":"revenue","agg":"sum","alias":"value"}],"sort":[{"by":"category"},{"by":"value","desc":true}]},"viz":{"type":"table","formats":{"category":{"date":"slash"},"value":{"decimals":1}},"columnGroups":[{"label":"Where and when","columns":["region",{"label":"When","columns":["category"]}]}],"style":{"widths":{"category":120,"value":90},"columnAlign":{"category":"center","region":"left"}}},`+dynamics(month)+`}`)
+	if err := chart.Validate(orders, dialect.Postgres{}); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := chart.ResolveDynamics(map[string]string{"group": ""})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, kept := resolved.Viz.Formats["category"]; kept || len(resolved.Viz.Formats) != 1 {
+		t.Errorf("formats: %v", resolved.Viz.Formats)
+	}
+	if style := resolved.Viz.Style; !reflect.DeepEqual(style.Widths, map[string]int{"value": 90}) || !reflect.DeepEqual(style.ColumnAlign, map[string]string{"region": "left"}) {
+		t.Errorf("style: widths %v, alignment %v", style.Widths, style.ColumnAlign)
+	}
+	// The group left without a column goes; the one around it keeps the other.
+	if groups := resolved.Viz.ColumnGroups; len(groups) != 1 || len(groups[0].Columns) != 1 || !reflect.DeepEqual(groups[0].leaves(), []string{"region"}) {
+		t.Errorf("column groups: %+v", groups)
+	}
+	if !reflect.DeepEqual(resolved.Query.Sort, []query.Sort{{By: "value", Desc: true}}) {
+		t.Errorf("sort: %+v", resolved.Query.Sort)
+	}
+	// The chart itself is as it was saved.
+	if chart.Viz.Style.Widths["category"] != 120 || chart.Viz.Style.ColumnAlign["category"] != "center" || len(chart.Viz.Formats) != 2 || len(chart.Viz.ColumnGroups[0].leaves()) != 2 || len(chart.Query.Sort) != 2 {
+		t.Errorf("resolving changed the chart: %+v, sort %v", chart.Viz, chart.Query.Sort)
+	}
+
+	// Rules shade numbers, so they are on a dimension that is one.
+	shaded := chartSpec(t, `{"specVersion":1,"query":{"version":1,"dataset":"d","dimensions":[{"field":"region"},{"field":"amount","alias":"category"}],"measures":[{"field":"revenue","agg":"sum","alias":"value"}]},"viz":{"type":"table","style":{"highlights":{"category":[{"op":"gt","value":1,"color":"red"}],"value":[{"op":"gt","value":1,"color":"red"}]}}},`+dynamics(amount)+`}`)
+	if err := shaded.Validate(orders, dialect.Postgres{}); err != nil {
+		t.Fatal(err)
+	}
+	if resolved, err = shaded.ResolveDynamics(map[string]string{"group": ""}); err != nil || len(resolved.Viz.Style.Highlights) != 1 || len(resolved.Viz.Style.Highlights["value"]) != 1 || len(shaded.Viz.Style.Highlights) != 2 {
+		t.Fatalf("rules: %+v %v", resolved.Viz.Style, err)
+	}
+
+	// A chart shown as a table for want of the dimension keeps the formats of
+	// the columns that are left only.
+	bar := chartSpec(t, `{"specVersion":1,"query":{"version":1,"dataset":"d","dimensions":[{"field":"created","grain":"month","alias":"category"}],"measures":[{"field":"revenue","agg":"sum","alias":"value"}]},"viz":{"type":"bar","x":"category","y":["value"],"formats":{"category":{"date":"slash"},"value":{"decimals":1}}},`+dynamics(month)+`}`)
+	if err := bar.Validate(orders, dialect.Postgres{}); err != nil {
+		t.Fatal(err)
+	}
+	if resolved, err = bar.ResolveDynamics(map[string]string{"group": ""}); err != nil || resolved.Viz.Type != Table || len(resolved.Viz.Formats) != 1 {
+		t.Fatalf("bar chart without its dimension: %+v %v", resolved.Viz, err)
+	}
+}

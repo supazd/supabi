@@ -1,6 +1,7 @@
 package content
 
 import (
+	"maps"
 	"slices"
 	"strings"
 
@@ -138,14 +139,71 @@ func (s *ChartSpec) ResolveDynamics(selections map[string]string) (ChartSpec, er
 			}
 		}
 	}
-	if removedDimension && len(s.Viz.HiddenColumns) > 0 {
-		// Only removed dimensions lose their presentation setting; measures and
-		// the remaining dimensions keep their stable output aliases.
-		out.Viz.HiddenColumns = slices.DeleteFunc(slices.Clone(s.Viz.HiddenColumns), func(name string) bool {
+	if removedDimension {
+		// Only removed dimensions lose what is said of them by their alias;
+		// measures and the remaining dimensions keep their stable output
+		// aliases. The saved chart keeps it all for when they are back. See
+		// .agents/design/chart-dashboard.md 2.4.
+		gone := func(name string) bool {
 			return slices.ContainsFunc(s.Query.Dimensions, func(d query.Dimension) bool { return dimensionName(d) == name }) && !has(name)
-		})
+		}
+		out.Query.Sort = slices.DeleteFunc(slices.Clone(out.Query.Sort), func(sort query.Sort) bool { return gone(sort.By) })
+		out.Viz.dropColumns(gone)
 	}
 	return out, nil
+}
+
+// dropColumns takes out of v what it says of the columns that are gone by
+// their names: whether they are hidden, their formats, their place in a
+// group, and their widths, alignment and rules. What v was copied from is
+// left as it was.
+func (v *Viz) dropColumns(gone func(name string) bool) {
+	v.HiddenColumns = slices.DeleteFunc(slices.Clone(v.HiddenColumns), gone)
+	v.Formats = withoutColumns(v.Formats, gone)
+	v.ColumnGroups = groupsWithout(v.ColumnGroups, gone)
+	if v.Style != nil {
+		style := *v.Style
+		style.Widths = withoutColumns(style.Widths, gone)
+		style.ColumnAlign = withoutColumns(style.ColumnAlign, gone)
+		style.Highlights = withoutColumns(style.Highlights, gone)
+		v.Style = &style
+	}
+}
+
+// withoutColumns is what byColumn says of the columns that are left.
+func withoutColumns[V any](byColumn map[string]V, gone func(name string) bool) map[string]V {
+	if byColumn == nil {
+		return nil
+	}
+	out := maps.Clone(byColumn)
+	maps.DeleteFunc(out, func(name string, _ V) bool { return gone(name) })
+	return out
+}
+
+// groupsWithout is the column groups over the columns that are left; a group
+// left with none goes with them.
+func groupsWithout(groups []ColumnGroup, gone func(name string) bool) []ColumnGroup {
+	var out []ColumnGroup
+	for _, group := range groups {
+		var items []ColumnGroupItem
+		for _, item := range group.Columns {
+			switch {
+			case item.Group == nil:
+				if !gone(item.Column) {
+					items = append(items, item)
+				}
+			default:
+				if inner := groupsWithout([]ColumnGroup{*item.Group}, gone); len(inner) > 0 {
+					items = append(items, ColumnGroupItem{Group: &inner[0]})
+				}
+			}
+		}
+		if len(items) > 0 {
+			group.Columns = items
+			out = append(out, group)
+		}
+	}
+	return out
 }
 
 func (s *ChartSpec) validateDynamics(ds *dataset.Spec, d dialect.Dialect) error {
