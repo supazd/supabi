@@ -107,7 +107,7 @@ When a single message is by itself longer than the usable context, it is not sen
 - The user's messages are shown as plain text, keeping line breaks.
 - Answers are shown as Markdown, using the AI assistant's own component and not reusing the code of the dashboard "Text" widget: the text widget will change later, and the AI side will also add features as needed, so the two evolve separately.
 - The requirement for the first step is that rendering works while streaming: a code block, table or list that is half written does not break or flicker. Rendering uses react-markdown and remark-gfm (tables, strikethrough and other GitHub syntax). While an answer is being written, remend first closes the unfinished bold, code and links at the end, and then it is rendered. A single tilde is not treated as strikethrough, so "20~25%" is shown as written. Text is merged and refreshed every 50 milliseconds, so even when the model outputs very fast, the view is not redrawn every few characters.
-- Headings, lists, tables, code blocks, links and images are supported; external images are shown as usual, and links open in a new tab. HTML in Markdown is shown as text and is not executed.
+- Headings, lists, tables, code blocks, and links are supported, and links open in a new tab. An image is not loaded: it is shown as a link to it, with its description as the text. The browser would otherwise request an address the answer chose, and since the answer can be steered by text in the data it read ([Charts and dashboards spec](chart-dashboard.md) 3.12 refuses images in dashboard text for a like reason), the address could carry figures out to wherever it points. HTML in Markdown is shown as text and is not executed.
 - When the message list is opened, it stays at the end. While an answer is being written, a reader who is at the end follows it down; a reader who has scrolled up stays where they are, and a "Back to latest" button appears. Sending a message goes back to the end. It uses use-stick-to-bottom.
 - These interface components (message list, message, Markdown, input box) are in `Chat.tsx` of the component package `packages/ui`, and the AI assistant page imports only from the component package; see [Architecture overview](architecture.md) 11.2. We do not use AI Elements from the shadcn ecosystem; the reason and when to re-evaluate are in [Deferred items](../backlog.md).
 
@@ -193,7 +193,7 @@ Endpoints:
 - Tools and sources (third step); the usage page (second step); memory and referring to past conversations (fourth step).
 - Users choosing the model themselves: never.
 - The Anthropic protocol: added as the next protocol.
-- Safety limits on answer content (such as external images): considered later.
+- Other safety limits on answer content: considered later. Images are no longer loaded, see 4.5.
 - Showing the thinking process, a configurable system prompt, uploading files and images, editing a sent message, regenerating a successful answer, sharing and exporting conversations.
 
 ## 12. Third step: tools
