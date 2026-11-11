@@ -77,6 +77,23 @@ const declare = (drafts: ParamDraft[]): SqlParam[] => drafts.map((draft) => toPa
 /** What a tab holds, as one text: two tabs hold the same when these are equal. */
 const snapshot = (datasourceId: string, sql: string, params: SqlParam[]) => canonicalJSON([datasourceId, sql, params])
 
+/**
+ * Whether what is kept of a query holds unsaved work, by the rule its tab applies once it is
+ * shown: a tab not shown since the page loaded has reported nothing of itself.
+ */
+function keptDirty(key: string, forDataset: boolean): boolean {
+  try {
+    const stored = localStorage.getItem(key)
+    // With nothing kept, the tab shows what it was opened with.
+    if (!stored) return false
+    const kept = JSON.parse(stored) as Draft & { applied?: string }
+    if (!forDataset) return kept.sql.trim() !== ''
+    return kept.applied === undefined || snapshot(kept.datasourceId, kept.sql, kept.params ?? []) !== canonicalJSON(JSON.parse(kept.applied))
+  } catch {
+    return false
+  }
+}
+
 /** Orders two cells of a result: numbers by size, the rest as text, and nothing after everything. */
 function compareCells(a: unknown, b: unknown): number {
   if (a === null || a === undefined) return b === null || b === undefined ? 0 : 1
@@ -1034,6 +1051,7 @@ export function SqlExplore({ active }: { active: boolean }) {
         {tabs.open.map((tab) => {
           const showing = tab.key === tabs.active
           const about = meta[tab.key]
+          const dirty = about ? about.dirty : keptDirty(draftKey(tab.key), Boolean(tab.handoff))
           return (
             <div key={tab.key} className={showing ? 'sql-tab active' : 'sql-tab'}>
               <button type="button" role="tab" aria-selected={showing} className="sql-tab-name" title={nameOf(tab)} onClick={() => show(tab)}>
@@ -1041,7 +1059,7 @@ export function SqlExplore({ active }: { active: boolean }) {
                 <span>{nameOf(tab)}</span>
               </button>
               {/* Where the mark of unsaved work is, pointing at it offers to close. */}
-              <button type="button" className={about?.dirty ? 'wb-icon-button sql-tab-close dirty' : 'wb-icon-button sql-tab-close'} aria-label={`${t('workbench.closeTab')} ${nameOf(tab)}`} onClick={() => (about?.dirty ? setClosing(tab) : close(tab))}>
+              <button type="button" className={dirty ? 'wb-icon-button sql-tab-close dirty' : 'wb-icon-button sql-tab-close'} aria-label={`${t('workbench.closeTab')} ${nameOf(tab)}`} onClick={() => (dirty ? setClosing(tab) : close(tab))}>
                 <Icon name="close" size={12} />
               </button>
             </div>

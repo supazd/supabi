@@ -522,6 +522,33 @@ describe('data exploration', () => {
     expect((await ready()).value).toBe('')
   })
 
+  it('asks before closing a query with SQL that has not been shown since the page was reloaded', async () => {
+    let page = render(open('/explore'))
+    fireEvent.change(await ready(), { target: { value: 'SELECT first' } })
+    fireEvent.click(screen.getByRole('button', { name: 'New query' }))
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: 'New query' }))
+    fireEvent.change(await ready(), { target: { value: 'SELECT third' } })
+    page.unmount()
+    page = render(open('/explore'))
+    expect((await ready()).value).toBe('SELECT third')
+
+    // The first query has not been shown, and is known to hold SQL from what is kept of it.
+    const closeFirst = screen.getByRole('button', { name: 'Close Query 1' })
+    expect(closeFirst.className).toContain('dirty')
+    fireEvent.click(closeFirst)
+    expect(await screen.findByRole('dialog', { name: 'Close "Query 1"?' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    fireEvent.click(screen.getByRole('tab', { name: 'Query 1' }))
+    expect((await ready()).value).toBe('SELECT first')
+
+    // An empty one closes without asking.
+    fireEvent.click(screen.getByRole('button', { name: 'Close Query 2' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'Query 2' })).toBeNull()
+  })
+
   it('keeps SQL when the original dataset editor is gone and does not create another dataset', async () => {
     const close = openSqlEditor({ sql: 'SELECT 1', datasourceId: 'src' }, { datasetName: 'Orders', onApply: vi.fn() })
     const path = String(vi.mocked(browserTab.location.replace).mock.calls[0]![0])
