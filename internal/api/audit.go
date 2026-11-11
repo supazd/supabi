@@ -489,9 +489,19 @@ func (s *Server) record(ctx context.Context, e audit.Event) {
 
 // recordLogin records a sign-in, failed for the reason given unless it is
 // empty. The account is the one signing in, whoever the browser was before.
+// maxEmailLen is the longest address auth.NormalizeEmail accepts.
+const maxEmailLen = 254
+
 func (s *Server) recordLogin(ctx context.Context, u store.User, reason string) {
 	e := s.event(ctx, "auth.login", audit.Success)
-	e.OrgID, e.ActorID, e.ActorEmail = signInOrg, u.ID, u.Email
+	// A sign-in that failed gives what was typed as the address, by someone
+	// not signed in: kept to the length an address can have, so that neither
+	// the audit log nor the server log can be filled through it.
+	email := u.Email
+	if len(email) > maxEmailLen {
+		email = strings.ToValidUTF8(email[:maxEmailLen], "")
+	}
+	e.OrgID, e.ActorID, e.ActorEmail = signInOrg, u.ID, email
 	if reason != "" {
 		e.Outcome, e.Detail = audit.Failure, map[string]any{"reason": reason}
 	}

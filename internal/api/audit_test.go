@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/supazd/supabi/internal/api/gen"
 	"github.com/supazd/supabi/internal/audit"
@@ -113,6 +114,13 @@ func TestAuditRecordsSignInsChangesAndRefusals(t *testing.T) {
 	}
 	if actor := failed[1]["actor"].(map[string]any); actor["id"] != viewerID || detailOf(failed[1])["reason"] != "wrong_password" {
 		t.Errorf("wrong password = %v", failed[1])
+	}
+
+	// What is typed as the address by someone not signed in is kept short.
+	stranger.expect("POST", "/auth/login", map[string]any{"email": strings.Repeat("长x", 100000), "password": "not-it"}, 401, "invalid_credentials")
+	long := auditEvents(t, f.admin, "?category=auth&outcome=failure")[0]["actor"].(map[string]any)["email"].(string)
+	if len(long) == 0 || len(long) > 254 || !utf8.ValidString(long) {
+		t.Errorf("an overlong address is recorded with %d bytes", len(long))
 	}
 
 	// A refusal by role is recorded with the role it took.

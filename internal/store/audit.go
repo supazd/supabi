@@ -40,12 +40,16 @@ func (a AuditEvents) Record(ctx context.Context, e audit.Event) error {
 	}
 	_, err = a.Pool.Exec(ctx, `INSERT INTO audit_events(id,org_id,occurred_at,workspace_id,actor_id,actor_email,category,action,outcome,object_type,object_id,object_name,detail,client_ip,forwarded_for,user_agent)
  VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
-		id.New("aud"), e.OrgID, e.At, e.WorkspaceID, e.ActorID, e.ActorEmail, category, e.Action, e.Outcome,
+		id.New("aud"), e.OrgID, e.At, e.WorkspaceID, e.ActorID, clip(e.ActorEmail, maxActorEmail), category, e.Action, e.Outcome,
 		e.Object.Type, e.Object.ID, e.Object.Name, raw, clip(e.ClientIP, 100), clip(e.ForwardedFor, 500), clip(e.UserAgent, 500))
 	return err
 }
 
-// clip keeps headers a client controls to a sane length, cut at a character.
+// maxActorEmail is the longest address an account can have. A failed sign-in
+// records what was typed as the address, which may be anything.
+const maxActorEmail = 254
+
+// clip keeps text a client controls to a sane length, cut at a character.
 func clip(s string, n int) string {
 	if len(s) <= n {
 		return s
