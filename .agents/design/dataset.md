@@ -71,7 +71,7 @@ This is the form used in storage and in the API. Its `key` is an internal ID tha
 
 Constraints:
 
-- It must be a single read-only query. Connecting to the data source with a read-only account is the first line of defense; the system itself only does basic checks (a single statement, starting with `SELECT` or `WITH`).
+- It must be a single read-only query. Connecting to the data source with a read-only account is the first line of defense; the system itself only does basic checks (a single statement, starting with `SELECT` or `WITH`). A semicolon inside a string, a quoted name or a comment is text and does not count as ending a statement: data often holds one, looked for with `=` or `LIKE`.
 - The source SQL is written in the data source's own dialect. The system does not parse or translate it, and wraps it whole as a subquery at compile time.
 - The only place that reads the source SQL is lineage: it finds the table names after `FROM` and `JOIN` and uses them to draw which tables the dataset reads on the lineage graph (`internal/sqlrefs`). This is not parsing. If a table cannot be read out, the graph just misses that table, and saving and querying are unaffected.
 - Output column names must be unique.

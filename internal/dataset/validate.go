@@ -152,8 +152,13 @@ func (s *Spec) validateSource() error {
 		if !leadingKeyword.MatchString(sql) {
 			return Errorf("source_not_select", nil, "the source must be a single SELECT statement")
 		}
-		if strings.Contains(sql, ";") {
-			return Errorf("source_multiple_statements", nil, "the source must be a single statement")
+		// Only a semicolon that is SQL ends a statement: in a string, a
+		// quoted name or a comment it is text, and data may well hold one.
+		plain := plainText(sql)
+		for i := 0; i < len(sql); i++ {
+			if sql[i] == ';' && !inside(plain, i) {
+				return Errorf("source_multiple_statements", nil, "the source must be a single statement")
+			}
 		}
 	default:
 		return Errorf("invalid_source", nil, "source type must be sql or table, got %q", s.Source.Type)

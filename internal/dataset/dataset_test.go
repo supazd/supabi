@@ -51,6 +51,8 @@ func TestValidate(t *testing.T) {
 		{"future version", func(s *Spec) { s.SpecVersion = 2 }, "unsupported_spec_version"},
 		{"not a select", func(s *Spec) { s.Source.SQL = "DELETE FROM orders" }, "source_not_select"},
 		{"two statements", func(s *Spec) { s.Source.SQL = "SELECT 1; DROP TABLE orders" }, "source_multiple_statements"},
+		{"two statements after a string", func(s *Spec) { s.Source.SQL = "SELECT 'a;b'; DROP TABLE orders" }, "source_multiple_statements"},
+		{"two statements after a comment", func(s *Spec) { s.Source.SQL = "SELECT 1 -- one\n; DROP TABLE orders" }, "source_multiple_statements"},
 		{"with is allowed", func(s *Spec) { s.Source.SQL = "  WITH x AS (SELECT 1) SELECT * FROM x;" }, ""},
 		{"undeclared param", func(s *Spec) { s.Source.SQL += " AND x = {{other}}" }, "undeclared_param"},
 		{"unclosed placeholder", func(s *Spec) { s.Source.SQL += " AND x = {{start" }, "template_unbalanced"},
@@ -278,5 +280,27 @@ func TestTemplateLeavesTextAlone(t *testing.T) {
 	}, func(string) { whole.WriteString("{{status}}") })
 	if whole.String() != sql {
 		t.Errorf("pieces add up to %q", whole.String())
+	}
+}
+
+// A semicolon that is text ends no statement: data may hold one, and it is
+// then looked for with = or LIKE.
+func TestSemicolonsThatAreText(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT * FROM logs WHERE msg LIKE '%error; retry%'",
+		"SELECT * FROM t WHERE tags = 'a;b;c';",
+		"SELECT 'it''s; fine' AS note",
+		`SELECT "a;b" FROM t`,
+		"SELECT `a;b` FROM t",
+		"SELECT 1 -- first; then more\nFROM t",
+		"SELECT 1 /* a; b */ FROM t",
+		"SELECT * FROM t WHERE a = ';' AND b = ';'  ;  ",
+	} {
+		s := validSpec()
+		s.Source = Source{Type: "sql", SQL: sql}
+		s.Params = nil
+		if err := s.Validate(); err != nil {
+			t.Errorf("%s: %v", sql, err)
+		}
 	}
 }
