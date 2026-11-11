@@ -61,6 +61,7 @@ function PreviewAs({ datasetId, spec, directory, policy }: { datasetId: string; 
             rows={result.result.rows.map((cells) => ({ cells }))}
             rowKey={(_, index) => String(index)}
             pageSize={20}
+            pageKey={result.result}
             empty={t('policy.previewEmpty')}
             columns={result.result.columns.map((column, index) => ({
               key: column.name,
@@ -168,7 +169,7 @@ function PolicyForm({ dataset, initial, directory, attributes, onDirtyChange }: 
         <Button disabled={unfinished} onClick={() => setPreviewing(true)}>{t('policy.previewTitle')}</Button>
         <Button disabled={saving} variant="primary" icon={<Icon name="plus" />} onClick={() => open('row')}>{t('policy.addRule')}</Button>
       </div>
-    <DataTable aria-label={t('policy.title')} rows={rows} rowKey={(row) => `${row.kind}:${row.index}`} pageSize={15}
+    <DataTable aria-label={t('policy.title')} rows={rows} rowKey={(row) => `${row.kind}:${row.index}`} pageSize={15} pageKey={`${kind}:${search}`}
       empty={<div className="policy-empty"><Icon name="dataset" size={30} /><strong>{t(search || kind !== 'all' ? 'policy.noResults' : 'policy.emptyTitle')}</strong>{(search || kind !== 'all') && <p className="note">{t('policy.searchHint')}</p>}</div>}
       columns={[
         { key: 'name', title: t('policy.ruleName'), render: (row) => <div className="policy-rule-name"><strong>{row.name}</strong>{row.invalid && <span className="policy-invalid small">{t('policy.invalidRule')}</span>}</div> },

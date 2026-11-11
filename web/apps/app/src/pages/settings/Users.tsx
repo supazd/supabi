@@ -101,6 +101,7 @@ export function Users() {
             rows={rows.filter((user) => found(search, user.displayName, user.email))}
             rowKey={(row) => row.id}
             pageSize={20}
+            pageKey={search}
             empty={t('common.none')}
             columns={[
               {
