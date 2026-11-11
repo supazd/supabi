@@ -2,6 +2,7 @@ package query
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/supazd/supabi/internal/dataset"
@@ -65,5 +66,39 @@ func Shape(c *Compiled, raw *datasource.Result) *Result {
 		result.Rows = result.Rows[:c.Limit:c.Limit]
 		result.Meta.Truncated = true
 	}
+	result.Rows = exactIntegers(result.Rows)
 	return result
+}
+
+// maxExactInteger is the largest whole number a browser reads from JSON
+// without rounding it: 2^53 - 1.
+const maxExactInteger = 1<<53 - 1
+
+// exactIntegers writes the integers a browser would round as text, as
+// decimals already are: an identifier of nineteen digits would otherwise be
+// shown with its last digits changed, and match nothing when sent back as a
+// filter. The rows given are shared with the cache and are not changed: a
+// row is copied when it has such a value, and so is the list then.
+func exactIntegers(rows [][]any) [][]any {
+	out := rows
+	for i, row := range rows {
+		changed := row
+		for j, v := range row {
+			n, ok := v.(int64)
+			if !ok || n >= -maxExactInteger && n <= maxExactInteger {
+				continue
+			}
+			if &changed[0] == &row[0] {
+				changed = append([]any(nil), row...)
+			}
+			changed[j] = strconv.FormatInt(n, 10)
+		}
+		if len(row) > 0 && &changed[0] != &row[0] {
+			if len(out) > 0 && &out[0] == &rows[0] {
+				out = append([][]any(nil), rows...)
+			}
+			out[i] = changed
+		}
+	}
+	return out
 }
