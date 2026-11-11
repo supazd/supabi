@@ -66,6 +66,9 @@ func (trinoDriver) Open(_ context.Context, cfg datasource.Config) (datasource.Co
 	if port == "" {
 		port = "8080"
 	}
+	if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
+		return nil, fmt.Errorf("trino: the port must be a number from 1 to 65535")
+	}
 	zone := cfg.DataTimezone
 	if zone == "" {
 		zone = "UTC"
@@ -89,7 +92,9 @@ func (trinoDriver) Open(_ context.Context, cfg datasource.Config) (datasource.Co
 		TimeZone: zone,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("trino: invalid connection settings: %w", err)
+		// Not the driver's own error: it quotes the address it could not
+		// read, and the password is part of that address.
+		return nil, fmt.Errorf("trino: invalid connection settings")
 	}
 	db := sql.OpenDB(connector)
 	db.SetMaxOpenConns(10)
