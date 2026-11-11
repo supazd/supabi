@@ -38,6 +38,7 @@ SupaBI serves only HTTP and listens on `127.0.0.1` by default. To serve others, 
 
 - **HTTPS**: pass `X-Forwarded-Proto: https`. The session cookie gets the `Secure` flag only when HTTPS is detected.
 - **Host**: pass the `Host` header as the browser sent it. SupaBI refuses changes whose origin is another host, and names the [MCP](/admin/mcp/) address and its sign-in endpoints after this host and scheme. If the proxy forwards only some paths, include `/mcp`, `/oauth/` and `/.well-known/` besides `/api/`.
+- **Pages**: the sign-in page is at `/login`, and every other page is under `/w/`, followed by its workspace. Someone not signed in is sent to `/login` and returns to the page they opened once signed in.
 - **Streaming**: AI answers are streamed. The proxy must not buffer them, or the text comes out all at the end. SupaBI sends `X-Accel-Buffering: no`, which nginx follows; other proxies need their own setting.
 - **Timeouts**: if you raise the [query timeout](/admin/system/#general-settings), raise the proxy's timeout to match.
 - **Request size**: SupaBI reads request bodies of up to [`http-max-body-size`](/deployment/configuration/#basics), 8 MB by default. Let the proxy accept as much. nginx's `client_max_body_size` is `1m` by default, and a larger request then gets nginx's error page instead of SupaBI's message.

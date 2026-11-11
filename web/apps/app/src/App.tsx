@@ -14,7 +14,8 @@ import { Topbar } from './components/Topbar'
 import { UnsavedChangesProvider, useUnsavedActions } from './components/UnsavedChanges'
 import { saveLocale } from './i18n'
 import { showTitle } from './lib/documentTitle'
-import { addressIn, addressWorkspace, withinWorkspace, workspaceBase } from './lib/workspaceAddress'
+import { entryFor } from './lib/entry'
+import { addressWorkspace, withinWorkspace, workspaceBase } from './lib/workspaceAddress'
 import { Home } from './pages/Home'
 import { NotFound } from './pages/NotFound'
 import { OAuthConsent } from './pages/OAuthConsent'
@@ -212,27 +213,28 @@ export function App() {
 
 function Gate({ controls, ...preferences }: Omit<ShellProps, 'info'> & { controls: ReactNode }) {
   const session = useSession()
-  // An MCP client's consent page stands alone, after signing in if need be.
-  const consent = window.location.pathname.startsWith('/oauth/consent')
-  // An address that names no workspace, such as `/`, an old bookmark or an
-  // old share link, is replaced with the same page in one: the workspace the
-  // link carries, or the one the session last chose.
-  const signedIn = session.state.status === 'ok' && session.state.data.authenticated ? session.state.data : undefined
-  const destination = signedIn && !consent && !addressWorkspace ? addressIn(window.location, signedIn.workspace?.id) : undefined
+  const known = session.state.status === 'ok' ? session.state.data : undefined
+  // Signing in, a workspace and an MCP client's consent each have their own
+  // address; one that is none of them leads to one that is.
+  const entry = known && entryFor({ signedIn: known.authenticated, left: session.left, workspaceId: known.workspace?.id }, window.location, window.location.origin)
+  const destination = entry && 'go' in entry ? entry.go : undefined
   useEffect(() => {
     if (destination) window.location.replace(destination)
   }, [destination])
   if (destination) return null
+  const show = entry && 'show' in entry ? entry.show : 'signIn'
   return (
     <Async state={session.state} reload={session.reload}>
       {(info) =>
-        info.authenticated ? (
-          consent ? <><div className="signin-controls row">{controls}</div><OAuthConsent info={info} /></> : <Shell info={info} {...preferences} />
-        ) : (
+        show === 'signIn' ? (
           <>
             <div className="signin-controls row">{controls}</div>
             <SignIn setup={info.setupRequired} />
           </>
+        ) : show === 'consent' ? (
+          <><div className="signin-controls row">{controls}</div><OAuthConsent info={info} /></>
+        ) : (
+          <Shell info={info} {...preferences} />
         )
       }
     </Async>

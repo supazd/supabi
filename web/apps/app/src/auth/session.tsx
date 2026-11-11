@@ -17,8 +17,10 @@ export function atLeast(role: Role | undefined, min: Role): boolean {
 
 interface SessionContext {
   state: AsyncState<SessionInfo>
-  /** Replaces the session after signing in or out. */
-  set: (info: SessionInfo) => void
+  /** Replaces the session after signing in or out; left says the person signed out themselves. */
+  set: (info: SessionInfo, left?: boolean) => void
+  /** Whether the person has just signed out, rather than their session ending under them. */
+  left: boolean
   reload: () => void
   /** The user's role in the current workspace, if they hold one. */
   role?: Role
@@ -32,6 +34,7 @@ const Context = createContext<SessionContext | null>(null)
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AsyncState<SessionInfo>>({ status: 'loading' })
+  const [left, setLeft] = useState(false)
 
   const reload = useCallback(() => {
     unwrap(api.GET('/auth/session')).then(
@@ -52,12 +55,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return {
       state,
       reload,
-      set: (data) => setState({ status: 'ok', data }),
+      set: (data, signedOut = false) => {
+        setLeft(signedOut)
+        setState({ status: 'ok', data })
+      },
+      left,
       role,
       atLeast: (min) => atLeast(role, min),
       isOrgAdmin: state.status === 'ok' && Boolean(state.data.user?.isOrgAdmin),
     }
-  }, [state, reload])
+  }, [state, reload, left])
 
   return <Context.Provider value={value}>{children}</Context.Provider>
 }

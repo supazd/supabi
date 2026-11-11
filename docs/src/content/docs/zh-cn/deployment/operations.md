@@ -38,6 +38,7 @@ SupaBI 只提供 HTTP，默认监听 `127.0.0.1`。要给其他人使用，设�
 
 - **HTTPS**：传递 `X-Forwarded-Proto: https`。只有检测到 HTTPS 时，会话 Cookie 才带 `Secure` 标记。
 - **Host**：按浏览器发来的原样传递 `Host` 请求头。SupaBI 会拒绝来源是别的主机的修改请求，并按这个主机和协议生成 [MCP](/zh-cn/admin/mcp/) 地址和登录用的端点。代理只转发部分路径时，除了 `/api/`，还要包括 `/mcp`、`/oauth/` 和 `/.well-known/`。
+- **页面**：登录页在 `/login`，其他页面都在 `/w/` 加所在工作空间之下。没登录的人会被送到 `/login`，登录后回到他打开的页面。
 - **流式响应**：AI 回答是流式的。代理不能缓冲它，否则文字会全部堆到最后才出来。SupaBI 会发送 `X-Accel-Buffering: no`，nginx 遵守这个响应头，其他代理需要单独配置。
 - **超时**：调大[查询超时](/zh-cn/admin/system/#通用设置)时，代理的超时也要相应调大。
 - **请求大小**：SupaBI 读取的请求体最大为 [`http-max-body-size`](/zh-cn/deployment/configuration/#基础)，默认 8 MB。代理也要接受这么大的请求。nginx 的 `client_max_body_size` 默认是 `1m`，超过的请求会得到 nginx 的错误页，而不是 SupaBI 的提示。
