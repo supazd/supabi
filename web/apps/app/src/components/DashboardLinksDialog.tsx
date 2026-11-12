@@ -6,6 +6,7 @@ import type { ApiError, Chart } from '../api/client'
 import { isTemporal } from '../api/spec'
 import { useFirstWeekDays } from '../auth/session'
 import type { FilterField } from '../lib/filters'
+import { randomId } from '../lib/id'
 import type { ChartHolder } from '../lib/layout'
 import { linkSources, widgetName, type DashboardLink } from '../lib/links'
 import { ErrorAlert } from './ErrorAlert'
@@ -56,7 +57,7 @@ export function DashboardLinksDialog({ links, items, charts, fields, error, load
   const add = () => {
     const origin = sources[0]
     if (!origin) return
-    const entry: DashboardLink = { id: `link_${crypto.randomUUID().replaceAll('-', '')}`, label: origin.label, source: { item: origin.item, column: origin.column }, targets: [] }
+    const entry: DashboardLink = { id: `link_${randomId().replaceAll('-', '')}`, label: origin.label, source: { item: origin.item, column: origin.column }, targets: [] }
     setDraft((current) => [...current, entry]); select(entry.id)
   }
   const changeSource = (next: Source) => {

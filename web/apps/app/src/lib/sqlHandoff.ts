@@ -1,4 +1,5 @@
 import { ApiError } from '../api/client'
+import { randomId } from './id'
 import type { SqlParam } from './params'
 import { workspaceBase } from './workspaceAddress'
 
@@ -65,7 +66,7 @@ function write(token: string, transfer: Transfer) {
 
 /** Opens SQL while keeping the dataset form mounted, and applies replies to that same form. */
 export function openSqlEditor(handoff: SqlHandoff, options: { datasetName?: string; onApply: (next: SqlHandoff) => void | false }): () => void {
-  const token = crypto.randomUUID()
+  const token = randomId()
   const key = keyOf(token)
   write(token, { handoff, datasetName: options.datasetName, returnTo: token })
   const receive = (event: StorageEvent) => {
@@ -109,7 +110,7 @@ export function returnSqlHandoff(token: string, handoff: SqlHandoff): Promise<bo
   if (read(token)?.returnTo !== token) return Promise.resolve(false)
   return new Promise((resolve) => {
     const key = keyOf(token)
-    const id = crypto.randomUUID()
+    const id = randomId()
     const done = (accepted: boolean) => {
       window.clearTimeout(timer)
       window.removeEventListener('storage', receive)
@@ -136,7 +137,7 @@ export function reserveSqlDestination(): Window | null {
 }
 
 export function openSqlDataset(handoff: SqlHandoff, options: { folderId?: string }, tab: Window) {
-  const token = crypto.randomUUID()
+  const token = randomId()
   write(token, { handoff })
   const search = new URLSearchParams({ handoff: token })
   if (options.folderId) search.set('folder', options.folderId)
