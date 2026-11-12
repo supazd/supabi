@@ -17,6 +17,11 @@ const chartLibrary = {
   message: 'Render charts through @supabi/charts instead.',
 }
 const restrict = (...patterns) => ({ 'no-restricted-imports': ['error', { patterns }] })
+// What exists only on a page served over HTTPS or from localhost fails
+// silently on a server reached over plain HTTP by its address.
+const secureContextOnly = {
+  'no-restricted-properties': ['error', { object: 'crypto', property: 'randomUUID', message: 'It is missing over plain HTTP. Use randomId from lib/id instead.' }],
+}
 
 export default tseslint.config(
   { ignores: ['**/dist/**', '**/node_modules/**'] },
@@ -29,4 +34,5 @@ export default tseslint.config(
   { files: ['apps/**/*.{ts,tsx}'], rules: restrict(componentLibrary, chartLibrary) },
   { files: ['packages/ui/**/*.{ts,tsx}'], rules: restrict(chartLibrary) },
   { files: ['packages/charts/**/*.{ts,tsx}'], rules: restrict(componentLibrary) },
+  { files: ['**/*.{ts,tsx}'], ignores: ['**/*.test.{ts,tsx}'], rules: secureContextOnly },
 )
