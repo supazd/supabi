@@ -365,7 +365,7 @@ export function treemapOption(name: string, tiles: TreemapNode[], column: Result
   const data = tiles.map((tile, at) => ({ ...tile, itemStyle: { color: grouped ? colors[at % colors.length] : colors[0] } }))
   return {
     ...option,
-    // The legend of a treemap names its groups; the series are not separate, so it is drawn by hand.
+    // The legend of a treemap names its groups, which are not series of their own; see the series that stands for them below.
     legend: option.legend ? { ...option.legend, data: tiles.map((tile) => tile.name), selectedMode: false } : undefined,
     tooltip: { trigger: 'item', ...tooltipBox(ink), formatter: (p: { name: string; value: number; marker: string }) => `${p.marker}${html(p.name)}<br/>${html(options.formatValue(p.value, column))}` },
     series: [
@@ -385,6 +385,12 @@ export function treemapOption(name: string, tiles: TreemapNode[], column: Result
         itemStyle: { color: colors[0], borderColor: ink.surface, borderWidth: 2, gapWidth: 2 },
         levels: grouped ? [{ itemStyle: { borderColor: ink.surface, borderWidth: 0, gapWidth: 2 } }, { itemStyle: { borderColor: ink.surface, borderWidth: 1, gapWidth: 1 } }] : undefined,
       },
+      // A legend lists what series give it, and a treemap gives none: its
+      // groups were named in the legend and never drawn there. This series
+      // draws nothing itself and gives the legend each group with its colour.
+      ...(grouped && option.legend
+        ? [{ type: 'pie', radius: 0, silent: true, label: { show: false }, labelLine: { show: false }, tooltip: { show: false }, data: data.map((tile) => ({ name: tile.name, value: 1, itemStyle: tile.itemStyle })) }]
+        : []),
     ],
   }
 }

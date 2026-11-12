@@ -23,3 +23,28 @@ describe('tooltips written here', () => {
     }
   })
 })
+
+describe('a treemap in groups', () => {
+  const plain = { scheme: 'light', texts: {}, formatValue: String, formatAxis: String } as unknown as Parameters<typeof treemapOption>[3]
+  const tiles = [{ name: 'Home', value: 3, children: [{ name: 'Fridge', value: 3 }] }, { name: 'Books', value: 1, children: [{ name: 'Novel', value: 1 }] }]
+  type Drawn = { legend?: { data: string[] }; series: { type: string; radius?: number; data: { name: string; itemStyle: { color: string } }[] }[] }
+
+  it('gives the legend each group in its colour, from a series that draws nothing', () => {
+    const { legend, series } = treemapOption('t', tiles as never, undefined, plain) as unknown as Drawn
+    expect(legend?.data).toEqual(['Home', 'Books'])
+    const [tree, key] = series
+    expect(series).toHaveLength(2)
+    expect(key).toMatchObject({ type: 'pie', radius: 0 })
+    expect(key!.data.map((item) => [item.name, item.itemStyle.color])).toEqual(tree!.data.map((tile) => [tile.name, tile.itemStyle.color]))
+    expect(new Set(key!.data.map((item) => item.itemStyle.color)).size).toBe(2)
+  })
+
+  it('has no legend, and nothing standing for one, without groups or when the legend is turned off', () => {
+    const flat = treemapOption('t', [{ name: 'Fridge', value: 3 }] as never, undefined, plain) as unknown as Drawn
+    expect(flat.legend).toBeUndefined()
+    expect(flat.series).toHaveLength(1)
+    const off = treemapOption('t', tiles as never, undefined, { ...plain, style: { legend: 'none' } } as never) as unknown as Drawn
+    expect(off.legend).toBeUndefined()
+    expect(off.series).toHaveLength(1)
+  })
+})
