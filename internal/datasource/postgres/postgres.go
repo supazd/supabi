@@ -76,6 +76,10 @@ func (driver) Open(ctx context.Context, cfg datasource.Config) (datasource.Conn,
 	// A second line of defence behind the read-only database account.
 	poolCfg.ConnConfig.RuntimeParams["default_transaction_read_only"] = "on"
 	poolCfg.ConnConfig.RuntimeParams["application_name"] = "supabi"
+	// Not the library's own size, which is the number of CPUs of the machine
+	// and no fewer than 4. See .agents/design/query-ir.md §6.9.
+	poolCfg.MaxConns = int32(cfg.PoolSize())
+	poolCfg.MaxConnIdleTime = datasource.ConnMaxIdleTime
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {

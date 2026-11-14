@@ -73,8 +73,7 @@ func (clickhouseDriver) Open(_ context.Context, cfg datasource.Config) (datasour
 		options.TLS = &tls.Config{ServerName: s["host"], MinVersion: tls.VersionTLS12}
 	}
 	db := driver.OpenDB(options)
-	db.SetMaxOpenConns(10)
-	db.SetConnMaxLifetime(30 * time.Minute)
+	datasource.SizePool(db, cfg)
 	return &conn{db: db, loc: loc}, nil
 }
 

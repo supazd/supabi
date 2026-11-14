@@ -18,8 +18,9 @@ type Connections struct {
 	Conns   *datasource.Manager
 }
 
-// MaxConcurrent stays below each driver's pool so waiting is visible and
-// timed.
+// MaxConcurrent is how many statements run on a data source at once. Its pool
+// is sized from this, so a statement only ever waits for a slot, where the
+// wait is visible and timed. See .agents/design/query-ir.md §6.9.
 func MaxConcurrent(d store.Datasource) int {
 	if d.MaxConcurrentQueries != nil {
 		return *d.MaxConcurrentQueries

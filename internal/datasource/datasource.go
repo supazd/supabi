@@ -63,6 +63,10 @@ type Config struct {
 	Password string
 	// DataTimezone is the IANA zone of timestamps stored without one.
 	DataTimezone string
+	// MaxConns is how many connections the pool may open at once. A Manager
+	// sets it from the data source's concurrency limit. Left at zero the pool
+	// has one connection, which is all a connection test needs.
+	MaxConns int
 }
 
 // SettingField describes one connection setting, so that a form for a new

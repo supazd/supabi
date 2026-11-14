@@ -410,7 +410,7 @@ When a candidate involves `HAVING` (including fixed or global result filters), t
 
 ## 6. Caching and concurrency
 
-Status: implemented. The code is in `internal/qcache` (caching and merging), `internal/datasource/limit.go` (concurrency limit) and `internal/api/cache.go` (wiring).
+Status: implemented. The code is in `internal/qcache` (caching and merging), `internal/datasource/limit.go` (concurrency limit), `internal/datasource/pool.go` (the connection pool behind it) and `internal/api/cache.go` (wiring).
 
 ### 6.1 Goals and scope
 
@@ -524,7 +524,8 @@ A result whose estimated size exceeds 8 MB is not cached (there are at most 1000
 
 ### 6.9 Concurrency limit
 
-- Each **data source, on each instance**, runs no more than N statements at the same time, 8 by default, and this can be changed to 1–64 in the data source settings. The default is smaller than the connection pool limit of the driver (10), so that queueing happens in our layer, where it can be timed and rejected, instead of silently waiting in the connection pool.
+- Each **data source, on each instance**, runs no more than N statements at the same time, 8 by default, and this can be changed to 1–64 in the data source settings.
+- **The connection pool follows the limit.** The pool of every driver holds at most N + 2 connections, whatever N is. A statement that has a slot then never waits for a connection, so queueing happens only in our layer, where it can be timed and rejected, instead of silently in the connection pool. The 2 spare connections are for `Ping`, which is not limited. A connection is closed after 5 minutes without use, and there is no separate cap on how many idle connections are kept: with a cap, each load of a dashboard would open again the connections the previous load had just closed. So an instance holds at most N + 2 connections to a data source, and none after 5 minutes without queries. With multiple instances, each has its own pool.
 - The limit wraps around the data source connection, and all statements executed against this data source are limited (the table in section 6.1), that is `Query`, `Describe` and `Tables` of the connection. `Ping` for connection tests is not limited, since otherwise a test would give a false alarm when the data source is busy. Requests that hit the cache or wait on a merge do not take a slot. Changing the concurrency limit reopens the connection pool of this data source.
 - First come, first served. Queueing time counts toward the query timeout (60 seconds by default, [Startup configuration](configuration.md) section 10.7).
 - At most 100 statements queue per data source. Beyond that, `datasource_busy` (503) is returned immediately, and the UI says the data source is busy and to retry later. A timeout while queueing raises `queue_timeout` (504), and a timeout during execution raises `timeout` (504), which makes it easy to tell whether the data source is slow or the queue is long.

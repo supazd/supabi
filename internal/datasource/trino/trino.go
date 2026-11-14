@@ -97,8 +97,7 @@ func (trinoDriver) Open(_ context.Context, cfg datasource.Config) (datasource.Co
 		return nil, fmt.Errorf("trino: invalid connection settings")
 	}
 	db := sql.OpenDB(connector)
-	db.SetMaxOpenConns(10)
-	db.SetConnMaxLifetime(30 * time.Minute)
+	datasource.SizePool(db, cfg)
 	return &conn{db: db, loc: loc, catalog: s["catalog"], schema: s["schema"]}, nil
 }
 
