@@ -110,8 +110,7 @@ func (v variant) Open(_ context.Context, cfg datasource.Config) (datasource.Conn
 		return nil, fmt.Errorf("%s: invalid connection settings", v.name)
 	}
 	db := sql.OpenDB(connector)
-	db.SetMaxOpenConns(10)
-	db.SetConnMaxLifetime(30 * time.Minute)
+	datasource.SizePool(db, cfg)
 	return &conn{db: db, dialect: v.dialect(zone), minMajor: v.minMajor, needsZoneTables: v.needsZoneTables, noTableComments: v.noTableComments}, nil
 }
 

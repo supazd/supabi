@@ -26,9 +26,11 @@ func NewManager() *Manager {
 
 // Get returns the connection for a data source, opening it on first use and
 // reopening it when version or limit differ from those it was opened with. At
-// most limit statements run on it at once. config is only called when a
-// connection has to be opened.
+// most limit statements run on it at once, and its pool has a connection for
+// each of them and SpareConns more. config is only called when a connection
+// has to be opened.
 func (m *Manager) Get(ctx context.Context, id, version, driver string, limit int, config func() (Config, error)) (Conn, error) {
+	limit = max(limit, 1)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if existing, ok := m.conns[id]; ok {
@@ -42,6 +44,7 @@ func (m *Manager) Get(ctx context.Context, id, version, driver string, limit int
 	if err != nil {
 		return nil, err
 	}
+	cfg.MaxConns = limit + SpareConns
 	conn, err := Open(ctx, driver, cfg)
 	if err != nil {
 		return nil, err

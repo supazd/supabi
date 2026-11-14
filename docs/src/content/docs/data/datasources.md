@@ -50,7 +50,7 @@ SupaBI runs only read statements, and asks for a read-only session on the databa
 | **Do not cache** | Always ask the database. Use it for databases whose live data matters |
 | **Custom** | Your own lifetime, from 1 to 1440 minutes |
 
-**Concurrent queries** limits how many queries each instance runs on this data source at once, from 1 to 64, and the rest wait. It is 8 when left empty.
+**Concurrent queries** limits how many queries each instance runs on this data source at once, from 1 to 64, and the rest wait. It is 8 when left empty. An instance opens up to two more connections to the database than this number and closes those that have gone 5 minutes without use, so before raising it, check that the database allows that many connections for every instance you run.
 
 ## The page of a data source
 
