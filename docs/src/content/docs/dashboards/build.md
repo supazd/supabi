@@ -69,7 +69,9 @@ A dashboard can be split into several pages. **Pages** on the left splits it int
 
 ## Save and grant access
 
-**Preview** shows the dashboard as viewers see it. **Save** saves it, and checks the version like any other [save](/data/datasets/#save-conflicts).
+Click **Preview** to see the current draft. Choose **Phone** to check the single-column layout at phone width, or **Desktop** to return to the grid. Switching keeps the current page and filter selections. Click **Exit preview** to continue editing.
+
+**Save** saves the dashboard and checks the version like any other [save](/data/datasets/#save-conflicts).
 
 After the first save, **Access** appears. Viewers see only the dashboards granted to them, so a new dashboard is hidden from them until you choose the users, groups or **Every member** who can see it. Developers and Admins see every dashboard.
 
