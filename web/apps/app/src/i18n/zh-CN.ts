@@ -1467,6 +1467,7 @@ export const zhCN = {
     undoHint: '撤销（⌘ / Ctrl + Z）',
     redoHint: '重做（⌘ / Ctrl + Shift + Z）',
     exitPreview: '退出预览',
+    previewDevice: { label: '预览设备', desktop: '桌面', phone: '手机' },
     linkedCharts: '关联图表',
     removeQueryContainer: '移除查询容器',
     removeQueryContainerConfirm: '确定移除查询容器及全部全局筛选器吗？图表会保留，此操作可撤销。',

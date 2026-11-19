@@ -1454,6 +1454,8 @@ function Editor({ dashboard, available, colorScheme, onCreated }: { dashboard?: 
   const [activeTabs, setActiveTabs] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [previewing, setPreviewing] = useState(false)
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'phone'>('desktop')
+  const phonePreview = previewing && previewDevice === 'phone'
   // Arranged or previewed, the board scrolls in the canvas.
   const canvas = useRef<HTMLDivElement>(null)
   const scrollArea = useArea(useCallback(() => canvas.current, []))
@@ -1873,7 +1875,7 @@ function Editor({ dashboard, available, colorScheme, onCreated }: { dashboard?: 
     // Previewed, as viewed, a page with none of its filters shows no query container, and its room is given back.
     const closed = previewing && page === undefined && pages && kept.length > 0 && !shownFilters.length
     const laid = closed ? dashboardGrid(closeUp(onPage(items, undefined), queryContainer, grid.containerGap), false, undefined, 'auto', grid.columns, grid.containerGap) : gridOf(draft, page)
-    return <GridLayout items={laid} columns={grid.columns} minWidth={gridMinWidth(grid.columns)} rowHeight={grid.rowHeight} unitScale={gridScale} gap={grid.rowGap} columnGap={grid.columnGap} containerGap={grid.containerGap} autoCompact={grid.autoCompact} editable={!previewing} stackBelow={0}
+    return <GridLayout items={laid} columns={grid.columns} minWidth={gridMinWidth(grid.columns)} rowHeight={grid.rowHeight} unitScale={gridScale} gap={grid.rowGap} columnGap={grid.columnGap} containerGap={grid.containerGap} autoCompact={grid.autoCompact} editable={!previewing} stackBelow={phonePreview ? undefined : 0}
       handleSelector=".widget-handle, .chart-slot-body, .query-container, .board-note" cancelSelector=".widget-actions, .widget-handle button, .widget-handle a, .chart-slot-body button, .board-note a, .query-container .global-filter, .query-container .query-submit, .query-container-actions"
       onChange={(next) => setGrid(page, next)} dropType={chartDragType} dropSize={{ w: Math.round(grid.columns / 2), h: defaultChartHeight }}
       dropIntoAttribute="data-drop-into" dropIntoExcept={emptyChartDragType} onDropInto={dropInto}
@@ -1951,6 +1953,7 @@ function Editor({ dashboard, available, colorScheme, onCreated }: { dashboard?: 
           {canManageGrants && dashboard && <Button variant="ghost" disabled={saving} icon={<Icon name="users" />} onClick={() => setGrantsOpen(true)}>{t('dashboard.grants.open')}</Button>}
           <Button variant="ghost" disabled={saving || previewing} aria-label={t('dashboard.pageSettings')} icon={<Icon name="settings" />} onClick={() => { setSelectedId(undefined); setPanel(panel === 'page' ? null : 'page') }}>{t('dashboard.pageSettings')}</Button>
           <span className="dashboard-bar-divider" />
+          {previewing && <Segmented aria-label={t('dashboard.previewDevice.label')} value={previewDevice} onChange={setPreviewDevice} options={(['desktop', 'phone'] as const).map((value) => ({ value, label: t(`dashboard.previewDevice.${value}`), disabled: saving }))} />}
           <Button icon={<Icon name={previewing ? 'edit' : 'eye'} />} disabled={saving || charts.status !== 'ok'} onClick={() => { endGroup(); setPreviewing((current) => !current) }}>{t(previewing ? 'dashboard.exitPreview' : 'dashboard.preview')}</Button>
           <Button variant="primary" type="submit" icon={<Icon name="save" />} loading={saving} disabled={!dirty || !name.trim() || saving}>{saving ? t('common.saving') : t('common.save')}</Button>
         </div>
@@ -1986,7 +1989,7 @@ function Editor({ dashboard, available, colorScheme, onCreated }: { dashboard?: 
             if (previewing) return
             if (!(event.target as HTMLElement).closest('.widget, .board-note, .query-container, .dashboard-filters, .board-page-tabs, button, a, input, .react-resizable-handle')) { setSelectedId(undefined); if (panel === 'widget') setPanel(null) }
           }}>
-            <div className="dashboard-canvas">
+            <div className={`dashboard-canvas${phonePreview ? ' phone-preview' : ''}`}>
               <DashboardLinkChips state={linking} />
               {items.length === 0 && !pages && (previewing ? <p className="note">{t('dashboard.emptyBoard')}</p> : <div className="dashboard-empty-canvas"><span className="dashboard-empty-icon"><Icon name="dashboard" size={32} /></span><h3>{t('dashboard.startBuilding')}</h3><p>{t('dashboard.emptyCanvasHint')}</p><Button icon={<Icon name="plus" />} onClick={() => setPanel('charts')}>{t('dashboard.addChart')}</Button></div>)}
               <ScrollArea value={scrollArea}>

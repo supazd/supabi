@@ -1469,6 +1469,7 @@ export const enUS: Messages = {
     undoHint: 'Undo (⌘ / Ctrl + Z)',
     redoHint: 'Redo (⌘ / Ctrl + Shift + Z)',
     exitPreview: 'Exit preview',
+    previewDevice: { label: 'Preview device', desktop: 'Desktop', phone: 'Phone' },
     linkedCharts: 'Linked charts',
     removeQueryContainer: 'Remove query container',
     removeQueryContainerConfirm: 'Remove the query container and all global filters? Charts will remain. This can be undone.',

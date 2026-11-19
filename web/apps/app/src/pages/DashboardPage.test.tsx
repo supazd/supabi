@@ -3080,6 +3080,40 @@ describe('dashboard pages', () => {
     return router
   }
 
+  it('previews the phone layout in place while keeping the current page, filters, and loaded data', async () => {
+    split()
+    openEditor()
+    const previewButton = await screen.findByRole('button', { name: 'Preview' })
+    expect(screen.queryByRole('radio', { name: 'Phone' })).toBeNull()
+    fireEvent.click(previewButton)
+    const desktop = screen.getByRole('radio', { name: 'Desktop' })
+    const phone = screen.getByRole('radio', { name: 'Phone' })
+    expect(desktop.getAttribute('aria-checked')).toBe('true')
+    expect(server.grid.settings.stackBelow).toBe(0)
+
+    fireEvent.click(page('Channels'))
+    const filter = screen.getByRole<HTMLInputElement>('textbox', { name: 'Global amount' })
+    fireEvent.change(filter, { target: { value: '200' } })
+    const chart = screen.getByRole('article', { name: 'Revenue' })
+    await within(chart).findByText('Chart result')
+    await waitFor(() => expect(previewQueries().at(-1)?.body.filters).toEqual({ amount_global: 200 }))
+    const queryCount = previewQueries().length
+
+    fireEvent.click(phone)
+    expect(phone.getAttribute('aria-checked')).toBe('true')
+    expect(chart.closest('.dashboard-canvas')?.classList.contains('phone-preview')).toBe(true)
+    expect(server.grid.settings.stackBelow).toBeUndefined()
+    expect(page('Channels').getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('article', { name: 'Revenue' })).toBe(chart)
+    expect(filter.value).toBe('200')
+
+    fireEvent.click(desktop)
+    expect(chart.closest('.dashboard-canvas')?.classList.contains('phone-preview')).toBe(false)
+    expect(server.grid.settings.stackBelow).toBe(0)
+    expect(previewQueries()).toHaveLength(queryCount)
+    expect(saveButton().disabled).toBe(true)
+  })
+
   it('shows what is above the tabs on every page, and asks for a page’s charts when it is first opened', async () => {
     split()
     const router = openAt('/dashboards/board')
